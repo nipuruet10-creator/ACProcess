@@ -1,0 +1,470 @@
+﻿<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <title>Comprehensive System Test Suite - Walton AC Process Monthly Report</title>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0b0f19; color: #f8fafc; padding: 30px; }
+    h1 { color: #38bdf8; font-size: 22px; border-bottom: 1px solid #1e293b; padding-bottom: 12px; margin-bottom: 20px; }
+    .suite-card { background: #111827; border: 1px solid #1f2937; border-radius: 8px; padding: 18px; margin-bottom: 16px; }
+    .suite-title { font-size: 16px; font-weight: 700; color: #e2e8f0; margin-bottom: 12px; border-bottom: 1px solid #1f2937; padding-bottom: 6px; }
+    .test-result { padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; font-family: monospace; font-size: 13px; }
+    .test-pass { background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; }
+    .test-fail { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; }
+    .summary-box { font-size: 15px; font-weight: bold; margin-top: 24px; padding: 16px; border-radius: 8px; }
+  </style>
+
+  <!-- External CDNs & Local Bundles -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <script src="../assets/js/xlsx.full.min.js"></script>
+</head>
+<body>
+  <h1>PROCESS DEVELOPMENT MONTHLY REPORT AUTOMATION SYSTEM - VERIFICATION SUITE</h1>
+  <div id="test-output"><div class="summary-box test-pass">
+        TOTAL TESTS: 35 | PASSED: 35 | FAILED: 0 | SUCCESS RATE: 100%
+      </div><div class="suite-card">
+          <div class="suite-title">Test 1</div><div class="test-result test-pass">
+            <span>[PASS] Add one task generates an immutable Task ID</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 2</div><div class="test-result test-pass">
+            <span>[PASS] Confirm exactly one slide appears after sync</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 3</div><div class="test-result test-pass">
+            <span>[PASS] Add second task for same engineer creates distinct Task ID</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 4</div><div class="test-result test-pass">
+            <span>[PASS] Confirm two slides appear (1 Row = 1 Slide Rule)</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 5</div><div class="test-result test-pass">
+            <span>[PASS] Task name updated successfully in workbook</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 6</div><div class="test-result test-pass">
+            <span>[PASS] Task ID remains strictly unchanged after task name modification</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 7</div><div class="test-result test-pass">
+            <span>[PASS] Photo attached to Task ID in photo store</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 8</div><div class="test-result test-pass">
+            <span>[PASS] Photo appears bound to correct slide in active slides</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 9</div><div class="test-result test-pass">
+            <span>[PASS] Task inclusion set to NO</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 10</div><div class="test-result test-pass">
+            <span>[PASS] Excluded task's slide removed from active deck on sync</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 11</div><div class="test-result test-pass">
+            <span>[PASS] 20 tasks added to bulk month</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 12</div><div class="test-result test-pass">
+            <span>[PASS] Confirm exactly 20 individual slides generated for 20 tasks (1 Row = 1 Slide)</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 13</div><div class="test-result test-pass">
+            <span>[PASS] Editable PPTX generator loaded and supports 16:9 layout</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 14</div><div class="test-result test-pass">
+            <span>[PASS] PDF export engine available with vector 16:9 print styling</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 15</div><div class="test-result test-pass">
+            <span>[PASS] HTML export generates standalone single-file presentation with Lexend and 1 Row = 1 Slide</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 16</div><div class="test-result test-pass">
+            <span>[PASS] Running sync multiple times creates 0 duplicate slides (Idempotent)</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Test 17</div><div class="test-result test-pass">
+            <span>[PASS] AI does not fabricate unsupported cost savings or percentages</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Architecture</div><div class="test-result test-pass">
+            <span>[PASS] Lexend is mandated font across SLIDE_THEME</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] Walton Corporate reference colors configured</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] Radial progress gauge SVG component renders correctly</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Walton Red Executive</div><div class="test-result test-pass">
+            <span>[PASS] Generates balanced split title (Charcoal line 1 + Red line 2)</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] Generates 4 impact checklist points and 3 metric trend pills</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] Renders complete Executive Red HTML slide structure</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] PPTX Generator contains native OpenXML Executive Red slide builder</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">AI Task Steps</div><div class="test-result test-pass">
+            <span>[PASS] Generates 4 numbered milestone steps for industrial tasks</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] geminiClient.generateTaskSteps resolves domain-accurate steps</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Sequential Deck</div><div class="test-result test-pass">
+            <span>[PASS] renderDeck compiles exact sequence: Cover + TOC + Dashboard + Tasks + Top 5 Works</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] Slide 1 is Walton Executive Red Cover Slide</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] Slide 2 is Table of Contents / Executive Agenda</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] Slide 3 is Management Dashboard with Monthly Savings &amp; 8 KPIs (Image 1)</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] Slide 4 is 1st Task Entry (1 Row = 1 Slide)</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] Last Slide is Top 5 Works &amp; Projects Summary (Image 2)</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">HTML &amp; Print Deck</div><div class="test-result test-pass">
+            <span>[PASS] HTML includes full print-container with all slides for multi-page vector PDF</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>[PASS] HTML includes interactive slide jump selector and keyboard navigation</span>
+            <span>OK</span>
+          </div></div><div class="suite-card">
+          <div class="suite-title">Export Controller</div><div class="test-result test-pass">
+            <span>[PASS] buildReportPayload enriches report with authentic dashboard &amp; top 5 works data</span>
+            <span>OK</span>
+          </div></div></div>
+
+  <!-- Load Modules in Order -->
+  <script src="../config/app_config.js"></script>
+  <script src="../config/master_lists.js"></script>
+  <script src="../config/slide_theme.js"></script>
+  <script src="../utils/helpers.js"></script>
+  <script src="../database/schema.js"></script>
+  <script src="../database/seed_data.js"></script>
+  <script src="../database/db_adapter.js"></script>
+  <script src="../tasks/excel_sync_service.js"></script>
+  <script src="../tasks/month_workbook_manager.js"></script>
+  <script src="../tasks/task_manager.js"></script>
+  <script src="../tasks/monthly_input_view.js"></script>
+  <script src="../ai/prompt_templates.js"></script>
+  <script src="../ai/ai_cache_manager.js"></script>
+  <script src="../ai/gemini_client.js"></script>
+  <script src="../ai/ai_breakdown_sheet.js"></script>
+  <script src="../ai/ai_breakdown_view.js"></script>
+  <script src="../photos/storage_provider.js"></script>
+  <script src="../photos/photo_manager.js"></script>
+  <script src="../slides/radial_gauge_component.js"></script>
+  <script src="../slides/engineer_grouping.js"></script>
+  <script src="../slides/slide_layout_engine.js"></script>
+  <script src="../tasks/sync_engine.js"></script>
+  <script src="../report/readiness_engine.js"></script>
+  <script src="../report/builder_view.js"></script>
+  <script src="../report/final_editor_view.js"></script>
+  <script src="../dashboard/cost_saving_tracker.js"></script>
+  <script src="../dashboard/bom_tracker.js"></script>
+  <script src="../dashboard/project_tracker.js"></script>
+  <script src="../export/pptx_generator.js"></script>
+  <script src="../export/pdf_generator.js"></script>
+  <script src="../export/html_generator.js"></script>
+  <script src="../history/history_manager.js"></script>
+  <script src="../auth/auth_manager.js"></script>
+  <script src="../audit/audit_logger.js"></script>
+  <script src="../export/export_controller.js"></script>
+
+  <script>
+    const results = [];
+
+    function assert(suite, description, condition, details = "") {
+      results.push({
+        suite,
+        description,
+        passed: Boolean(condition),
+        details: condition ? "OK" : (details || "Assertion failed")
+      });
+    }
+
+    async function runTestSuite() {
+      try {
+        // Setup isolated test instances
+      const testMonth = "TEST-2026";
+      localStorage.removeItem("walton_pd_test_workbooks");
+      localStorage.removeItem("walton_pd_test_breakdown");
+
+      const geminiClient = new GeminiClient();
+      const photoManager = new PhotoManager();
+      const pptxGenerator = new PPTXGenerator();
+
+      const wbMgr = new MonthWorkbookManager("walton_pd_test_workbooks");
+      wbMgr.workbooks[testMonth] = [];
+      const breakdown = new AIBreakdownSheet("walton_pd_test_breakdown");
+      const syncEngine = new SyncEngine(wbMgr, breakdown, geminiClient, photoManager);
+
+      // ----------------------------------------------------
+      // TEST CASE 1 & 2: Add one task -> Confirm one slide
+      // ----------------------------------------------------
+      const t1 = wbMgr.addTask(testMonth, "Sazzad", "Compressor Foil Cutting System", "YES");
+      assert("Test 1", "Add one task generates an immutable Task ID", t1.task_id && t1.task_id.startsWith(`${testMonth}-`), `ID: ${t1.task_id}`);
+
+      let syncRes = await syncEngine.syncMonth(testMonth);
+      assert("Test 2", "Confirm exactly one slide appears after sync", syncRes.active_slides === 1 && syncRes.slides.length === 1, `Slides: ${syncRes.active_slides}`);
+
+      // ----------------------------------------------------
+      // TEST CASE 3 & 4: Add second task -> Confirm second slide
+      // ----------------------------------------------------
+      const t2 = wbMgr.addTask(testMonth, "Sazzad", "Smart QR Scanning System", "YES");
+      assert("Test 3", "Add second task for same engineer creates distinct Task ID", t2.task_id !== t1.task_id, `t1: ${t1.task_id}, t2: ${t2.task_id}`);
+
+      syncRes = await syncEngine.syncMonth(testMonth);
+      assert("Test 4", "Confirm two slides appear (1 Row = 1 Slide Rule)", syncRes.active_slides === 2 && syncRes.slides.length === 2, `Slides: ${syncRes.active_slides}`);
+
+      // ----------------------------------------------------
+      // TEST CASE 5 & 6: Change task name -> Confirm same task_id updates
+      // ----------------------------------------------------
+      const updatedT1 = wbMgr.updateTask(testMonth, t1.task_id, { task_name: "Compressor Foil Cutting Line Automation & Upgrade" });
+      assert("Test 5", "Task name updated successfully in workbook", updatedT1.task_name.includes("Automation"));
+      assert("Test 6", "Task ID remains strictly unchanged after task name modification", updatedT1.task_id === t1.task_id, `Expected: ${t1.task_id}, Got: ${updatedT1.task_id}`);
+
+      // ----------------------------------------------------
+      // TEST CASE 7 & 8: Upload photo later -> Confirm photo appears in slide
+      // ----------------------------------------------------
+      const samplePhoto = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      photoManager.setTaskPhoto(t1.task_id, "before_photo", samplePhoto);
+      syncRes = await syncEngine.syncMonth(testMonth);
+      const slide1 = syncRes.slides.find(s => s.task_id === t1.task_id);
+      assert("Test 7", "Photo attached to Task ID in photo store", photoManager.hasPhoto(t1.task_id));
+      assert("Test 8", "Photo appears bound to correct slide in active slides", slide1 && slide1.photo_before === samplePhoto);
+
+      // ----------------------------------------------------
+      // TEST CASE 9 & 10: Remove report inclusion -> Confirm slide disappears on sync
+      // ----------------------------------------------------
+      wbMgr.toggleInclude(testMonth, t2.task_id); // Set t2 to NO
+      const t2State = wbMgr.getTasksForMonth(testMonth).find(t => t.task_id === t2.task_id);
+      assert("Test 9", "Task inclusion set to NO", t2State.include_in_report === "NO");
+
+      syncRes = await syncEngine.syncMonth(testMonth);
+      assert("Test 10", "Excluded task's slide removed from active deck on sync", syncRes.active_slides === 1 && !syncRes.slides.some(s => s.task_id === t2.task_id));
+
+      // ----------------------------------------------------
+      // TEST CASE 11 & 12: Add 20 tasks -> Confirm 20 slides
+      // ----------------------------------------------------
+      const bulkMonth = "BULK-2027";
+      wbMgr.workbooks[bulkMonth] = [];
+      for (let i = 1; i <= 20; i++) {
+        wbMgr.addTask(bulkMonth, "Rafi", `Process Engineering Task #${i} for Tooling Section`, "YES");
+      }
+      assert("Test 11", "20 tasks added to bulk month", wbMgr.getTasksForMonth(bulkMonth).length === 20);
+
+      const bulkSync = await syncEngine.syncMonth(bulkMonth);
+      assert("Test 12", "Confirm exactly 20 individual slides generated for 20 tasks (1 Row = 1 Slide)", bulkSync.active_slides === 20, `Got: ${bulkSync.active_slides}`);
+
+      // ----------------------------------------------------
+      // TEST CASE 13: Check editable PPTX generation
+      // ----------------------------------------------------
+      const testSlideData = SlideLayoutEngine.renderTaskSlide(syncRes.slides[0], 1, 1);
+      assert("Test 13", "Editable PPTX generator loaded and supports 16:9 layout", typeof pptxGenerator !== 'undefined' && pptxGenerator.generatePresentation);
+
+      // ----------------------------------------------------
+      // TEST CASE 14: Check PDF export structure
+      // ----------------------------------------------------
+      assert("Test 14", "PDF export engine available with vector 16:9 print styling", typeof PDFReportGenerator !== 'undefined' && PDFReportGenerator.generatePDF);
+
+      // ----------------------------------------------------
+      // TEST CASE 15: Check HTML export structure
+      // ----------------------------------------------------
+      const htmlOutput = HTMLReportGenerator.generateStandaloneHTML({ month: testMonth, slides: syncRes.slides });
+      assert("Test 15", "HTML export generates standalone single-file presentation with Lexend and 1 Row = 1 Slide", htmlOutput.includes("Lexend") && htmlOutput.includes("1 ROW = 1 SLIDE"));
+
+      // ----------------------------------------------------
+      // TEST CASE 16: Repeated sync idempotency
+      // ----------------------------------------------------
+      const syncRun1 = await syncEngine.syncMonth(testMonth);
+      const syncRun2 = await syncEngine.syncMonth(testMonth);
+      assert("Test 16", "Running sync multiple times creates 0 duplicate slides (Idempotent)", syncRun1.active_slides === syncRun2.active_slides && syncRun2.added === 0 && syncRun2.updated === 0);
+
+      // ----------------------------------------------------
+      // TEST CASE 17: AI Zero Hallucination Guarantee
+      // ----------------------------------------------------
+      const transformed = geminiClient.templates.localFactualTransform({
+        task_name: "New Die Development",
+        engineer: "Kamrul"
+      });
+      const hasFabricatedPercentage = /25%|40%|50%|80%/.test(transformed.ai_description);
+      const hasFabricatedCost = /BDT \d+|USD \d+|\$\d+/.test(transformed.ai_description);
+      assert("Test 17", "AI does not fabricate unsupported cost savings or percentages", !hasFabricatedPercentage && !hasFabricatedCost, `Desc: "${transformed.ai_description}"`);
+
+      // ----------------------------------------------------
+      // ADDITIONAL ARCHITECTURAL ASSERTIONS
+      // ----------------------------------------------------
+      assert("Architecture", "Lexend is mandated font across SLIDE_THEME", SLIDE_THEME.TYPOGRAPHY.FONT_FAMILY === "Lexend");
+      assert("Architecture", "Walton Corporate reference colors configured", SLIDE_THEME.COLORS.NAVY_PRIMARY === "#0B2038" && SLIDE_THEME.COLORS.ORANGE_ACCENT === "#FF6B00");
+      assert("Architecture", "Radial progress gauge SVG component renders correctly", RadialGaugeComponent.renderSVG(100, "Completed").includes("100%"));
+
+      // ----------------------------------------------------
+      // WALTON EXECUTIVE RED MASTER SLIDE ASSERTIONS (media_1789014742407.jpg)
+      // ----------------------------------------------------
+      const redTransformed = geminiClient.templates.localFactualTransform({
+        task_name: "Compressor Jacket Foil Cutting System Development",
+        engineer: "Engr. Sazzad (50463)"
+      });
+      assert("Walton Red Executive", "Generates balanced split title (Charcoal line 1 + Red line 2)", 
+        redTransformed.split_title_1.length > 0 && redTransformed.split_title_2.length > 0, 
+        `L1: "${redTransformed.split_title_1}" | L2: "${redTransformed.split_title_2}"`);
+
+      assert("Walton Red Executive", "Generates 4 impact checklist points and 3 metric trend pills", 
+        redTransformed.ai_impact.length === 4 && redTransformed.metrics.length === 3 && redTransformed.quote.length > 0,
+        `Impacts: ${redTransformed.ai_impact.length}, Metrics: ${redTransformed.metrics.length}`);
+
+      const execRedHtml = SlideLayoutEngine.renderTaskSlide({
+        task_name: "Compressor Jacket Foil Cutting System Development",
+        engineer: "Engr. Sazzad (50463)",
+        split_title_1: redTransformed.split_title_1,
+        split_title_2: redTransformed.split_title_2,
+        description: redTransformed.ai_description,
+        impact: redTransformed.ai_impact,
+        metrics: redTransformed.metrics,
+        quote: redTransformed.quote,
+        month: "SEPTEMBER 2026"
+      }, 1, 1);
+
+      assert("Walton Red Executive", "Renders complete Executive Red HTML slide structure", 
+        execRedHtml.includes("walton-red-executive") && 
+        execRedHtml.includes("PROCESS IMPROVEMENT PROJECT") && 
+        execRedHtml.includes("Project Overview") && 
+        execRedHtml.includes("Key Impact") && 
+        execRedHtml.includes("Stronger Together") && 
+        execRedHtml.includes("SEPTEMBER 2026"));
+
+      assert("Walton Red Executive", "PPTX Generator contains native OpenXML Executive Red slide builder", 
+        typeof pptxGenerator._addExecutiveRedTaskSlide === 'function');
+
+      // ----------------------------------------------------
+      // AI TASK DETAILS GENERATION ASSERTIONS
+      // ----------------------------------------------------
+      const foilSteps = PROMPT_TEMPLATES.generateEngineeringSteps("Compressor Jacket Foil Cutting System", "Major Developments");
+      assert("AI Task Steps", "Generates 4 numbered milestone steps for industrial tasks",
+        foilSteps.includes("1.") && foilSteps.includes("2.") && foilSteps.includes("3.") && foilSteps.includes("4."),
+        `Generated: "${foilSteps}"`);
+
+      const qrSteps = await geminiClient.generateTaskSteps("Smart QR Scanning System", "Automation");
+      assert("AI Task Steps", "geminiClient.generateTaskSteps resolves domain-accurate steps",
+        qrSteps.includes("1.") && qrSteps.toLowerCase().includes("qr"),
+        `Generated: "${qrSteps}"`);
+
+      // ----------------------------------------------------
+      // COMPLETE 5-SECTION DECK SEQUENCE (Cover -> TOC -> Dashboard -> Tasks -> Top 5 Works)
+      // ----------------------------------------------------
+      const testDeckPayload = {
+        month: testMonth,
+        slides: syncRes.slides
+      };
+      const generatedDeck = SlideLayoutEngine.renderDeck(testDeckPayload);
+      assert("Sequential Deck", "renderDeck compiles exact sequence: Cover + TOC + Dashboard + Tasks + Top 5 Works",
+        generatedDeck.length === syncRes.slides.length + 4,
+        `Expected: ${syncRes.slides.length + 4}, Got: ${generatedDeck.length}`);
+
+      assert("Sequential Deck", "Slide 1 is Walton Executive Red Cover Slide",
+        generatedDeck[0].includes("walton-executive-cover") && generatedDeck[0].includes("MONTHLY REPORT"));
+
+      assert("Sequential Deck", "Slide 2 is Table of Contents / Executive Agenda",
+        generatedDeck[1].includes("walton-toc-slide") && generatedDeck[1].includes("EXECUTIVE AGENDA"));
+
+      assert("Sequential Deck", "Slide 3 is Management Dashboard with Monthly Savings & 8 KPIs (Image 1)",
+        generatedDeck[2].includes("walton-dashboard-slide") && generatedDeck[2].includes("AC Product Dashboard") && generatedDeck[2].includes("Process Developed"));
+
+      assert("Sequential Deck", "Slide 4 is 1st Task Entry (1 Row = 1 Slide)",
+        generatedDeck[3].includes("walton-red-executive") && generatedDeck[3].includes("Project Overview"));
+
+      const lastSlideIndex = generatedDeck.length - 1;
+      assert("Sequential Deck", "Last Slide is Top 5 Works & Projects Summary (Image 2)",
+        generatedDeck[lastSlideIndex].includes("walton-top5-slide") && generatedDeck[lastSlideIndex].includes("Top 5 WORKS & PROJECTS"));
+
+      // ----------------------------------------------------
+      // HTML & PDF PRINT COMPLIANCE TEST
+      // ----------------------------------------------------
+      const richHtmlOutput = HTMLReportGenerator.generateStandaloneHTML(testDeckPayload);
+      assert("HTML & Print Deck", "HTML includes full print-container with all slides for multi-page vector PDF",
+        richHtmlOutput.includes('id="print-container"') && richHtmlOutput.includes('print-page') && richHtmlOutput.includes('@page'));
+
+      assert("HTML & Print Deck", "HTML includes interactive slide jump selector and keyboard navigation",
+        richHtmlOutput.includes('slide-jump-select') && richHtmlOutput.includes('toggleFullScreen'));
+
+      // ----------------------------------------------------
+      // EXPORT CONTROLLER DATA ENRICHMENT TEST
+      // ----------------------------------------------------
+      const payloadResult = await ExportController.buildReportPayload(testMonth);
+      assert("Export Controller", "buildReportPayload enriches report with authentic dashboard & top 5 works data",
+        payloadResult.reportData.dashboardData.kpis.length === 8 &&
+        payloadResult.reportData.topWorksData.completedTop5.length === 5 &&
+        payloadResult.reportData.topWorksData.ongoingTop5.length === 5);
+
+
+      } catch (err) {
+        console.error("Test Suite Runtime Exception:", err);
+        assert("Runtime Exception", `Test suite encountered unexpected error: ${err.message}`, false, err.stack);
+      } finally {
+        // Clean up test storage
+        localStorage.removeItem("walton_pd_test_workbooks");
+        localStorage.removeItem("walton_pd_test_breakdown");
+        renderResults();
+      }
+    }
+
+    function renderResults() {
+      const out = document.getElementById('test-output');
+      const total = results.length;
+      const passed = results.filter(r => r.passed).length;
+      const failed = total - passed;
+
+      const summaryText = `TOTAL TESTS: ${total} | PASSED: ${passed} | FAILED: ${failed} | SUCCESS RATE: ${Math.round((passed / total) * 100)}%`;
+      console.log(`\n============================================================\n${summaryText}\n============================================================\n`);
+
+      let html = `<div class="summary-box ${failed === 0 ? 'test-pass' : 'test-fail'}">
+        ${summaryText}
+      </div>`;
+
+      // Group by suite
+      const suites = {};
+      results.forEach(r => {
+        if (!suites[r.suite]) suites[r.suite] = [];
+        suites[r.suite].push(r);
+      });
+
+      for (const [sName, sResults] of Object.entries(suites)) {
+        html += `<div class="suite-card">
+          <div class="suite-title">${sName}</div>`;
+        sResults.forEach(r => {
+          html += `<div class="test-result ${r.passed ? 'test-pass' : 'test-fail'}">
+            <span>[${r.passed ? 'PASS' : 'FAIL'}] ${r.description}</span>
+            <span>${r.details}</span>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      out.innerHTML = html;
+    }
+
+    // Run immediately
+    runTestSuite();
+  </script>
+
+
+</body></html>

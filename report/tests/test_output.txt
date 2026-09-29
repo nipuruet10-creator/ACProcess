@@ -1,0 +1,253 @@
+[5552:19124:0910/092011.671:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092011.857:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092011.873:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092011.919:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092012.076:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092012.091:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092012.123:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092012.222:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092012.250:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092012.266:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092012.292:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092012.308:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+[5552:19124:0910/092013.904:ERROR:chrome\browser\task_manager\providers\fallback_task_provider.cc:126] Every renderer should have at least one task provided by a primary task provider. If a "Renderer" fallback task is shown, it is a bug. If you have repro steps, please file a new bug and tag it as a dependency of crbug.com/40528867.
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <title>System Test Suite - Process Report Automation System</title>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0b0f19; color: #f8fafc; padding: 30px; }
+    h1 { color: #38bdf8; font-size: 24px; border-bottom: 1px solid #1e293b; padding-bottom: 12px; }
+    .suite-card { background: #111827; border: 1px solid #1f2937; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .suite-title { font-size: 18px; font-weight: 600; color: #e2e8f0; margin-bottom: 15px; }
+    .test-result { padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; font-family: monospace; font-size: 14px; }
+    .test-pass { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; }
+    .test-fail { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; }
+    .summary { font-size: 16px; font-weight: bold; margin-top: 20px; padding: 15px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>PROCESS DEVELOPMENT MONTHLY REPORT AUTOMATION SYSTEM - TEST SUITE</h1>
+  <div id="test-output"><div class="suite-card"><div class="suite-title">Phase 1 Verification</div><div class="test-result test-pass">
+            <span>✔ PASS: Config: APP_CONFIG exists and has version</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Config: Target months include August 2026</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: MasterLists: Engineers list has at least 10 engineers</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: MasterLists: Sazzad (50463) exists in engineers list</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: MasterLists: Rafi (45127) exists in engineers list</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: MasterLists: Categories list has all required Walton sections</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: SlideTheme: Mandated font is Lexend</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: SlideTheme: Layout is 16:9 widescreen</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Helpers: Generates valid task ID format</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Helpers: Formats BDT currency correctly</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Helpers: Parses currency numbers</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Schema: Total fields is exactly 33</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Schema: Creates task with defaults</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Schema: Deterministic readiness flags READY</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Schema: Photo absence flags PHOTO PENDING without invalidating</span>
+            <span>OK</span>
+          </div></div><div class="suite-card"><div class="suite-title">Phase 2 Verification</div><div class="test-result test-pass">
+            <span>✔ PASS: SeedData: SEED_DATA.TASKS loaded with real items</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Database: Adapter initialized tasks in storage</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Database: Filters by month 2026-08 accurately</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Database: Filters by engineer Rafi (45127)</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Database: Saves and retrieves single task</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Database: Updates task record</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Database: Deletes task record cleanly</span>
+            <span>OK</span>
+          </div><div class="test-result test-pass">
+            <span>✔ PASS: Database: Records audit trail entries</span>
+            <span>OK</span>
+          </div></div><div id="test-summary" class="summary test-pass">
+        Summary: 23 Passed, 0 Failed. Phase 1 &amp; 2 requirements met: YES.
+      </div></div>
+
+  <!-- Load Modules -->
+  <script src="../config/app_config.js"></script>
+  <script src="../config/master_lists.js"></script>
+  <script src="../config/slide_theme.js"></script>
+  <script src="../utils/helpers.js"></script>
+  <script src="../database/schema.js"></script>
+  <script src="../database/seed_data.js"></script>
+  <script src="../database/db_adapter.js"></script>
+
+  <script>
+    const results = [];
+
+    function assert(suite, description, condition, details = "") {
+      results.push({
+        suite,
+        description,
+        passed: Boolean(condition),
+        details: condition ? "OK" : (details || "Assertion failed")
+      });
+    }
+
+    async function runAllTests() {
+      // ----------------------------------------------------
+      // PHASE 1: Architecture & Schema
+      // ----------------------------------------------------
+      assert("Phase 1", "Config: APP_CONFIG exists and has version", typeof APP_CONFIG !== 'undefined' && APP_CONFIG.VERSION === '1.0.0');
+      assert("Phase 1", "Config: Target months include August 2026", APP_CONFIG.SUPPORTED_MONTHS.some(m => m.id === '2026-08'));
+      assert("Phase 1", "MasterLists: Engineers list has at least 10 engineers", Array.isArray(MASTER_LISTS.ENGINEERS) && MASTER_LISTS.ENGINEERS.length >= 10);
+      assert("Phase 1", "MasterLists: Sazzad (50463) exists in engineers list", MASTER_LISTS.ENGINEERS.some(e => e.id === '50463' && e.name === 'Sazzad'));
+      assert("Phase 1", "MasterLists: Rafi (45127) exists in engineers list", MASTER_LISTS.ENGINEERS.some(e => e.id === '45127' && e.name === 'Rafi'));
+      assert("Phase 1", "MasterLists: Categories list has all required Walton sections", MASTER_LISTS.CATEGORIES.includes('Major Developments – Process') && MASTER_LISTS.CATEGORIES.includes('BOM Verification'));
+      assert("Phase 1", "SlideTheme: Mandated font is Lexend", SLIDE_THEME.TYPOGRAPHY.FONT_FAMILY === 'Lexend');
+      assert("Phase 1", "SlideTheme: Layout is 16:9 widescreen", SLIDE_THEME.LAYOUT.ASPECT_RATIO === '16:9' && SLIDE_THEME.LAYOUT.SLIDE_WIDTH_INCHES === 13.333);
+      
+      const testId = HELPERS.generateTaskId('2026-08');
+      assert("Phase 1", "Helpers: Generates valid task ID format", /^TSK-202608-\d{4}$/.test(testId), `Got: ${testId}`);
+      assert("Phase 1", "Helpers: Formats BDT currency correctly", HELPERS.formatBDT(2812151) === "৳ 28,12,151", `Got: ${HELPERS.formatBDT(2812151)}`);
+      assert("Phase 1", "Helpers: Parses currency numbers", HELPERS.parseCurrencyNumber("৳ 2,34,200 / Year") === 234200);
+      assert("Phase 1", "Schema: Total fields is exactly 33", TASK_SCHEMA.FIELDS.length === 33, `Found ${TASK_SCHEMA.FIELDS.length} fields`);
+
+      const newTask = TASK_SCHEMA.createTaskRecord({
+        task_name: "Compressor Jacket Foil Cutting Automation",
+        task_details: "Automated the manual foil cutting process with pneumatics.",
+        category: "Major Developments – Process",
+        concern_engineer: "Sazzad (50463)",
+        impact: "Reduced cycle time from 45s to 18s",
+        annual_saving: 250000,
+        monthly_report: "YES"
+      });
+      assert("Phase 1", "Schema: Creates task with defaults", newTask.monthly_report === "YES" && newTask.status === "Ongoing");
+      assert("Phase 1", "Schema: Deterministic readiness flags READY", newTask.report_ready === "READY", `Got: ${newTask.report_ready}`);
+
+      const taskWithPhotoReq = TASK_SCHEMA.createTaskRecord({
+        task_name: "Smart QR Scanning System",
+        task_details: "Installed cameras on conveyer.",
+        category: "Major Developments – Process",
+        concern_engineer: "Rafi (45127)",
+        impact: "Zero scanning errors",
+        photo_required: "YES",
+        monthly_report: "YES"
+      });
+      assert("Phase 1", "Schema: Photo absence flags PHOTO PENDING without invalidating", taskWithPhotoReq.report_ready === "PHOTO PENDING", `Got: ${taskWithPhotoReq.report_ready}`);
+
+      // ----------------------------------------------------
+      // PHASE 2: Database & Seed Data
+      // ----------------------------------------------------
+      assert("Phase 2", "SeedData: SEED_DATA.TASKS loaded with real items", Array.isArray(SEED_DATA.TASKS) && SEED_DATA.TASKS.length >= 80, `Count: ${SEED_DATA.TASKS.length}`);
+      
+      // Initialize DB adapter
+      const initialTasks = await db.init();
+      assert("Phase 2", "Database: Adapter initialized tasks in storage", Array.isArray(initialTasks) && initialTasks.length >= 80, `Count: ${initialTasks.length}`);
+
+      // Filter tests
+      const augTasks = await db.getAllTasks({ month: "2026-08" });
+      assert("Phase 2", "Database: Filters by month 2026-08 accurately", augTasks.length > 0 && augTasks.every(t => t.task_month === "2026-08"));
+
+      const rafiTasks = await db.getAllTasks({ engineer: "Rafi (45127)" });
+      assert("Phase 2", "Database: Filters by engineer Rafi (45127)", rafiTasks.length > 0 && rafiTasks.every(t => t.concern_engineer.includes("Rafi")));
+
+      // Single Source of Truth CRUD
+      const testTask = TASK_SCHEMA.createTaskRecord({
+        task_id: "TSK-TEST-CRUD-01",
+        task_name: "Test Brazing Leak Test Automation",
+        task_details: "Pressure testing rig for evaporator headers.",
+        category: "Major Developments – Process",
+        concern_engineer: "Faiyaz (54634)",
+        monthly_report: "YES",
+        impact: "Leak rate reduced to 0 ppm"
+      });
+      await db.saveTask(testTask, "Test Runner");
+      const fetched = await db.getTaskById("TSK-TEST-CRUD-01");
+      assert("Phase 2", "Database: Saves and retrieves single task", fetched !== null && fetched.task_name === "Test Brazing Leak Test Automation");
+
+      // Update Task
+      fetched.task_name = "Test Brazing Leak Test Automation - Updated";
+      await db.saveTask(fetched, "Test Runner");
+      const updated = await db.getTaskById("TSK-TEST-CRUD-01");
+      assert("Phase 2", "Database: Updates task record", updated.task_name === "Test Brazing Leak Test Automation - Updated");
+
+      // Delete Task
+      const deleted = await db.deleteTask("TSK-TEST-CRUD-01", "Test Runner");
+      const afterDelete = await db.getTaskById("TSK-TEST-CRUD-01");
+      assert("Phase 2", "Database: Deletes task record cleanly", deleted === true && afterDelete === null);
+
+      // Audit Log Verification
+      const auditLogs = HELPERS.storage.get(APP_CONFIG.STORAGE_KEYS.AUDIT, []);
+      assert("Phase 2", "Database: Records audit trail entries", Array.isArray(auditLogs) && auditLogs.length > 0);
+
+      // Render Output
+      renderResults();
+    }
+
+    function renderResults() {
+      const out = document.getElementById('test-output');
+      const suites = {};
+
+      results.forEach(r => {
+        if (!suites[r.suite]) suites[r.suite] = [];
+        suites[r.suite].push(r);
+      });
+
+      let html = '';
+      let totalPass = 0;
+      let totalFail = 0;
+
+      for (const [suiteName, tests] of Object.entries(suites)) {
+        html += `<div class="suite-card"><div class="suite-title">${suiteName} Verification</div>`;
+        tests.forEach(t => {
+          if (t.passed) totalPass++; else totalFail++;
+          html += `<div class="test-result ${t.passed ? 'test-pass' : 'test-fail'}">
+            <span>${t.passed ? '✔ PASS' : '✖ FAIL'}: ${t.description}</span>
+            <span>${t.details}</span>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      const allPassed = totalFail === 0;
+      html += `<div id="test-summary" class="summary ${allPassed ? 'test-pass' : 'test-fail'}">
+        Summary: ${totalPass} Passed, ${totalFail} Failed. Phase 1 & 2 requirements met: ${allPassed ? 'YES' : 'NO'}.
+      </div>`;
+      out.innerHTML = html;
+    }
+
+    window.addEventListener('DOMContentLoaded', runAllTests);
+  </script>
+
+
+</body></html>
+[5552:2204:0910/092014.696:ERROR:chrome\browser\edge_windows_user_activity\windows_user_activity_register.cc:723] hr failed: Invalid window handle. (0x80070578)

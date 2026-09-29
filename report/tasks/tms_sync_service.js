@@ -1,0 +1,1530 @@
+/**
+ * Process Development Monthly Report Automation System
+ * Module: Walton eService TMS Sync Service & Auto-Pilot Engine
+ * Automatically logs in per-employee, creates Direct Tasks, and completes them 100% on Walton TMS
+ * WALTON Hi-Tech Industries PLC
+ */
+
+const TmsSyncService = {
+  RELAY_URL: 'http://127.0.0.1:3138',
+  FALLBACK_RELAY_URLS: ['http://127.0.0.1:3138', 'http://192.168.50.158:3138'],
+  activeRelayUrl: 'http://127.0.0.1:3138',
+  isBridgeRunning: false,
+  _checkingBridge: false,
+
+  /**
+   * Check if local background relay or LAN relay is reachable
+   */
+  async checkBridgeStatus() {
+    const isBrowser = typeof window !== 'undefined';
+    const locOrigin = isBrowser ? window.location.origin : '';
+    const customHost = (typeof localStorage !== 'undefined') ? localStorage.getItem('walton_tms_relay_host') : null;
+    const candidates = [
+      (locOrigin && (locOrigin.includes(':3138') || locOrigin.includes('localhost') || locOrigin.includes('127.0.0.1'))) ? locOrigin : null,
+      customHost,
+      'https://walton-pd-tms.loca.lt',
+      'http://192.168.50.158:3138',
+      'http://127.0.0.1:3138',
+      'http://localhost:3138'
+    ].filter(Boolean);
+
+    for (const url of candidates) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        const res = await fetch(`${url}/status`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.status === 'online') {
+            this.activeRelayUrl = url;
+            this.isBridgeRunning = true;
+            return data;
+          }
+        }
+      } catch (e) {
+        // try next candidate
+      }
+    }
+    this.isBridgeRunning = false;
+    return { status: 'offline', relay: 'stopped' };
+  },
+
+  /**
+   * Format dates for Walton TMS (YYYY-MM-DD 12:00:00)
+   * Requirement 1: Assign date is 7 days before today OR 1st of running month.
+   * Deadline is ALWAYS 1 day after the running date (tomorrow).
+   */
+  getFormattedDates(monthCode) {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    let targetYear = now.getFullYear();
+    let targetMonthNum = now.getMonth() + 1;
+
+    if (monthCode && monthCode.includes('-')) {
+      const parts = monthCode.split('-');
+      const mStr = parts[0].toUpperCase();
+      const yStr = parseInt(parts[1], 10);
+      if (!isNaN(yStr)) targetYear = yStr;
+
+      const mIdx = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"].indexOf(mStr);
+      if (mIdx !== -1) targetMonthNum = mIdx + 1;
+    }
+
+    const isCurrentMonth = (targetYear === now.getFullYear() && targetMonthNum === (now.getMonth() + 1));
+
+    // Deadline: "Deadline always running date er cheye 1 din pore hobe" -> today + 1 day
+    const tomorrow = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000);
+    const deadlineDate = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())} 12:00:00`;
+
+    // Assign Date: "Task Assign date aj theke 7 din age or running month er 1 tarik hobe."
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const firstOfTargetMonth = new Date(targetYear, targetMonthNum - 1, 1, 12, 0, 0);
+
+    let assignDateObj;
+    if (isCurrentMonth) {
+      assignDateObj = (sevenDaysAgo < firstOfTargetMonth) ? firstOfTargetMonth : sevenDaysAgo;
+    } else {
+      assignDateObj = firstOfTargetMonth;
+    }
+
+    const startDate = `${assignDateObj.getFullYear()}-${pad(assignDateObj.getMonth() + 1)}-${pad(assignDateObj.getDate())} 12:00:00`;
+
+    const diffMs = Math.abs(tomorrow.getTime() - assignDateObj.getTime());
+    const totalDays = String(Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24))));
+
+    return { startDate, deadlineDate, totalDays };
+  },
+
+  /**
+   * Generates or finds the next sequential Walton TMS code
+   */
+  getNextTmsCode(month) {
+    let maxCode = 104870;
+    try {
+      if (window.appState && window.appState.workbookMgr) {
+        const tasks = window.appState.workbookMgr.getTasksForMonth(month);
+        tasks.forEach(t => {
+          const match = String(t.tms_task_id || t.status || t.remarks || '').match(/\b(10\d{4})\b/);
+          if (match) {
+            const val = parseInt(match[1], 10);
+            if (val > maxCode) maxCode = val;
+          }
+        });
+      }
+    } catch (e) {}
+    return String(maxCode + 1);
+  },
+
+  /**
+   * Sync a single task to Walton TMS - Opens Confirmation Modal First (Requirement 2)
+   * The user reviews task details & confirms before submitting.
+   * @param {string} month
+   * @param {string} taskId
+   */
+  async syncSingleTask(month, taskId, autoConfirm = false) {
+    if (autoConfirm) {
+      return this.executeTaskSync(month, taskId);
+    }
+    return this.openTmsConfirmModal(month, taskId);
+  },
+
+  /**
+   * Walton TMS Confirmation Modal (Shown BEFORE clicking TMS / submitting)
+   * Displays Task Name, Assigned Engineer, Supervisor, Points, Dates, and editable TMS Password
+   */
+  openTmsConfirmModal(month, taskId) {
+    if (!window.appState || !window.appState.workbookMgr) return;
+    const task = window.appState.workbookMgr.getTask(month, taskId);
+    if (!task) return;
+
+    // Check if task already has a genuine TMS ID
+    const existingTms = this.getTmsInfo(task);
+    if (existingTms && existingTms.tms_task_id && !String(existingTms.tms_task_id).startsWith('MOCK')) {
+      const fullTask = { ...task, ...existingTms };
+      this.updateRowTmsBadgeInPlace(month, taskId, fullTask);
+      if (typeof window !== 'undefined' && typeof document !== 'undefined' && document.body) {
+        this.openTmsActionsMenu(null, month, taskId, existingTms.tms_task_id);
+      }
+      return { success: true, tms_code: existingTms.tms_task_id, tms_link: existingTms.tms_url, status: "Completed" };
+    }
+
+    // Resolve assigned engineer strictly from this row (NO fallback to Sazzad!)
+    const assigneeName = (task.assignee || task.engineer || "").trim();
+    const creds = (typeof MasterDataManager !== 'undefined' && MasterDataManager.getEngineerCredentials)
+      ? MasterDataManager.getEngineerCredentials(assigneeName)
+      : null;
+    
+    const empId = (creds && creds.id) ? creds.id : (assigneeName.match(/\b(\d{4,6})\b/) || [])[1];
+    if (!empId) {
+      alert(`⚠️ Please select an assigned engineer with Employee ID for this task row before submitting to Walton TMS.`);
+      return;
+    }
+
+    // Single clean name and single ID everywhere (Requirement 2A: "Sobar name er pash theke eta single ID dekhao")
+    const cleanNameOnly = ((creds && creds.name) ? creds.name : assigneeName).replace(/\s*\(\d+\).*/g, '').trim();
+    const engFullName = (creds && creds.fullName) ? creds.fullName : cleanNameOnly;
+    const engDisplay = `${cleanNameOnly} (${empId})`;
+    const currentPass = (creds && creds.password) ? creds.password : "Sep@2026";
+    const dates = this.getFormattedDates(month);
+
+    let supId = "44819";
+    let supName = "Kamrul (44819)";
+    if (task.supervisor) {
+      supName = task.supervisor;
+      const sLower = task.supervisor.toLowerCase();
+      if (sLower.includes("50463") || sLower.includes("sazzad")) supId = "50463";
+      else {
+        const supMatch = task.supervisor.match(/\b(\d{4,6})\b/);
+        if (supMatch) supId = supMatch[1];
+      }
+    }
+
+    // Requirement 2B: "Task point deya hoy ni, tobuo 50 dekhasse. So eta accurate point pick korbe. point na thakle setar warning dibe and TMS e deya jabe na."
+    const rawPoint = (task.points !== undefined && task.points !== null && task.points !== "") ? task.points : task.task_point;
+    const points = (rawPoint !== undefined && rawPoint !== null && rawPoint !== "" && !isNaN(parseFloat(rawPoint)))
+      ? parseFloat(rawPoint)
+      : null;
+
+    if (!points || points <= 0) {
+      if (typeof window.showToast === 'function') {
+        window.showToast("⚠️ Task Point Required: এই টাস্কে কোনো পয়েন্ট দেওয়া হয়নি। HOD পয়েন্ট নির্ধারণ না করলে TMS-এ সাবমিট করা যাবে না।", "error");
+      }
+      alert(`⚠️ Task Point Required:\n\nএই টাস্কে কোনো পয়েন্ট (Point) নির্ধারণ করা হয়নি।\nWalton TMS-এ সরাসরি সাবমিট ও ১০০% সম্পন্ন করার জন্য HOD (44819) কর্তৃক পয়েন্ট এন্ট্রি করা আবশ্যক।\n\nঅনুগ্রহ করে প্রথমে রো-এর পয়েন্ট বক্সে সঠিক পয়েন্ট দিন (HOD পাসওয়ার্ড: HOD@2026)।`);
+      return;
+    }
+
+    const category = task.category || "Process development";
+
+    let container = document.getElementById('tms-confirm-modal-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'tms-confirm-modal-container';
+      document.body.appendChild(container);
+    }
+
+    const escape = (str) => (typeof HELPERS !== 'undefined' && HELPERS.escapeHtml) ? HELPERS.escapeHtml(str) : String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    // Requirement 2C: "Jar password milbe na, tar jonno password option rakhio. baki gulo dio."
+    // Open password drawer by default only if password failed before, or if engineer is Anam (52800), or if password is non-default
+    const needsPasswordPrompt = (empId === '52800' || currentPass !== 'Sep@2026' || (typeof localStorage !== 'undefined' && localStorage.getItem('walton_tms_failed_pwd_' + empId) === 'true'));
+
+    container.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md font-sans animate-in fade-in duration-150">
+        <div class="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-7 text-slate-800 animate-in zoom-in-95 duration-150">
+          
+          <!-- Header -->
+          <div class="flex items-center justify-between pb-3.5 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center text-2xl flex-shrink-0 shadow-xs">
+                🏢
+              </div>
+              <div>
+                <h3 class="text-base font-black text-slate-900">Walton TMS Submission Confirmation</h3>
+                <p class="text-xs text-slate-500">Confirm task details before creating &amp; marking 100% complete in Walton TMS.</p>
+              </div>
+            </div>
+            <button onclick="TmsSyncService.closeConfirmModal()" class="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer">✕</button>
+          </div>
+
+          <!-- Body -->
+          <div class="my-4 space-y-3.5 text-xs text-slate-700">
+            
+            <!-- Task Title Banner -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Task Title</span>
+              <div class="font-bold text-slate-900 text-sm leading-snug">${escape(task.task_name)}</div>
+              ${task.task_details ? `<div class="text-[11px] text-slate-500 mt-1 line-clamp-2">${escape(task.task_details)}</div>` : ''}
+            </div>
+
+            <!-- Parameters Grid -->
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div class="bg-blue-50/60 border border-blue-200 rounded-xl p-2.5">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-blue-800 block mb-0.5">Assigned Engineer</span>
+                <div class="font-bold text-slate-900">${escape(engDisplay)}</div>
+                <div class="text-[10px] font-mono text-blue-700 font-bold mt-0.5">Employee ID: ${empId}</div>
+              </div>
+
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Supervisor (HOD)</span>
+                <div class="font-bold text-slate-900">${escape(supName)}</div>
+                <div class="text-[10px] font-mono text-slate-500 mt-0.5">ID: ${supId}</div>
+              </div>
+
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Category &amp; Points</span>
+                <div class="font-semibold text-slate-800 truncate">${escape(category)}</div>
+                <div class="text-[10px] font-mono text-emerald-700 font-bold mt-0.5">⚡ ${points} Points</div>
+              </div>
+
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Timeline (Assign / Deadline)</span>
+                <div class="font-mono text-[11px] text-slate-800 font-semibold">${dates.startDate.slice(0, 10)} ➔ ${dates.deadlineDate.slice(0, 10)}</div>
+                <div class="text-[10px] font-mono text-slate-500 mt-0.5">${dates.totalDays} Days Duration</div>
+              </div>
+            </div>
+
+            <!-- Engineer TMS Password Field (Privacy Guarded, Unlocked Only with Master Password) -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-xs font-bold">
+                    🔒
+                  </span>
+                  <div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Walton TMS Password</span>
+                    <span class="font-mono text-xs font-bold text-slate-800">
+                      ●●●●●●●● (Protected &amp; Ready for TMS Sync)
+                    </span>
+                  </div>
+                </div>
+                <button type="button" onclick="TmsSyncService.openMasterPasswordUnlock('${empId}', '${escape(engFullName)}')"
+                        class="px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-blue-600 hover:text-blue-800 text-xs font-bold transition cursor-pointer">
+                  View / Change Password 🔑
+                </button>
+              </div>
+
+              <!-- Unlocked Password Drawer (Hidden until unlocked with Master Password) -->
+              <div id="tms-password-edit-drawer" class="hidden pt-2 border-t border-slate-200/80 space-y-2">
+                <label for="tms-confirm-password" class="font-bold text-amber-950 flex items-center gap-1.5 text-xs">
+                  <span>🔑</span> <span>Walton TMS Password for ${escape(engFullName)} (${empId})</span>
+                </label>
+                <div class="relative flex items-center">
+                  <input type="password" id="tms-confirm-password" value=""
+                         placeholder="Enter Walton TMS Password..."
+                         class="w-full bg-white border border-amber-300 focus:border-amber-600 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500 pr-10 shadow-xs" 
+                         onkeydown="if(event.key==='Enter') TmsSyncService.handleConfirmModalSubmit('${month}', '${task.task_id}', '${empId}')" />
+                  <button type="button" onclick="const f=document.getElementById('tms-confirm-password'); f.type=(f.type==='password'?'text':'password'); this.textContent=(f.type==='password'?'👁️':'🔒')"
+                          title="Toggle Password Visibility"
+                          class="absolute right-2.5 text-slate-400 hover:text-slate-700 text-xs cursor-pointer p-1">
+                    👁️
+                  </button>
+                </div>
+                <div class="flex items-center justify-between pt-0.5 text-[11px] text-slate-600">
+                  <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input type="checkbox" id="tms-save-password-chk" checked class="w-3.5 h-3.5 rounded text-blue-600 border-slate-300 cursor-pointer" />
+                    <span>Save updated password for ${escape(engFullName)}</span>
+                  </label>
+                  <span class="text-[10px] text-slate-400 font-medium">Secured with Master Password</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Direct TMS Task ID Entry (Zero Setup - No localhost or bridge needed!) -->
+            <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-300 rounded-2xl p-3.5 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                  <span>⚡</span> <span>Direct Link (No Bridge/Localhost Needed)</span>
+                </span>
+                <span class="text-[9px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold">Easiest</span>
+              </div>
+              <p class="text-[11px] text-slate-600">
+                Already created in Walton TMS? Enter Task ID to link instantly without running any local server:
+              </p>
+              <div class="flex items-center gap-2">
+                <input type="text" id="direct-confirm-tms-id" placeholder="Enter Walton TMS ID (e.g. 104868)..."
+                       class="flex-1 bg-white border border-emerald-300 focus:border-emerald-600 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none shadow-xs"
+                       onkeydown="if(event.key==='Enter') TmsSyncService.linkManualTmsId('${month}', '${task.task_id}', this.value)" />
+                <button type="button" onclick="TmsSyncService.linkManualTmsId('${month}', '${task.task_id}', document.getElementById('direct-confirm-tms-id').value)"
+                        class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex-shrink-0">
+                  Link TMS ✔
+                </button>
+              </div>
+              <div class="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                <span>View on Walton Intranet:</span>
+                <a href="http://192.168.118.138/adm/repo1/mod/tms/login.php" target="_blank" class="text-blue-700 underline font-bold">Open Walton TMS ↗</a>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Footer Actions -->
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+            <span class="text-[11px] text-slate-400 font-mono">Host: 192.168.118.138</span>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="TmsSyncService.closeConfirmModal()" 
+                      class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+                Cancel
+              </button>
+              <button type="button" id="tms-confirm-submit-btn" 
+                      onclick="TmsSyncService.handleConfirmModalSubmit('${month}', '${task.task_id}', '${empId}')"
+                      class="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 active:scale-95 text-xs font-black text-white shadow-md shadow-blue-500/20 transition flex items-center gap-1.5 cursor-pointer">
+                <span>Confirm &amp; Submit 100% 🚀</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+  },
+
+  closeConfirmModal() {
+    const container = document.getElementById('tms-confirm-modal-container');
+    if (container) container.innerHTML = '';
+  },
+
+  async handleConfirmModalSubmit(month, taskId, empId) {
+    const passInput = document.getElementById('tms-confirm-password');
+    const chk = document.getElementById('tms-save-password-chk');
+    const submitBtn = document.getElementById('tms-confirm-submit-btn');
+
+    const drawer = document.getElementById('tms-password-edit-drawer');
+    const isDrawerOpen = drawer && !drawer.classList.contains('hidden');
+    let enteredPass = (passInput && isDrawerOpen) ? passInput.value.trim() : '';
+
+    if (!enteredPass) {
+      enteredPass = this._getCachedTmsPassword(empId) || "Sep@2026";
+    }
+
+    if (chk && chk.checked && isDrawerOpen && typeof MasterDataManager !== 'undefined' && MasterDataManager.updateTmsPassword) {
+      MasterDataManager.updateTmsPassword(empId, enteredPass);
+    }
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span class="animate-spin inline-block mr-1">⌛</span><span>Connecting...</span>`;
+    }
+
+    this.closeConfirmModal();
+    await this.executeTaskSync(month, taskId, {
+      employeeId: empId,
+      password: enteredPass
+    });
+  },
+
+  /**
+   * Retrieves cached or stored Walton TMS password for an engineer
+   */
+  _getCachedTmsPassword(empId) {
+    if (!empId) return "Sep@2026";
+    if (typeof MasterDataManager !== 'undefined' && MasterDataManager.getEngineerCredentials) {
+      const creds = MasterDataManager.getEngineerCredentials(empId);
+      if (creds && creds.password) return creds.password;
+    }
+    return "Sep@2026";
+  },
+
+  /**
+   * Opens Master Password Authentication Modal to protect TMS passwords
+   * Only the assigned engineer or Master Admin can unlock and view/edit passwords.
+   */
+  openMasterPasswordUnlock(empId, engName, onSuccess = null) {
+    let container = document.getElementById('tms-master-unlock-modal-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'tms-master-unlock-modal-container';
+      document.body.appendChild(container);
+    }
+
+    const cleanName = engName || empId;
+
+    container.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+        <div class="relative w-full max-w-sm bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 text-slate-800 space-y-4">
+          
+          <div class="flex items-start justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <div class="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center text-xl flex-shrink-0">
+                🔐
+              </div>
+              <div>
+                <h3 class="text-sm font-black text-slate-900">Security Verification</h3>
+                <p class="text-[11px] text-slate-500">${cleanName} (${empId})</p>
+              </div>
+            </div>
+            <button type="button" onclick="TmsSyncService.closeMasterPasswordUnlock()" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition cursor-pointer">✕</button>
+          </div>
+
+          <div class="space-y-3">
+            <p class="text-xs text-slate-600 leading-relaxed">
+              Enter your <strong class="text-slate-900 font-bold">Master Password</strong> to view or edit this TMS password.
+            </p>
+
+            <div class="space-y-1.5">
+              <label for="tms-master-pin-input" class="text-[11px] font-bold text-slate-700 block">
+                Engineer Master Password / PIN
+              </label>
+              <div class="relative flex items-center">
+                <input type="password" id="tms-master-pin-input" placeholder="e.g. SZ#50463 or Admin PIN" autofocus
+                       class="w-full bg-slate-50 border border-slate-300 focus:border-indigo-600 focus:bg-white rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none pr-10 shadow-xs transition"
+                       onkeydown="if(event.key==='Enter') TmsSyncService.submitMasterPasswordUnlock('${empId}', '${cleanName}')" />
+                <button type="button" onclick="const f=document.getElementById('tms-master-pin-input'); f.type=(f.type==='password'?'text':'password'); this.textContent=(f.type==='password'?'👁️':'🔒')"
+                        title="Toggle Visibility" class="absolute right-2.5 text-slate-400 hover:text-slate-700 text-xs p-1 cursor-pointer">
+                  👁️
+                </button>
+              </div>
+              <div id="tms-master-pin-error" class="hidden text-[11px] font-bold text-rose-600 pt-0.5"></div>
+            </div>
+
+            <div class="bg-indigo-50/60 border border-indigo-200/70 rounded-xl p-2.5 text-[10px] text-indigo-900 flex items-center gap-2">
+              <span>🛡️</span>
+              <span>Only this engineer or Master Admin (<span class="font-mono font-bold">ACprocess@2026</span>) can unlock.</span>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+            <button type="button" onclick="TmsSyncService.closeMasterPasswordUnlock()"
+                    class="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+              Cancel
+            </button>
+            <button type="button" onclick="TmsSyncService.submitMasterPasswordUnlock('${empId}', '${cleanName}')"
+                    class="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-black shadow-md shadow-indigo-600/20 transition cursor-pointer">
+              Unlock 🔓
+            </button>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    this._pendingUnlockCallback = onSuccess;
+
+    setTimeout(() => {
+      const pinInput = document.getElementById('tms-master-pin-input');
+      if (pinInput) pinInput.focus();
+    }, 50);
+  },
+
+  closeMasterPasswordUnlock() {
+    const container = document.getElementById('tms-master-unlock-modal-container');
+    if (container) container.innerHTML = '';
+    this._pendingUnlockCallback = null;
+  },
+
+  submitMasterPasswordUnlock(empId, engName) {
+    const pinInput = document.getElementById('tms-master-pin-input');
+    const errEl = document.getElementById('tms-master-pin-error');
+    const pin = (pinInput && pinInput.value) ? pinInput.value.trim() : '';
+
+    if (!pin) {
+      if (errEl) {
+        errEl.textContent = '⚠️ Please enter your Master Password.';
+        errEl.classList.remove('hidden');
+      }
+      return;
+    }
+
+    // Verify using MasterDataManager
+    let verifyRes = { success: false };
+    if (typeof MasterDataManager !== 'undefined' && MasterDataManager.verifyEngineerAccess) {
+      verifyRes = MasterDataManager.verifyEngineerAccess(empId, empId, pin);
+    } else if (pin === 'ACprocess@2026') {
+      verifyRes = { success: true };
+    }
+
+    if (!verifyRes.success) {
+      if (errEl) {
+        errEl.textContent = '❌ Incorrect Password! Enter your unique Master PIN or Admin Password.';
+        errEl.classList.remove('hidden');
+      }
+      if (pinInput) {
+        pinInput.classList.add('border-rose-500', 'bg-rose-50');
+        pinInput.focus();
+      }
+      return;
+    }
+
+    // Verification Succeeded!
+    const cb = this._pendingUnlockCallback;
+    this.closeMasterPasswordUnlock();
+
+    if (typeof cb === 'function') {
+      cb();
+      return;
+    }
+
+    // Default Confirm Modal Drawer Unlock
+    const drawer = document.getElementById('tms-password-edit-drawer');
+    const passInput = document.getElementById('tms-confirm-password');
+    if (drawer) {
+      drawer.classList.remove('hidden');
+    }
+    if (passInput) {
+      passInput.value = this._getCachedTmsPassword(empId);
+      passInput.type = 'text';
+      passInput.focus();
+    }
+
+    if (typeof window.showToast === 'function') {
+      window.showToast(`🔓 Password unlocked for ${engName || empId}`, 'success');
+    }
+  },
+
+  unlockManualPass(empId, actualPass) {
+    const creds = (typeof MasterDataManager !== 'undefined' && MasterDataManager.getEngineerCredentials)
+      ? MasterDataManager.getEngineerCredentials(empId) : null;
+    const name = (creds && creds.name) ? creds.name : empId;
+    this.openMasterPasswordUnlock(empId, name, () => {
+      const passEl = document.getElementById('manual-bridge-pass-display');
+      if (passEl) {
+        passEl.textContent = actualPass || this._getCachedTmsPassword(empId);
+        passEl.className = "font-mono font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded select-all";
+      }
+      const unlockBtn = document.getElementById('manual-bridge-pass-unlock-btn');
+      if (unlockBtn) unlockBtn.style.display = 'none';
+      if (typeof window.showToast === 'function') {
+        window.showToast(`🔓 Manual TMS password revealed!`, 'success');
+      }
+    });
+  },
+
+  /**
+   * Executes the real Walton TMS task creation and 100% completion
+   */
+  async executeTaskSync(month, taskId, credOverride = null) {
+    if (!window.appState || !window.appState.workbookMgr) return;
+    const task = window.appState.workbookMgr.getTask(month, taskId);
+    if (!task) return;
+
+    const btn = document.getElementById(`tms-btn-${taskId}`);
+    const slot = document.getElementById(`tms-action-slot-${taskId}`);
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin inline-block mr-1">⌛</span><span>Syncing...</span>`;
+      btn.className = "inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500 text-white font-bold text-[9px] shadow-xs cursor-wait flex-shrink-0 whitespace-nowrap";
+    }
+
+    // Resolve engineer credentials strictly from row / credOverride (NEVER fallback to Sazzad)
+    const assigneeName = (task.assignee || task.engineer || "").trim();
+    const creds = (typeof MasterDataManager !== 'undefined' && MasterDataManager.getEngineerCredentials)
+      ? MasterDataManager.getEngineerCredentials(assigneeName)
+      : null;
+
+    const empId = (credOverride && credOverride.employeeId)
+      ? credOverride.employeeId
+      : ((creds && creds.id) ? creds.id : (assigneeName.match(/\b(\d{4,6})\b/) || [])[1]);
+
+    if (!empId) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span>TMS</span>`;
+        btn.className = "inline-flex items-center px-2 py-0.5 rounded-md bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-[9px] shadow-xs cursor-pointer flex-shrink-0 whitespace-nowrap";
+      }
+      alert("⚠️ No Employee ID found for this task. Please assign an engineer from the dropdown.");
+      return { success: false, error: "Missing Employee ID" };
+    }
+
+    const empPass = (credOverride && credOverride.password)
+      ? credOverride.password
+      : ((creds && creds.password) ? creds.password : "Sep@2026");
+
+    // Check if relay bridge is reachable
+    const bridgeStatus = await this.checkBridgeStatus();
+    if (!bridgeStatus.status || bridgeStatus.status !== 'online') {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span>TMS</span>`;
+        btn.className = "inline-flex items-center px-2 py-0.5 rounded-md bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-[9px] shadow-xs cursor-pointer flex-shrink-0 whitespace-nowrap";
+      }
+      this.openBridgeRequiredModal(month, task, {
+        employeeId: empId,
+        password: empPass
+      });
+      return;
+    }
+
+    const dates = this.getFormattedDates(month);
+    let supId = "44819";
+    const supName = (task.supervisor || "").toLowerCase();
+    if (supName.includes("50463") || supName.includes("sazzad")) supId = "50463";
+    else {
+      const supMatch = (task.supervisor || "").match(/\b(\d{4,6})\b/);
+      if (supMatch) supId = supMatch[1];
+    }
+
+    // Strictly enforce accurate task point - Never default to 50
+    const rawPoint = (task.points !== undefined && task.points !== null && task.points !== "") ? task.points : task.task_point;
+    const taskPoint = (rawPoint !== undefined && rawPoint !== null && rawPoint !== "" && !isNaN(parseFloat(rawPoint)))
+      ? parseFloat(rawPoint)
+      : null;
+
+    if (!taskPoint || taskPoint <= 0) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span>TMS</span>`;
+        btn.className = "inline-flex items-center px-2 py-0.5 rounded-md bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-[9px] shadow-xs cursor-pointer flex-shrink-0 whitespace-nowrap";
+      }
+      alert(`⚠️ Task Point Required:\n\nএই টাস্কে কোনো পয়েন্ট (Point) নির্ধারণ করা হয়নি।\nWalton TMS-এ সাবমিট করার জন্য HOD (44819) কর্তৃক পয়েন্ট নির্ধারণ করা আবশ্যক।\n\nদয়া করে প্রথমে পয়েন্ট বক্সে সঠিক পয়েন্ট দিন (HOD পাসওয়ার্ড: HOD@2026)।`);
+      return { success: false, error: "Task Point Required" };
+    }
+
+    const payload = {
+      employeeId: empId,
+      password: empPass,
+      taskName: task.task_name,
+      taskDetails: task.task_details || `${task.task_name} execution and implementation.`,
+      startDate: dates.startDate,
+      deadlineDate: dates.deadlineDate,
+      totalDays: dates.totalDays,
+      points: taskPoint,
+      supervisorId: supId,
+      category: task.category || "Process development"
+    };
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
+
+      const res = await fetch(`${this.activeRelayUrl || this.RELAY_URL}/sync-task`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+
+      // Check for Authentication / Password failure (Requirement 1: "TMS er password kaj na korle warning dibe")
+      if (res.status === 401 || (data && data.authError)) {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span>TMS</span>`;
+          btn.className = "inline-flex items-center px-2 py-0.5 rounded-md bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-[9px] shadow-xs cursor-pointer flex-shrink-0 whitespace-nowrap";
+        }
+        this.openTmsPasswordWarningModal(month, taskId, empId, assigneeName, (data && data.error) ? data.error : "Invalid TMS password");
+        if (typeof window.showToast === 'function') {
+          window.showToast(`⚠️ Walton TMS password invalid for ${assigneeName}!`, "error");
+        }
+        return { success: false, authError: true, error: data ? data.error : "Auth failed" };
+      }
+
+      if (!data || !data.success || !data.taskId) {
+        throw new Error((data && data.error) ? data.error : "Walton TMS did not return a valid task ID");
+      }
+
+      const tmsId = String(data.taskId);
+      const tmsUrl = data.tmsUrl || `http://192.168.118.138/adm/repo1/mod/tms/index.php?m=task&&page=single_task2&a=view&&code=${tmsId}`;
+      const syncedAt = data.syncedAt || new Date().toISOString();
+
+      // 1. Update Task in Workbook with returned genuine TMS metadata
+      const updates = {
+        tms_task_id: tmsId,
+        tms_url: tmsUrl,
+        tms_synced_at: syncedAt,
+        tms_status: '100% Completed',
+        status: `TMS#${tmsId} (100% Completed)`,
+        remarks: `TMS_ID:${tmsId}`
+      };
+      window.appState.workbookMgr.updateTask(month, taskId, updates);
+
+      // 2. Save to persistent localStorage map
+      try {
+        const syncedMap = JSON.parse(localStorage.getItem('walton_tms_synced_records') || '{}');
+        const rec = { tms_task_id: tmsId, tms_url: tmsUrl, tms_synced_at: syncedAt };
+        syncedMap[taskId] = rec;
+        if (task.task_name) syncedMap[task.task_name.trim().toLowerCase()] = rec;
+        localStorage.setItem('walton_tms_synced_records', JSON.stringify(syncedMap));
+      } catch (e) {}
+
+      // 3. Instant in-place DOM update (button turns into green badge with options)
+      if (slot) {
+        const fullTask = window.appState.workbookMgr.getTask(month, taskId) || { ...task, ...updates };
+        slot.innerHTML = this.renderTmsBadgeHtml(fullTask);
+      }
+
+      // 4. Cloud / Firebase broadcast
+      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
+        const fullTask = window.appState.workbookMgr.getTask(month, taskId);
+        if (fullTask) FirebaseSyncService.pushTask(month, fullTask);
+      }
+      if (window.appState.syncEngine) {
+        window.appState.syncEngine.syncMonth(month).catch(() => {});
+      }
+
+      if (typeof window.showToast === 'function') {
+        window.showToast(`✅ Walton TMS #${tmsId} created & 100% Completed for ${assigneeName}!`, "success");
+      }
+
+      return {
+        success: true,
+        tms_code: tmsId,
+        tms_link: tmsUrl,
+        status: "Completed"
+      };
+
+    } catch (err) {
+      console.error("TMS Sync failed:", err);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span>TMS</span>`;
+        btn.className = "inline-flex items-center px-2 py-0.5 rounded-md bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-[9px] shadow-xs cursor-pointer flex-shrink-0 whitespace-nowrap";
+      }
+
+      // Check if error message indicates authentication failure
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('password') || msg.toLowerCase().includes('authentication') || msg.includes('401')) {
+        this.openTmsPasswordWarningModal(month, taskId, empId, assigneeName, msg);
+      } else {
+        if (typeof window.showToast === 'function') {
+          window.showToast(`❌ Walton TMS Error: ${msg}`, "error");
+        } else {
+          alert(`❌ Walton TMS Error: ${msg}`);
+        }
+      }
+      return { success: false, error: msg };
+    }
+  },
+
+  /**
+   * Password Warning Modal (Requirement 1: "TMS er password kaj na korle warning dibe")
+   * Displays warning that password was rejected, prompts for correct password, and allows retry
+   */
+  openTmsPasswordWarningModal(month, taskId, empId, assigneeName, errorMsg) {
+    let container = document.getElementById('tms-warning-modal-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'tms-warning-modal-container';
+      document.body.appendChild(container);
+    }
+
+    const escape = (str) => (typeof HELPERS !== 'undefined' && HELPERS.escapeHtml) ? HELPERS.escapeHtml(str) : String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    container.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md font-sans animate-in fade-in duration-150">
+        <div class="relative w-full max-w-md bg-white border border-rose-200 rounded-3xl shadow-2xl p-6 sm:p-7 text-slate-800 animate-in zoom-in-95 duration-150">
+          
+          <!-- Header -->
+          <div class="flex items-start justify-between pb-3 border-b border-rose-100">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center text-2xl flex-shrink-0 shadow-xs">
+                ⚠️
+              </div>
+              <div>
+                <h3 class="text-base font-black text-rose-950">Walton TMS Password Rejected</h3>
+                <p class="text-xs text-rose-600 font-medium">Authentication failed on Walton TMS Intranet.</p>
+              </div>
+            </div>
+            <button onclick="TmsSyncService.closeWarningModal()" class="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer">✕</button>
+          </div>
+
+          <!-- Body -->
+          <div class="my-4 space-y-3 text-xs text-slate-700">
+            <div class="bg-rose-50/70 border border-rose-200 rounded-2xl p-3.5 space-y-1.5">
+              <div class="text-rose-950 font-bold">
+                Login failed for: <span class="text-rose-700 font-black">${escape(assigneeName)} (ID: ${empId})</span>
+              </div>
+              <p class="text-slate-600 text-[11px] leading-relaxed">
+                Walton TMS rejected the password used for this employee ID. The task was <strong class="text-rose-700 font-bold">NOT</strong> submitted to avoid creating it under another person's account.
+              </p>
+              <div class="text-[10px] font-mono text-rose-700 bg-white/80 p-2 rounded-xl border border-rose-200 break-words">
+                ${escape(errorMsg || 'Invalid Walton TMS password')}
+              </div>
+            </div>
+
+            <!-- Password Input -->
+            <div class="space-y-1.5">
+              <label for="tms-retry-password-input" class="font-bold text-slate-800 block text-xs">
+                Enter Correct Walton TMS Password for ${empId}:
+              </label>
+              <div class="relative flex items-center">
+                <input type="password" id="tms-retry-password-input" placeholder="Enter personal TMS password..."
+                       class="w-full bg-white border border-slate-300 focus:border-blue-600 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 pr-10 shadow-xs" 
+                       onkeydown="if(event.key==='Enter') TmsSyncService.submitRetryPassword('${month}', '${taskId}', '${empId}', '${escape(assigneeName)}')" />
+                <button type="button" onclick="const f=document.getElementById('tms-retry-password-input'); f.type=(f.type==='password'?'text':'password'); this.textContent=(f.type==='password'?'👁️':'🔒')"
+                        title="Toggle Password Visibility"
+                        class="absolute right-2.5 text-slate-400 hover:text-slate-700 text-xs cursor-pointer p-1">
+                  👁️
+                </button>
+              </div>
+              <label class="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer pt-1 select-none">
+                <input type="checkbox" id="tms-warning-save-chk" checked class="w-3.5 h-3.5 rounded text-blue-600 border-slate-300 cursor-pointer" />
+                <span>Save this password in master list for future tasks</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Footer Actions -->
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+            <button type="button" onclick="TmsSyncService.closeWarningModal()" 
+                    class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+              Cancel
+            </button>
+            <button type="button" onclick="TmsSyncService.submitRetryPassword('${month}', '${taskId}', '${empId}', '${escape(assigneeName)}')"
+                    class="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 active:scale-95 text-xs font-black text-white shadow-md shadow-blue-500/20 transition flex items-center gap-1.5 cursor-pointer">
+              <span>Retry Submission ↺</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    `;
+  },
+
+  closeWarningModal() {
+    const container = document.getElementById('tms-warning-modal-container');
+    if (container) container.innerHTML = '';
+  },
+
+  async submitRetryPassword(month, taskId, empId, assigneeName) {
+    const input = document.getElementById('tms-retry-password-input');
+    const chk = document.getElementById('tms-warning-save-chk');
+    const newPass = input ? input.value.trim() : '';
+    if (!newPass) {
+      alert("Please enter the Walton TMS password.");
+      if (input) input.focus();
+      return;
+    }
+
+    if (chk && chk.checked && typeof MasterDataManager !== 'undefined' && MasterDataManager.updateTmsPassword) {
+      MasterDataManager.updateTmsPassword(empId, newPass);
+    }
+
+    this.closeWarningModal();
+    await this.executeTaskSync(month, taskId, {
+      employeeId: empId,
+      password: newPass
+    });
+  },
+
+  /**
+   * Quick Options Menu for existing synced tasks (Re-sync, Change ID, Unlink)
+   */
+  openTmsActionsMenu(event, month, taskId, tmsId) {
+    if (event) event.stopPropagation();
+    if (!window.appState || !window.appState.workbookMgr) return;
+    const task = window.appState.workbookMgr.getTask(month, taskId);
+    if (!task) return;
+
+    let container = document.getElementById('tms-actions-modal-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'tms-actions-modal-container';
+      document.body.appendChild(container);
+    }
+
+    const tmsUrl = task.tms_url || `http://192.168.118.138/adm/repo1/mod/tms/index.php?m=task&&page=single_task2&a=view&&code=${tmsId}`;
+    const escape = (str) => (typeof HELPERS !== 'undefined' && HELPERS.escapeHtml) ? HELPERS.escapeHtml(str) : String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    container.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm font-sans animate-in fade-in duration-150" onclick="TmsSyncService.closeActionsMenu()">
+        <div class="relative w-full max-w-sm bg-white border border-slate-200 rounded-3xl shadow-2xl p-5 text-slate-800 animate-in zoom-in-95 duration-150" onclick="event.stopPropagation()">
+          
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🏢</span>
+              <div>
+                <h4 class="text-sm font-black text-slate-900">Walton TMS Options</h4>
+                <div class="text-[11px] font-mono text-emerald-700 font-bold">Linked Task #${tmsId}</div>
+              </div>
+            </div>
+            <button onclick="TmsSyncService.closeActionsMenu()" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition cursor-pointer">✕</button>
+          </div>
+
+          <div class="my-3 space-y-2 text-xs">
+            <a href="${tmsUrl}" target="_blank" rel="noopener noreferrer"
+               class="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-slate-800 hover:text-blue-700 font-bold transition">
+              <span class="flex items-center gap-2"><span>↗</span> <span>Open in Walton TMS Intranet</span></span>
+              <span class="text-[10px] text-slate-400 font-mono">192.168.118.138</span>
+            </a>
+
+            <button type="button" onclick="TmsSyncService.unlinkAndResubmit('${month}', '${taskId}')"
+                    class="w-full flex items-center justify-between p-3 rounded-xl bg-blue-50/70 hover:bg-blue-100 border border-blue-200 text-blue-900 font-bold transition text-left cursor-pointer">
+              <span class="flex items-center gap-2"><span>🔄</span> <span>Re-Submit / Switch Engineer</span></span>
+              <span class="text-[10px] text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-200">Re-sync</span>
+            </button>
+
+            <button type="button" onclick="TmsSyncService.unlinkTmsTask('${month}', '${taskId}', '${tmsId}')"
+                    class="w-full flex items-center justify-between p-3 rounded-xl bg-rose-50/50 hover:bg-rose-100 border border-rose-200 text-rose-800 font-bold transition text-left cursor-pointer">
+              <span class="flex items-center gap-2"><span>✕</span> <span>Unlink TMS ID from this row</span></span>
+              <span class="text-[10px] text-rose-600">Revert to TMS button</span>
+            </button>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100 text-center">
+            <button onclick="TmsSyncService.closeActionsMenu()" class="text-xs text-slate-500 hover:text-slate-800 font-semibold cursor-pointer">
+              Close
+            </button>
+          </div>
+
+        </div>
+      </div>
+    `;
+  },
+
+  closeActionsMenu() {
+    const container = document.getElementById('tms-actions-modal-container');
+    if (container) container.innerHTML = '';
+  },
+
+  unlinkTmsTask(month, taskId, tmsId) {
+    if (!confirm(`Unlink TMS #${tmsId} from this task?\n\nThis will remove the badge and show the blue 'TMS' button again.`)) {
+      return;
+    }
+    if (window.appState && window.appState.workbookMgr) {
+      window.appState.workbookMgr.updateTask(month, taskId, {
+        tms_task_id: '',
+        tms_url: '',
+        tms_status: '',
+        status: 'In Progress',
+        remarks: ''
+      });
+      try {
+        const syncedMap = JSON.parse(localStorage.getItem('walton_tms_synced_records') || '{}');
+        delete syncedMap[taskId];
+        localStorage.setItem('walton_tms_synced_records', JSON.stringify(syncedMap));
+      } catch (e) {}
+
+      if (window.appState.syncEngine) window.appState.syncEngine.syncMonth(month);
+    }
+    this.closeActionsMenu();
+    this.updateRowTmsBadgeInPlace(month, taskId, { tms_task_id: '' });
+    if (typeof window.showToast === 'function') {
+      window.showToast(`TMS #${tmsId} unlinked from task`, 'info');
+    }
+  },
+
+  unlinkAndResubmit(month, taskId) {
+    this.closeActionsMenu();
+    if (window.appState && window.appState.workbookMgr) {
+      window.appState.workbookMgr.updateTask(month, taskId, {
+        tms_task_id: '',
+        tms_url: '',
+        tms_status: ''
+      });
+      this.updateRowTmsBadgeInPlace(month, taskId, { tms_task_id: '' });
+    }
+    this.openTmsConfirmModal(month, taskId);
+  },
+
+
+  /**
+   * Resolve TMS information for a task from any source
+   * (Direct properties, status string, remarks string, localStorage cache, or known tasks)
+   */
+  /**
+   * Resolve TMS information for a task from any source
+   * (Direct properties, status string, remarks string, localStorage cache, or known tasks)
+   */
+  getTmsInfo(task) {
+    if (!task) return null;
+    let tmsId = task.tms_task_id;
+    let url = task.tms_url;
+    let syncedAt = task.tms_synced_at;
+
+    // 1. Direct property match
+    if (tmsId && String(tmsId).trim() !== '' && String(tmsId) !== 'undefined' && String(tmsId) !== 'null') {
+      return {
+        tms_task_id: String(tmsId).trim(),
+        tms_url: url || `http://192.168.118.138/adm/repo1/mod/tms/index.php?m=task&&page=single_task2&a=view&&code=${tmsId}`,
+        tms_synced_at: syncedAt || new Date().toISOString()
+      };
+    }
+
+    // 2. Parse from status e.g. "TMS#104868 (100% Completed)" or "TMS 104868"
+    const statusMatch = String(task.status || '').match(/(?:TMS(?:_ID)?|[#:_-\s])+(\d{5,7})/i);
+    if (statusMatch) {
+      tmsId = statusMatch[1];
+      return {
+        tms_task_id: tmsId,
+        tms_url: `http://192.168.118.138/adm/repo1/mod/tms/index.php?m=task&&page=single_task2&a=view&&code=${tmsId}`,
+        tms_synced_at: task.last_updated || new Date().toISOString()
+      };
+    }
+
+    // 3. Parse from remarks e.g. "TMS_ID:104867" or "TMS#104869" or "TMS:104867"
+    const remarksMatch = String(task.remarks || '').match(/(?:TMS(?:_ID)?|[#:_-\s])+(\d{5,7})/i) ||
+                         String(task.remarks || '').match(/\b(\d{5,7})\b/);
+    if (remarksMatch) {
+      tmsId = remarksMatch[1];
+      return {
+        tms_task_id: tmsId,
+        tms_url: `http://192.168.118.138/adm/repo1/mod/tms/index.php?m=task&&page=single_task2&a=view&&code=${tmsId}`,
+        tms_synced_at: task.last_updated || new Date().toISOString()
+      };
+    }
+
+    // 4. Check persistent LocalStorage cache by EXACT taskId only (NEVER by task_name!)
+    try {
+      const cache = JSON.parse(localStorage.getItem('walton_tms_synced_records') || '{}');
+      if (task.task_id && cache[task.task_id]) {
+        return cache[task.task_id];
+      }
+    } catch (e) {}
+
+    // 5. Pre-configured known initial tasks by EXACT taskId only (NEVER by task_name)
+    const KNOWN_TMS_TASKS = {
+      'SEP-2026-001-EE2': '104867',
+      'SEP-2026-002-4YT': '104869',
+      'SEP-2026-003-SJ2': '104868',
+      'SEP-2026-004-C44': '104870'
+    };
+
+    if (task.task_id && KNOWN_TMS_TASKS[task.task_id]) {
+      const id = KNOWN_TMS_TASKS[task.task_id];
+      return {
+        tms_task_id: id,
+        tms_url: `http://192.168.118.138/adm/repo1/mod/tms/index.php?m=task&&page=single_task2&a=view&&code=${id}`,
+        tms_synced_at: task.last_updated || new Date().toISOString()
+      };
+    }
+
+    return null;
+  },
+
+  /**
+   * Update the TMS action button or badge in place without full table re-render
+   */
+  updateRowTmsBadgeInPlace(month, taskId, updates) {
+    const container = document.getElementById(`tms-action-slot-${taskId}`);
+    if (container) {
+      const task = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.getTask(month, taskId) : updates;
+      const combined = { ...(task || {}), ...(updates || {}) };
+      const tmsInfo = this.getTmsInfo(combined);
+      container.innerHTML = this.renderTmsBadgeHtml({ ...combined, ...(tmsInfo || {}) });
+    } else if (typeof MonthlyInputView !== 'undefined' && MonthlyInputView.render) {
+      MonthlyInputView.render();
+    }
+  },
+
+  /**
+   * Render TMS badge (when synced) or button (when not yet synced)
+   */
+  renderTmsActionHtml(month, task) {
+    const tmsInfo = this.getTmsInfo(task);
+    const isSynced = Boolean(tmsInfo && tmsInfo.tms_task_id);
+    if (isSynced && (!task.tms_task_id || task.tms_task_id !== tmsInfo.tms_task_id)) {
+      task.tms_task_id = tmsInfo.tms_task_id;
+      task.tms_url = tmsInfo.tms_url;
+      task.tms_synced_at = tmsInfo.tms_synced_at;
+      if (!task.status || !task.status.includes('TMS')) {
+        task.status = `TMS#${tmsInfo.tms_task_id} (100% Completed)`;
+      }
+      if (!task.remarks || !task.remarks.includes('TMS')) {
+        task.remarks = `TMS_ID:${tmsInfo.tms_task_id}`;
+      }
+    }
+    const resolvedTask = isSynced ? { ...task, ...tmsInfo } : task;
+    return `
+      <div id="tms-action-slot-${task.task_id}" class="inline-flex items-center flex-shrink-0">
+        ${isSynced ? this.renderTmsBadgeHtml(resolvedTask) : this.renderTmsButtonHtml(month, task)}
+      </div>
+    `;
+  },
+
+  renderTmsBadgeHtml(task) {
+    const tmsId = task.tms_task_id;
+    const url = task.tms_url || `http://192.168.118.138/adm/repo1/mod/tms/index.php?m=task&&page=single_task2&a=view&&code=${tmsId}`;
+    const month = task.month || (window.appState && window.appState.workbookMgr ? window.appState.workbookMgr.activeMonth : 'SEP-2026');
+    return `
+      <div class="inline-flex items-center gap-0.5 flex-shrink-0">
+        <a href="${url}" target="_blank" rel="noopener noreferrer"
+           title="Walton TMS Task #${tmsId} (100% Complete) - Click to view in TMS"
+           class="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono text-[9px] font-bold shadow-xs cursor-pointer flex-shrink-0 whitespace-nowrap">
+          <span>🏢</span>
+          <span>#${tmsId}</span>
+          <span class="text-emerald-600 font-black">✔</span>
+        </a>
+        <button type="button" onclick="TmsSyncService.openTmsActionsMenu(event, '${month}', '${task.task_id}', '${tmsId}')"
+                title="TMS Options: Re-sync, change engineer, or unlink"
+                class="px-1 py-0.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded text-[9px] font-bold transition cursor-pointer">
+          ⚙️
+        </button>
+      </div>
+    `;
+  },
+
+  renderTmsButtonHtml(month, task) {
+    return `
+      <button id="tms-btn-${task.task_id}" onclick="TmsSyncService.openTmsConfirmModal('${month}', '${task.task_id}')"
+              title="Review details &amp; Confirm Walton TMS Submission"
+              class="inline-flex items-center px-2 py-0.5 rounded-md bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-[9px] shadow-xs cursor-pointer flex-shrink-0 whitespace-nowrap transition active:scale-95">
+        <span>TMS</span>
+      </button>
+    `;
+  },
+
+  /**
+   * Modal shown when the local background bridge (Run_TMS_Sync_Bridge.bat) is not yet running
+   */
+  openBridgeRequiredModal(month, task, payload) {
+    let container = document.getElementById('tms-bridge-modal-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'tms-bridge-modal-container';
+      document.body.appendChild(container);
+    }
+
+    const currentBridge = this.activeRelayUrl || 'http://127.0.0.1:3138';
+
+    container.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+        <div class="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-7 text-slate-800">
+          
+          <div class="flex items-start justify-between pb-3.5 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center text-2xl flex-shrink-0">
+                ⚡
+              </div>
+              <div>
+                <h3 class="text-base font-black text-slate-800">Walton TMS Bridge Connection</h3>
+                <p class="text-xs text-slate-500">Connect Walton Intranet (192.168.118.138) or link TMS Task ID directly.</p>
+              </div>
+            </div>
+            <button onclick="TmsSyncService.closeBridgeModal()" class="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition">✕</button>
+          </div>
+
+          <div class="my-4 space-y-3.5 text-xs text-slate-600">
+            
+            <!-- Option 1: 1-Click Launch on Local Bridge (Bypasses all Browser Security / Mixed Content) -->
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-400 rounded-2xl p-4 space-y-2.5 shadow-sm">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-blue-950 flex items-center gap-1.5 text-xs">
+                  <span>🚀</span> <span>Option 1: Open App via Local Bridge (Recommended)</span>
+                </span>
+                <span class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">1-Click Auto-Connect</span>
+              </div>
+              <p class="text-slate-600 text-[11px] leading-relaxed">
+                If the bridge is running on your PC, opening the app at <strong class="text-blue-700 font-mono">http://localhost:3138</strong> directly bypasses all HTTPS Mixed Content blocks and auto-connects in 0ms!
+              </p>
+              <div class="flex items-center gap-2">
+                <a href="http://localhost:3138" target="_blank"
+                   class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <span>Open http://localhost:3138</span> <span>↗</span>
+                </a>
+                <button type="button" onclick="TmsSyncService.retrySync('${month}', '${task.task_id}')"
+                        class="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer">
+                  ↺ Re-check Connection
+                </button>
+              </div>
+            </div>
+
+            <!-- Option 2: Instant Direct TMS ID Link (Zero Network Dependency) -->
+            <div class="bg-emerald-50/70 border border-emerald-300 rounded-2xl p-3.5 space-y-2 shadow-xs">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-emerald-950 flex items-center gap-1.5 text-xs">
+                  <span>⚡</span> <span>Option 2: Enter TMS Task ID Directly</span>
+                </span>
+                <span class="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded-full font-bold">Manual Link</span>
+              </div>
+              <p class="text-slate-600 text-[11px]">
+                Paste the TMS Task ID (e.g. 104868) from Walton Intranet to instantly mark it complete without network bridges:
+              </p>
+              <div class="flex items-center gap-2">
+                <input type="text" id="manual-tms-input" placeholder="e.g. 104868 or paste TMS link..." 
+                       class="flex-1 bg-white border border-emerald-300 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 focus:outline-none shadow-xs" 
+                       onkeydown="if(event.key==='Enter') TmsSyncService.linkManualTmsId('${month}', '${task.task_id}', this.value)" />
+                <button type="button" onclick="TmsSyncService.linkManualTmsId('${month}', '${task.task_id}', document.getElementById('manual-tms-input').value)"
+                        class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition flex-shrink-0 cursor-pointer">
+                  Link TMS ✔
+                </button>
+              </div>
+              <div class="flex items-center justify-between text-[11px] pt-0.5 text-slate-500">
+                <span>View task on Walton Intranet:</span>
+                <a href="http://192.168.118.138/adm/repo1/mod/tms/login.php" target="_blank" class="text-blue-700 underline font-bold flex items-center gap-1">
+                  <span>Open Walton TMS</span> <span>↗</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Option 3: Run Local Bridge on this PC -->
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+              <div class="font-bold text-slate-800 flex items-center justify-between">
+                <span class="flex items-center gap-1.5"><span>💻</span> <span>Option 3: Run Local Bridge on this PC</span></span>
+                <span class="text-[10px] text-slate-500 font-mono">Port 3138</span>
+              </div>
+              <p class="text-slate-600 text-[11px]">
+                In your project folder, double-click <code class="bg-white border border-slate-300 px-1.5 py-0.5 rounded font-mono font-bold text-indigo-700">Run_TMS_Sync_Bridge.bat</code>. It starts the bridge and auto-opens the connected app.
+              </p>
+              <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[10px] text-amber-900 leading-relaxed">
+                <strong class="font-bold">Using Cloud HTTPS (GitHub Pages)?</strong> Chrome blocks local HTTP. To allow on this tab: Click 🔒/Tune icon beside URL ➔ <em>Site settings</em> ➔ <em>Insecure content</em>: <strong>Allow</strong> ➔ Refresh.
+              </div>
+            </div>
+
+            <!-- Option 4: Manual Task & Protected Credentials -->
+            <div class="bg-amber-50/70 border border-amber-200 rounded-2xl p-3 space-y-1.5">
+              <div class="font-bold text-amber-900 flex items-center justify-between">
+                <span class="flex items-center gap-1.5"><span>🔑</span> <span>Manual TMS Login Details</span></span>
+                <a href="http://192.168.118.138/adm/repo1/mod/tms/login.php" target="_blank" class="text-[11px] text-blue-700 underline font-bold">Open Walton TMS ↗</a>
+              </div>
+              <div class="grid grid-cols-2 gap-2 font-mono text-[11px] text-slate-700 items-center">
+                <div>ID: <strong class="text-slate-900">${payload.employeeId}</strong></div>
+                <div class="flex items-center gap-1.5">
+                  <span>Pass:</span>
+                  <span id="manual-bridge-pass-display" class="font-bold text-slate-800">●●●●●●●●</span>
+                  <button id="manual-bridge-pass-unlock-btn" type="button" 
+                          onclick="TmsSyncService.unlockManualPass('${payload.employeeId}', '${payload.password}')" 
+                          class="px-2 py-0.5 rounded bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold text-[10px] transition cursor-pointer">
+                    Unlock 🔑
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+            <span class="text-[11px] text-slate-400 font-mono">Current: ${currentBridge}</span>
+            <div class="flex items-center gap-2">
+              <button onclick="TmsSyncService.closeBridgeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+                Close
+              </button>
+              <button onclick="TmsSyncService.retrySync('${month}', '${task.task_id}')" class="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-xs font-black text-white shadow-md transition flex items-center gap-1.5">
+                <span>↺</span> <span>Retry Sync</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+  },
+
+  linkManualTmsId(month, taskId, inputVal) {
+    if (!inputVal) {
+      alert("Please enter a Walton TMS Task ID or paste the TMS link.");
+      return;
+    }
+    let codeMatch = String(inputVal).match(/code=(\d+)/i) || String(inputVal).match(/\b(\d{5,7})\b/);
+    const tmsCode = codeMatch ? codeMatch[1] : String(inputVal).trim();
+    if (!tmsCode) {
+      alert("Invalid TMS Task ID format. Example: 104868");
+      return;
+    }
+    const tmsUrl = `http://192.168.118.138/adm/repo1/mod/tms/index.php?m=task&&page=single_task2&a=view&&code=${tmsCode}`;
+    if (window.appState && window.appState.workbookMgr) {
+      window.appState.workbookMgr.updateTask(month, taskId, {
+        tms_task_id: tmsCode,
+        tms_url: tmsUrl,
+        tms_status: '100% Completed',
+        status: `TMS#${tmsCode} (100% Completed)`,
+        remarks: `TMS_ID:${tmsCode}`,
+        tms_synced_at: new Date().toISOString()
+      });
+
+      const fullTask = window.appState.workbookMgr.getTask(month, taskId);
+
+      // Save to localStorage map
+      try {
+        const syncedMap = JSON.parse(localStorage.getItem('walton_tms_synced_records') || '{}');
+        const rec = { tms_task_id: tmsCode, tms_url: tmsUrl, tms_synced_at: new Date().toISOString() };
+        syncedMap[taskId] = rec;
+        if (fullTask && fullTask.task_name) syncedMap[fullTask.task_name.trim().toLowerCase()] = rec;
+        localStorage.setItem('walton_tms_synced_records', JSON.stringify(syncedMap));
+      } catch (e) {}
+
+      // Update DOM slot in-place
+      const slot = document.getElementById(`tms-action-slot-${taskId}`);
+      if (slot && fullTask) {
+        slot.innerHTML = this.renderTmsBadgeHtml(fullTask);
+      }
+
+      // Sync to Firebase and local DB
+      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected() && fullTask) {
+        FirebaseSyncService.pushTask(month, fullTask);
+      }
+      if (window.appState.syncEngine) {
+        window.appState.syncEngine.syncMonth(month).catch(() => {});
+      }
+    }
+    this.closeConfirmModal();
+    this.closeBridgeModal();
+    if (typeof MonthlyInputView !== 'undefined' && MonthlyInputView.render) {
+      MonthlyInputView.render();
+    }
+    if (typeof window.showToast === 'function') {
+      window.showToast(`✅ Walton TMS #${tmsCode} linked & marked 100% Completed!`, "success");
+    }
+  },
+
+  closeBridgeModal() {
+    const container = document.getElementById('tms-bridge-modal-container');
+    if (container) container.innerHTML = '';
+  },
+
+  async retrySync(month, taskId) {
+    this.closeBridgeModal();
+    await this.syncSingleTask(month, taskId);
+  },
+
+  /**
+   * Batch Sync all tasks for the active month
+   */
+  async syncMonthTasks(month, engineerFilter = "") {
+    if (!window.appState || !window.appState.workbookMgr) return;
+    const allTasks = window.appState.workbookMgr.getTasksForMonth(month);
+    const tasksToSync = allTasks.filter(t => {
+      if (engineerFilter && t.engineer !== engineerFilter && t.assignee !== engineerFilter) return false;
+      return !t.tms_task_id; // Only unsynced tasks
+    });
+
+    if (tasksToSync.length === 0) {
+      if (typeof window.showToast === 'function') {
+        window.showToast("All tasks in this month are already synced to Walton TMS!", "info");
+      } else {
+        alert("All tasks in this month are already synced to Walton TMS!");
+      }
+      return;
+    }
+
+    const bridgeStatus = await this.checkBridgeStatus();
+    if (!bridgeStatus.status || bridgeStatus.status !== 'online') {
+      const firstTask = tasksToSync[0];
+      const firstAssignee = firstTask.assignee || firstTask.engineer || "";
+      const firstCreds = (typeof MasterDataManager !== 'undefined' && MasterDataManager.getEngineerCredentials)
+        ? MasterDataManager.getEngineerCredentials(firstAssignee)
+        : null;
+      const firstEmpId = (firstCreds && firstCreds.id) ? firstCreds.id : (firstAssignee.match(/\b(\d{4,6})\b/) || [])[1] || "";
+      const firstPass = (firstCreds && firstCreds.password) ? firstCreds.password : "Sep@2026";
+
+      this.openBridgeRequiredModal(month, firstTask, {
+        employeeId: firstEmpId,
+        password: firstPass
+      });
+      return;
+    }
+
+    if (!confirm(`Sync ${tasksToSync.length} task(s) to Walton TMS for ${month}?\n\nEach task will be created under its assigned engineer's account and marked 100% complete.`)) {
+      return;
+    }
+
+    this.openBatchProgressModal(tasksToSync.length);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < tasksToSync.length; i++) {
+      const t = tasksToSync[i];
+      this.updateBatchProgressModal(i + 1, tasksToSync.length, t.task_name);
+
+      try {
+        const assigneeName = t.assignee || t.engineer || "";
+        const creds = (typeof MasterDataManager !== 'undefined' && MasterDataManager.getEngineerCredentials)
+          ? MasterDataManager.getEngineerCredentials(assigneeName)
+          : null;
+        
+        const empId = (creds && creds.id) ? creds.id : (assigneeName.match(/\b(\d{4,6})\b/) || [])[1];
+        if (!empId) {
+          console.warn(`[Batch TMS] Skipping task without employee ID:`, t.task_id);
+          failCount++;
+          continue;
+        }
+
+        const empPass = (creds && creds.password) ? creds.password : "Sep@2026";
+        const dates = this.getFormattedDates(month);
+
+        let supId = "44819";
+        const supName = (t.supervisor || "").toLowerCase();
+        if (supName.includes("50463") || supName.includes("sazzad")) supId = "50463";
+        else {
+          const supMatch = (t.supervisor || "").match(/\b(\d{4,6})\b/);
+          if (supMatch) supId = supMatch[1];
+        }
+
+        const rawPt = (t.points !== undefined && t.points !== null && t.points !== "") ? t.points : t.task_point;
+        const taskPt = (rawPt !== undefined && rawPt !== null && rawPt !== "" && !isNaN(parseFloat(rawPt)))
+          ? parseFloat(rawPt)
+          : null;
+        if (!taskPt || taskPt <= 0) {
+          console.warn(`[TmsSyncService] Skipping task ${t.task_id} - No HOD points set.`);
+          failedCount++;
+          continue;
+        }
+
+        const payload = {
+          employeeId: empId,
+          password: empPass,
+          taskName: t.task_name,
+          taskDetails: t.task_details || `${t.task_name} execution and implementation.`,
+          startDate: dates.startDate,
+          deadlineDate: dates.deadlineDate,
+          totalDays: dates.totalDays,
+          points: taskPt,
+          supervisorId: supId,
+          category: t.category || "Process development"
+        };
+
+        const res = await fetch(`${this.activeRelayUrl || this.RELAY_URL}/sync-task`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success && data.taskId) {
+          window.appState.workbookMgr.updateTask(month, t.task_id, {
+            tms_task_id: data.taskId,
+            tms_url: data.tmsUrl,
+            tms_synced_at: data.syncedAt,
+            tms_status: '100% Completed'
+          });
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (e) {
+        console.error("Batch task failed:", t.task_id, e);
+        failCount++;
+      }
+    }
+
+    if (window.appState.syncEngine) {
+      await window.appState.syncEngine.syncMonth(month);
+    }
+
+    this.closeBatchProgressModal();
+    if (typeof MonthlyInputView !== 'undefined' && MonthlyInputView.render) {
+      await MonthlyInputView.render();
+    }
+
+    if (typeof window.showToast === 'function') {
+      window.showToast(`🚀 Walton TMS Sync: ${successCount} tasks completed!`, "success");
+    } else {
+      alert(`🚀 Walton TMS Sync Finished!\n• Successfully Created & 100% Completed: ${successCount}\n• Errors: ${failCount}`);
+    }
+  },
+
+  openBatchProgressModal(total) {
+    let container = document.getElementById('tms-batch-modal-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'tms-batch-modal-container';
+      document.body.appendChild(container);
+    }
+
+    container.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+        <div class="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 text-slate-800 text-center">
+          <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center text-2xl mx-auto mb-3">
+            ⏳
+          </div>
+          <h3 class="text-base font-black text-slate-800">Syncing to Walton TMS...</h3>
+          <p id="tms-batch-current-task" class="text-xs text-slate-500 mt-1 truncate">Initializing automated logins...</p>
+
+          <div class="w-full bg-slate-100 rounded-full h-3 mt-4 overflow-hidden border border-slate-200">
+            <div id="tms-batch-progress-bar" class="bg-gradient-to-r from-blue-600 to-indigo-600 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] font-mono font-bold text-slate-500 mt-2">
+            <span id="tms-batch-step-counter">0 / ${total}</span>
+            <span id="tms-batch-percent">0%</span>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  updateBatchProgressModal(current, total, taskName) {
+    const textElem = document.getElementById('tms-batch-current-task');
+    const bar = document.getElementById('tms-batch-progress-bar');
+    const counter = document.getElementById('tms-batch-step-counter');
+    const percent = document.getElementById('tms-batch-percent');
+
+    const pct = Math.round((current / total) * 100);
+    if (textElem) textElem.textContent = `[${current}/${total}] ${taskName}`;
+    if (bar) bar.style.width = `${pct}%`;
+    if (counter) counter.textContent = `${current} / ${total}`;
+    if (percent) percent.textContent = `${pct}%`;
+  },
+
+  closeBatchProgressModal() {
+    const container = document.getElementById('tms-batch-modal-container');
+    if (container) container.innerHTML = '';
+  }
+};
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = TmsSyncService;
+} else if (typeof window !== 'undefined') {
+  window.TmsSyncService = TmsSyncService;
+}

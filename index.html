@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AC Process Development Central Suite | WALTON Hi-Tech Industries PLC</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            brand: {
+              red: '#C5161D',
+              navy: '#0F172A',
+              blue: '#0284C7',
+              emerald: '#10B981'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+  <style>
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.12), 0 10px 15px -5px rgba(15, 23, 42, 0.04);
+      border-color: rgba(197, 22, 29, 0.3);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col font-sans selection:bg-[#C5161D] selection:text-white">
+
+  <!-- TOP HEADER / BRAND BAR -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      <!-- Walton Logo & Title -->
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0F172A] to-[#1E293B] flex items-center justify-center shadow-md p-2">
+          <svg viewBox="0 0 100 100" class="w-full h-full fill-white" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 25 L32 75 L50 35 L68 75 L85 25 L73 25 L60 62 L49 35 L51 35 L40 62 L27 25 Z" fill="#0072CE"/>
+            <path d="M42 25 L50 43 L58 25 Z" fill="#C5161D"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold tracking-widest text-[#C5161D] uppercase font-mono">WALTON HI-TECH INDUSTRIES PLC</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+              Live Portal
+            </span>
+          </div>
+          <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">AC Process Development Master Suite</h1>
+        </div>
+      </div>
+
+      <!-- Realtime Clock & Status -->
+      <div class="flex items-center gap-6">
+        <div class="hidden md:flex flex-col text-right">
+          <span id="live-clock" class="font-mono text-sm font-bold text-slate-700">--:--:--</span>
+          <span class="text-xs text-slate-400">Chandra, Gazipur &bull; Plant Operations</span>
+        </div>
+        <div class="h-8 w-px bg-slate-200 hidden md:block"></div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
+          <span class="text-xs font-semibold text-slate-600 font-mono">acprocess.com</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="py-12 px-6 bg-gradient-to-b from-white via-slate-50 to-[#F8FAFC] border-b border-slate-200/80">
+    <div class="max-w-5xl mx-auto text-center">
+      <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-[#C5161D] border border-red-200/60 mb-4 font-mono">
+        Executive Engineering Control Hub
+      </span>
+      <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
+        Central Process Automation & Operations Suite
+      </h2>
+      <p class="mt-4 text-base sm:text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
+        Unified gateway for Walton Air Conditioner Process Development Department. Access the automated monthly management report, standard operating procedures (SOP), and real-time plant engineering synchronization.
+      </p>
+    </div>
+  </section>
+
+  <!-- 3 MASTER PROJECT CARDS -->
+  <main class="max-w-7xl mx-auto px-6 py-12 flex-1 w-full">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+      <!-- PROJECT CARD 1: Monthly Report Automation -->
+      <div class="glass-card rounded-2xl p-7 flex flex-col justify-between relative overflow-hidden group">
+        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
+        <div>
+          <div class="flex items-center justify-between mb-5">
+            <div class="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 font-mono">
+              Active v2.0
+            </span>
+          </div>
+
+          <h3 class="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+            Monthly Report System
+          </h3>
+          <p class="mt-2 text-sm text-slate-500 leading-relaxed">
+            Automated monthly report builder, task management entry grid, TMS live sync, radial gauges, and PowerPoint (.pptx) vector presentation generation.
+          </p>
+
+          <div class="mt-6 pt-5 border-t border-slate-100 space-y-2">
+            <div class="flex items-center text-xs text-slate-600">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
+              <span>185+ Walton Production Tasks (SEP-2026)</span>
+            </div>
+            <div class="flex items-center text-xs text-slate-600">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
+              <span>Sub-50ms Firebase Highway Collaboration</span>
+            </div>
+            <div class="flex items-center text-xs text-slate-600">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
+              <span>100% Editable Presentation Export</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 pt-4">
+          <a href="./report/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 transition-all group-hover:gap-3">
+            <span>Launch Monthly Report</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- PROJECT CARD 2: SOP Making Automation -->
+      <div class="glass-card rounded-2xl p-7 flex flex-col justify-between relative overflow-hidden group">
+        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-600"></div>
+        <div>
+          <div class="flex items-center justify-between mb-5">
+            <div class="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 font-mono">
+              Operational
+            </span>
+          </div>
+
+          <h3 class="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+            SOP Making Automation
+          </h3>
+          <p class="mt-2 text-sm text-slate-500 leading-relaxed">
+            Standard Operating Procedure (SOP) generator, process flow documentation, machine line safety compliance, and assembly guidelines for AC manufacturing.
+          </p>
+
+          <div class="mt-6 pt-5 border-t border-slate-100 space-y-2">
+            <div class="flex items-center text-xs text-slate-600">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
+              <span>Visual Work Instruction (VWI) Builder</span>
+            </div>
+            <div class="flex items-center text-xs text-slate-600">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
+              <span>Tooling, Safety & Parameter Checklists</span>
+            </div>
+            <div class="flex items-center text-xs text-slate-600">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
+              <span>Instant PDF & Print Formulation</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 pt-4">
+          <a href="./sop/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition-all group-hover:gap-3">
+            <span>Open SOP System</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- PROJECT CARD 3: Process Dashboard & TMS Central Bridge -->
+      <div class="glass-card rounded-2xl p-7 flex flex-col justify-between relative overflow-hidden group">
+        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 to-[#C5161D]"></div>
+        <div>
+          <div class="flex items-center justify-between mb-5">
+            <div class="w-14 h-14 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 font-mono">
+              Live Bridge
+            </span>
+          </div>
+
+          <h3 class="text-xl font-bold text-slate-900 group-hover:text-orange-600 transition-colors">
+            Process Dashboard & TMS Bridge
+          </h3>
+          <p class="mt-2 text-sm text-slate-500 leading-relaxed">
+            Central monitoring dashboard, Walton ERP/TMS relay synchronization, departmental KPI metrics, and engineer workload distribution analytics.
+          </p>
+
+          <div class="mt-6 pt-5 border-t border-slate-100 space-y-2">
+            <div class="flex items-center text-xs text-slate-600">
+              <span class="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2"></span>
+              <span>Walton TMS Live Sync Tunnel</span>
+            </div>
+            <div class="flex items-center text-xs text-slate-600">
+              <span class="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2"></span>
+              <span>Real-Time Plant Engineering Stats</span>
+            </div>
+            <div class="flex items-center text-xs text-slate-600">
+              <span class="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2"></span>
+              <span>Master Admin Access & Role Control</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 pt-4">
+          <a href="./dashboard/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-900 hover:bg-[#C5161D] text-white font-bold text-sm shadow-md transition-all group-hover:gap-3">
+            <span>Launch Dashboard</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="mt-auto bg-white border-t border-slate-200 py-6 px-6">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <div class="flex items-center gap-3">
+        <span class="font-bold text-slate-700">WALTON Hi-Tech Industries PLC</span>
+        <span>&bull;</span>
+        <span>Air Conditioner Process Development Department</span>
+      </div>
+      <div class="flex items-center gap-4 font-mono text-[11px]">
+        <span>Single Domain Hub: <strong class="text-slate-800">acprocess.com</strong></span>
+        <span>&bull;</span>
+        <span>Version 2.0</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Live clock update
+    function updateClock() {
+      const now = new Date();
+      const el = document.getElementById('live-clock');
+      if (el) {
+        el.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+      }
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
+</body>
+</html>
