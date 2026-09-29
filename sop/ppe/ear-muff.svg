@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <circle cx="50" cy="50" r="46" fill="#F8FAFC" stroke="#0284C7" stroke-width="3"/>
+  <!-- Headband -->
+  <path d="M 28 50 C 28 25 72 25 72 50" fill="none" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+  <!-- Ear cups (Yellow industrial ear defenders) -->
+  <rect x="20" y="44" width="16" height="26" rx="8" fill="#EAB308" stroke="#CA8A04" stroke-width="2"/>
+  <rect x="64" y="44" width="16" height="26" rx="8" fill="#EAB308" stroke="#CA8A04" stroke-width="2"/>
+  <rect x="23" y="48" width="5" height="18" rx="2.5" fill="#1E293B"/>
+  <rect x="72" y="48" width="5" height="18" rx="2.5" fill="#1E293B"/>
+</svg>
