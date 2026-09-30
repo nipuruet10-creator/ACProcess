@@ -416,5 +416,113 @@ server.listen(RELAY_PORT, '0.0.0.0', () => {
   console.log(`🔗 Local Address : http://127.0.0.1:${RELAY_PORT}`);
   console.log(`🏢 Walton TMS Host: http://${TMS_HOST}:${TMS_PORT}`);
   console.log(`⚡ Ready to accept task sync requests from Web App`);
+  console.log(`🌐 Firebase Cloud Highway: ACTIVE (All team laptops can sync)`);
   console.log(`=======================================================`);
 });
+
+// =====================================================================
+// FIREBASE CLOUD RELAY HIGHWAY (Allows all PCs on acprocess.com to sync)
+// =====================================================================
+const FIREBASE_DB_URL = 'https://ac-monthly-report-default-rtdb.asia-southeast1.firebasedatabase.app';
+const os = require('os');
+
+async function updateHeartbeat() {
+  try {
+    await fetch(`${FIREBASE_DB_URL}/walton_monthly_report/tms_bridge_status.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        online: true,
+        last_seen: Date.now(),
+        host: os.hostname() + ' (Sazzad Central Team Bridge)',
+        port: RELAY_PORT,
+        pid: process.pid
+      })
+    });
+  } catch (e) {}
+}
+
+let isProcessingQueue = false;
+async function pollFirebaseQueue() {
+  if (isProcessingQueue) return;
+  isProcessingQueue = true;
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/walton_monthly_report/tms_queue/requests.json`);
+    const requests = await res.json();
+    if (requests && typeof requests === 'object') {
+      for (const [reqId, reqData] of Object.entries(requests)) {
+        if (!reqData || reqData._processing) continue;
+        console.log(`\n[CLOUD-HIGHWAY] 📨 Incoming TMS Sync Request for Task: ${reqData.taskId || reqData.taskName} (Emp: ${reqData.employeeId})...`);
+        
+        // Remove from queue so it's not double-processed
+        await fetch(`${FIREBASE_DB_URL}/walton_monthly_report/tms_queue/requests/${reqId}.json`, { method: 'DELETE' });
+
+        try {
+          const cookie = await loginToTms(reqData.employeeId, reqData.password);
+          const result = await createAndCompleteTask(cookie, reqData);
+          console.log(`[CLOUD-HIGHWAY] ✅ Successfully Created TMS Task #${result.taskId} for ${reqData.taskId}!`);
+
+          // 1. Write response back to Firebase queue for the waiting browser
+          await fetch(`${FIREBASE_DB_URL}/walton_monthly_report/tms_queue/responses/${reqId}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              success: true,
+              taskId: result.taskId,
+              tmsUrl: result.tmsUrl,
+              syncedAt: new Date().toISOString()
+            })
+          });
+
+          // 2. Also patch the task directly in Firebase cloud workbook so ALL screens update instantly!
+          if (reqData.month && reqData.taskId) {
+            await fetch(`${FIREBASE_DB_URL}/walton_monthly_report/workbooks/${reqData.month}/tasks/${reqData.taskId}.json`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                tms_task_id: String(result.taskId),
+                tms_url: result.tmsUrl,
+                tms_synced_at: new Date().toISOString(),
+                status: `TMS#${result.taskId} (100% Completed)`,
+                remarks: `TMS_ID:${result.taskId}`
+              })
+            });
+            console.log(`[CLOUD-HIGHWAY] 🌐 Updated task ${reqData.taskId} in Firebase workbook.`);
+          }
+        } catch (itemErr) {
+          console.error(`[CLOUD-HIGHWAY] ❌ Failed to process ${reqData.taskId}:`, itemErr.message);
+          await fetch(`${FIREBASE_DB_URL}/walton_monthly_report/tms_queue/responses/${reqId}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              success: false,
+              error: itemErr.message,
+              authError: Boolean(itemErr.isAuthError)
+            })
+          });
+        }
+      }
+    }
+  } catch (e) {
+  } finally {
+    isProcessingQueue = false;
+  }
+}
+
+// Start Cloud Highway loop
+setInterval(updateHeartbeat, 3000);
+setInterval(pollFirebaseQueue, 1500);
+updateHeartbeat();
+pollFirebaseQueue();
+
+process.on('SIGINT', async () => {
+  try {
+    await fetch(`${FIREBASE_DB_URL}/walton_monthly_report/tms_bridge_status.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ online: false, last_seen: Date.now() })
+    });
+  } catch(e) {}
+  process.exit();
+});
+

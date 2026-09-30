@@ -6,7 +6,8 @@
  */
 
 const App = {
-  currentTab: 'dashboard', // Default to Dashboard as requested by user
+  VALID_TABS: ['dashboard', 'monthly-input', 'monthly-report', 'mgmt-report', 'projects', 'ai-breakdown', 'report-builder', 'cost-savings', 'history', 'master-data', 'settings'],
+  currentTab: 'dashboard',
 
   async init() {
     console.log("Initializing Walton AC Process Monthly Report Automation System...");
@@ -93,7 +94,26 @@ const App = {
       return;
     }
 
-    // INSTANT UI RENDER (< 25ms): Immediately display Monthly Task Entry Grid without waiting for heavy network sync
+    // Determine active tab from URL hash, localStorage, or default
+    let initialTab = 'dashboard';
+    const hash = (typeof window !== 'undefined' && window.location.hash) ? window.location.hash.replace(/^#/, '').trim() : '';
+    const storedTab = (typeof localStorage !== 'undefined') ? localStorage.getItem('walton_pd_active_tab') : '';
+    if (this.VALID_TABS.includes(hash)) {
+      initialTab = hash;
+    } else if (this.VALID_TABS.includes(storedTab)) {
+      initialTab = storedTab;
+    }
+    this.currentTab = initialTab;
+
+    // Listen for hashchange to support browser forward/back buttons and tab deep links
+    window.addEventListener('hashchange', () => {
+      const h = (typeof window !== 'undefined' && window.location.hash) ? window.location.hash.replace(/^#/, '').trim() : '';
+      if (h && h !== this.currentTab && this.VALID_TABS.includes(h)) {
+        this.switchTab(h);
+      }
+    });
+
+    // INSTANT UI RENDER (< 25ms): Immediately display active tab without waiting for heavy network sync
     await this.switchTab(this.currentTab);
 
     // Initialize Google Firebase Realtime Database Engine (Sub-50ms Collaborative Sync)
@@ -126,7 +146,21 @@ const App = {
   },
 
   async switchTab(tabId) {
+    if (!tabId || !this.VALID_TABS.includes(tabId)) {
+      tabId = 'dashboard';
+    }
     this.currentTab = tabId;
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('walton_pd_active_tab', tabId);
+      }
+      if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+        if (window.location.hash !== `#${tabId}`) {
+          window.history.replaceState(null, '', `#${tabId}`);
+        }
+      }
+    } catch (e) {}
 
     // Update Navigation Tab UI Buttons (Executive Sidebar Style from Mockup)
     document.querySelectorAll('.nav-tab-btn').forEach(btn => {

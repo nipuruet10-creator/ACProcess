@@ -50,39 +50,55 @@
 <body class="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col font-sans selection:bg-[#C5161D] selection:text-white">
 
   <!-- TOP HEADER / BRAND BAR -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+  <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-50 shadow-xs">
     <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
       <!-- Walton Logo & Title -->
       <div class="flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0F172A] to-[#1E293B] flex items-center justify-center shadow-md p-2">
-          <svg viewBox="0 0 100 100" class="w-full h-full fill-white" xmlns="http://www.w3.org/2000/svg">
-            <path d="M15 25 L32 75 L50 35 L68 75 L85 25 L73 25 L60 62 L49 35 L51 35 L40 62 L27 25 Z" fill="#0072CE"/>
-            <path d="M42 25 L50 43 L58 25 Z" fill="#C5161D"/>
-          </svg>
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-bold tracking-widest text-[#C5161D] uppercase font-mono">WALTON HI-TECH INDUSTRIES PLC</span>
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
-              Live Portal
-            </span>
+        <a href="/" class="flex items-center gap-3.5 group">
+          <div class="h-13 w-auto flex items-center justify-center p-1.5 bg-white rounded-xl shadow-xs border border-slate-200/80 group-hover:border-blue-300 transition">
+            <img src="./assets/img/walton_logo.png" alt="Walton Logo" class="h-10 w-auto object-contain" />
           </div>
-          <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">AC Process Development Master Suite</h1>
-        </div>
+          <div class="border-l border-slate-200/80 pl-3.5 py-0.5">
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] font-black tracking-widest text-[#00529B] uppercase font-mono">WALTON HI-TECH INDUSTRIES PLC</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+                Live Portal
+              </span>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <span>AC Process Development</span>
+              <span class="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-50 text-[#00529B] border border-blue-200 uppercase tracking-wider hidden sm:inline-block">Master Suite</span>
+            </h1>
+          </div>
+        </a>
       </div>
 
       <!-- Realtime Clock & Status -->
-      <div class="flex items-center gap-6">
-        <div class="hidden md:flex flex-col text-right">
-          <span id="live-clock" class="font-mono text-sm font-bold text-slate-700">--:--:--</span>
-          <span class="text-xs text-slate-400">Chandra, Gazipur &bull; Plant Operations</span>
+      <div class="flex items-center gap-4">
+        <div class="hidden lg:flex items-center gap-2.5 bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 shadow-2xs">
+          <span class="text-base">🏭</span>
+          <div class="flex flex-col text-left">
+            <span class="text-[11px] font-bold text-slate-800 leading-tight">Chandra, Gazipur</span>
+            <span class="text-[10px] text-slate-400 font-medium">AC Plant Operations</span>
+          </div>
         </div>
-        <div class="h-8 w-px bg-slate-200 hidden md:block"></div>
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
-          <span class="text-xs font-semibold text-slate-600 font-mono">acprocess.com</span>
+
+        <div class="hidden md:flex items-center gap-2.5 bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 shadow-2xs">
+          <span class="text-base">⏱️</span>
+          <div class="flex flex-col text-right">
+            <span id="live-clock" class="font-mono text-xs font-black text-slate-800 tracking-tight leading-tight">--:--:--</span>
+            <span class="text-[10px] text-slate-400 font-medium">BST (UTC+6)</span>
+          </div>
         </div>
+
+        <a href="https://acprocess.com" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition group">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span class="text-xs font-bold font-mono tracking-tight text-slate-200 group-hover:text-white">acprocess.com</span>
+        </a>
       </div>
     </div>
   </header>

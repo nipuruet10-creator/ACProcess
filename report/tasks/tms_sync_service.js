@@ -13,7 +13,7 @@ const TmsSyncService = {
   _checkingBridge: false,
 
   /**
-   * Check if local background relay or LAN relay is reachable
+   * Check if local background relay or LAN relay is reachable, or cloud highway bridge
    */
   async checkBridgeStatus() {
     const isBrowser = typeof window !== 'undefined';
@@ -22,22 +22,24 @@ const TmsSyncService = {
     const candidates = [
       (locOrigin && (locOrigin.includes(':3138') || locOrigin.includes('localhost') || locOrigin.includes('127.0.0.1'))) ? locOrigin : null,
       customHost,
-      'https://walton-pd-tms.loca.lt',
-      'http://192.168.50.158:3138',
       'http://127.0.0.1:3138',
-      'http://localhost:3138'
+      'http://localhost:3138',
+      'https://walton-pd-tms.loca.lt',
+      'http://192.168.50.158:3138'
     ].filter(Boolean);
 
+    // 1. Quick local probe (1000ms max)
     for (const url of candidates) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        const timeoutId = setTimeout(() => controller.abort(), 1200);
         const res = await fetch(`${url}/status`, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
           if (data && data.status === 'online') {
             this.activeRelayUrl = url;
+            this.activeRelayMode = 'local_http';
             this.isBridgeRunning = true;
             return data;
           }
@@ -46,7 +48,29 @@ const TmsSyncService = {
         // try next candidate
       }
     }
+
+    // 2. Check Firebase Cloud Highway Bridge (Connects any engineer's PC on acprocess.com to Sazzad's laptop)
+    try {
+      const dbUrl = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.FIREBASE && APP_CONFIG.FIREBASE.DATABASE_URL)
+        ? APP_CONFIG.FIREBASE.DATABASE_URL
+        : "https://ac-monthly-report-default-rtdb.asia-southeast1.firebasedatabase.app";
+      const fbController = new AbortController();
+      const fbTimer = setTimeout(() => fbController.abort(), 2500);
+      const fbRes = await fetch(`${dbUrl}/walton_monthly_report/tms_bridge_status.json`, { signal: fbController.signal });
+      clearTimeout(fbTimer);
+      if (fbRes.ok) {
+        const fbStatus = await fbRes.json();
+        if (fbStatus && fbStatus.online && (Date.now() - (fbStatus.last_seen || 0) < 30000)) {
+          this.isBridgeRunning = true;
+          this.activeRelayMode = 'firebase_cloud_highway';
+          this.bridgeHost = fbStatus.host || "Sazzad's Central Bridge";
+          return { status: 'online', mode: 'firebase_cloud_highway', host: fbStatus.host };
+        }
+      }
+    } catch(e) {}
+
     this.isBridgeRunning = false;
+    this.activeRelayMode = 'offline';
     return { status: 'offline', relay: 'stopped' };
   },
 
@@ -662,6 +686,10 @@ const TmsSyncService = {
       category: task.category || "Process development"
     };
 
+    if (this.activeRelayMode === 'firebase_cloud_highway') {
+      return await this.syncTaskViaFirebaseCloud(month, task, payload, btn, assigneeName, slot);
+    }
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
@@ -694,55 +722,7 @@ const TmsSyncService = {
         throw new Error((data && data.error) ? data.error : "Walton TMS did not return a valid task ID");
       }
 
-      const tmsId = String(data.taskId);
-      const tmsUrl = data.tmsUrl || `http://192.168.118.138/adm/repo1/mod/tms/index.php?m=task&&page=single_task2&a=view&&code=${tmsId}`;
-      const syncedAt = data.syncedAt || new Date().toISOString();
-
-      // 1. Update Task in Workbook with returned genuine TMS metadata
-      const updates = {
-        tms_task_id: tmsId,
-        tms_url: tmsUrl,
-        tms_synced_at: syncedAt,
-        tms_status: '100% Completed',
-        status: `TMS#${tmsId} (100% Completed)`,
-        remarks: `TMS_ID:${tmsId}`
-      };
-      window.appState.workbookMgr.updateTask(month, taskId, updates);
-
-      // 2. Save to persistent localStorage map
-      try {
-        const syncedMap = JSON.parse(localStorage.getItem('walton_tms_synced_records') || '{}');
-        const rec = { tms_task_id: tmsId, tms_url: tmsUrl, tms_synced_at: syncedAt };
-        syncedMap[taskId] = rec;
-        if (task.task_name) syncedMap[task.task_name.trim().toLowerCase()] = rec;
-        localStorage.setItem('walton_tms_synced_records', JSON.stringify(syncedMap));
-      } catch (e) {}
-
-      // 3. Instant in-place DOM update (button turns into green badge with options)
-      if (slot) {
-        const fullTask = window.appState.workbookMgr.getTask(month, taskId) || { ...task, ...updates };
-        slot.innerHTML = this.renderTmsBadgeHtml(fullTask);
-      }
-
-      // 4. Cloud / Firebase broadcast
-      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
-        const fullTask = window.appState.workbookMgr.getTask(month, taskId);
-        if (fullTask) FirebaseSyncService.pushTask(month, fullTask);
-      }
-      if (window.appState.syncEngine) {
-        window.appState.syncEngine.syncMonth(month).catch(() => {});
-      }
-
-      if (typeof window.showToast === 'function') {
-        window.showToast(`✅ Walton TMS #${tmsId} created & 100% Completed for ${assigneeName}!`, "success");
-      }
-
-      return {
-        success: true,
-        tms_code: tmsId,
-        tms_link: tmsUrl,
-        status: "Completed"
-      };
+      return this._applyTmsSuccess(month, taskId, data, assigneeName, slot, task);
 
     } catch (err) {
       console.error("TMS Sync failed:", err);
@@ -765,6 +745,191 @@ const TmsSyncService = {
       }
       return { success: false, error: msg };
     }
+  },
+
+  /**
+   * Cloud Highway Relay Engine: dispatches TMS creation via Firebase RTDB to Sazzad's central laptop bridge.
+   * Completely bypasses browser HTTPS Mixed Content limitations and port firewall blocks on all clients.
+   */
+  async syncTaskViaFirebaseCloud(month, task, payload, btn, assigneeName, slot) {
+    const taskId = task.task_id;
+    const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    const dbUrl = (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.FIREBASE && APP_CONFIG.FIREBASE.DATABASE_URL)
+      ? APP_CONFIG.FIREBASE.DATABASE_URL
+      : "https://ac-monthly-report-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin inline-block mr-1">⌛</span><span>Relaying to Team Bridge...</span>`;
+    }
+
+    return new Promise(async (resolve) => {
+      let isResolved = false;
+      const timeoutTimer = setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true;
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>TMS</span>`;
+          }
+          if (typeof window.showToast === 'function') {
+            window.showToast("⚠️ Team Bridge timed out (30s). Please ensure Sazzad's laptop has Team Bridge running.", "error");
+          }
+          resolve({ success: false, error: "Timed out waiting for central bridge" });
+        }
+      }, 30000);
+
+      // Listen for response from Firebase
+      let unsub = null;
+      const onResponseReceived = async (resData) => {
+        if (isResolved || !resData) return;
+        isResolved = true;
+        clearTimeout(timeoutTimer);
+        if (unsub) unsub();
+
+        // Clean up response node
+        if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+          FirebaseSyncService.db.ref(`walton_monthly_report/tms_queue/responses/${requestId}`).remove().catch(() => {});
+        } else {
+          fetch(`${dbUrl}/walton_monthly_report/tms_queue/responses/${requestId}.json`, { method: 'DELETE' }).catch(() => {});
+        }
+
+        if (resData.success && resData.taskId) {
+          const successResult = this._applyTmsSuccess(month, taskId, resData, assigneeName, slot, task);
+          resolve(successResult);
+        } else {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>TMS</span>`;
+          }
+          const errMsg = resData.error || "Bridge failed to create task";
+          if (resData.authError) {
+            this.openTmsPasswordWarningModal(month, taskId, payload.employeeId, assigneeName, errMsg);
+          } else {
+            if (typeof window.showToast === 'function') window.showToast(`❌ TMS Error: ${errMsg}`, "error");
+          }
+          resolve({ success: false, error: errMsg });
+        }
+      };
+
+      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+        const respRef = FirebaseSyncService.db.ref(`walton_monthly_report/tms_queue/responses/${requestId}`);
+        respRef.on('value', (snap) => {
+          const val = snap.val();
+          if (val) onResponseReceived(val);
+        });
+        unsub = () => respRef.off();
+      } else {
+        const pollInterval = setInterval(async () => {
+          if (isResolved) { clearInterval(pollInterval); return; }
+          try {
+            const r = await fetch(`${dbUrl}/walton_monthly_report/tms_queue/responses/${requestId}.json`);
+            const val = await r.json();
+            if (val) {
+              clearInterval(pollInterval);
+              onResponseReceived(val);
+            }
+          } catch(e) {}
+        }, 1000);
+      }
+
+      // Send request to Firebase queue
+      try {
+        const reqPayload = {
+          requestId: requestId,
+          month: month,
+          taskId: taskId,
+          taskName: payload.taskName,
+          taskDetails: payload.taskDetails,
+          employeeId: payload.employeeId,
+          password: payload.password,
+          taskPoint: payload.points,
+          supervisorId: payload.supervisorId,
+          startDate: payload.startDate,
+          deadlineDate: payload.deadlineDate,
+          totalDays: payload.totalDays,
+          category: payload.category,
+          createdAt: Date.now()
+        };
+
+        if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+          await FirebaseSyncService.db.ref(`walton_monthly_report/tms_queue/requests/${requestId}`).set(reqPayload);
+        } else {
+          await fetch(`${dbUrl}/walton_monthly_report/tms_queue/requests/${requestId}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reqPayload)
+          });
+        }
+      } catch (err) {
+        if (!isResolved) {
+          isResolved = true;
+          clearTimeout(timeoutTimer);
+          if (unsub) unsub();
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>TMS</span>`;
+          }
+          resolve({ success: false, error: err.message });
+        }
+      }
+    });
+  },
+
+  _applyTmsSuccess(month, taskId, data, assigneeName, slot, task) {
+    const tmsId = String(data.taskId);
+    const tmsUrl = data.tmsUrl || `http://192.168.118.138/adm/repo1/mod/tms/index.php?m=task&&page=single_task2&a=view&&code=${tmsId}`;
+    const syncedAt = data.syncedAt || new Date().toISOString();
+
+    // 1. Update Task in Workbook with returned genuine TMS metadata
+    const updates = {
+      tms_task_id: tmsId,
+      tms_url: tmsUrl,
+      tms_synced_at: syncedAt,
+      tms_status: '100% Completed',
+      status: `TMS#${tmsId} (100% Completed)`,
+      remarks: `TMS_ID:${tmsId}`
+    };
+    if (window.appState && window.appState.workbookMgr) {
+      window.appState.workbookMgr.updateTask(month, taskId, updates);
+    }
+
+    // 2. Save to persistent localStorage map
+    try {
+      const syncedMap = JSON.parse(localStorage.getItem('walton_tms_synced_records') || '{}');
+      const rec = { tms_task_id: tmsId, tms_url: tmsUrl, tms_synced_at: syncedAt };
+      syncedMap[taskId] = rec;
+      if (task && task.task_name) syncedMap[task.task_name.trim().toLowerCase()] = rec;
+      localStorage.setItem('walton_tms_synced_records', JSON.stringify(syncedMap));
+    } catch (e) {}
+
+    // 3. Instant in-place DOM update (button turns into green badge with options)
+    if (slot) {
+      const fullTask = (window.appState && window.appState.workbookMgr)
+        ? window.appState.workbookMgr.getTask(month, taskId)
+        : { ...(task || {}), ...updates };
+      slot.innerHTML = this.renderTmsBadgeHtml(fullTask);
+    }
+
+    // 4. Cloud / Firebase broadcast
+    if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
+      const fullTask = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.getTask(month, taskId) : null;
+      if (fullTask) FirebaseSyncService.pushTask(month, fullTask);
+    }
+    if (window.appState && window.appState.syncEngine) {
+      window.appState.syncEngine.syncMonth(month).catch(() => {});
+    }
+
+    if (typeof window.showToast === 'function') {
+      window.showToast(`✅ Walton TMS #${tmsId} created & 100% Completed for ${assigneeName || 'engineer'}!`, "success");
+    }
+
+    return {
+      success: true,
+      tms_code: tmsId,
+      tms_link: tmsUrl,
+      status: "Completed"
+    };
   },
 
   /**
@@ -1167,26 +1332,26 @@ const TmsSyncService = {
 
           <div class="my-4 space-y-3.5 text-xs text-slate-600">
             
-            <!-- Option 1: 1-Click Launch on Local Bridge (Bypasses all Browser Security / Mixed Content) -->
+            <!-- Option 1: Central Team Bridge via Cloud Highway -->
             <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-400 rounded-2xl p-4 space-y-2.5 shadow-sm">
               <div class="flex items-center justify-between">
                 <span class="font-bold text-blue-950 flex items-center gap-1.5 text-xs">
-                  <span>🚀</span> <span>Option 1: Open App via Local Bridge (Recommended)</span>
+                  <span>🌐</span> <span>Option 1: Central Team Bridge (Firebase Cloud Highway)</span>
                 </span>
-                <span class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">1-Click Auto-Connect</span>
+                <span class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">Multi-PC Auto Sync</span>
               </div>
               <p class="text-slate-600 text-[11px] leading-relaxed">
-                If the bridge is running on your PC, opening the app at <strong class="text-blue-700 font-mono">http://localhost:3138</strong> directly bypasses all HTTPS Mixed Content blocks and auto-connects in 0ms!
+                When Sazzad starts the Central Team Bridge on his laptop, all engineers on any PC can sync directly to Walton TMS through Firebase Cloud Highway without running anything on their own machines!
               </p>
               <div class="flex items-center gap-2">
-                <a href="http://localhost:3138" target="_blank"
-                   class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-                  <span>Open http://localhost:3138</span> <span>↗</span>
-                </a>
                 <button type="button" onclick="TmsSyncService.retrySync('${month}', '${task.task_id}')"
-                        class="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer">
-                  ↺ Re-check Connection
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <span>↺</span> <span>Re-check Central Bridge</span>
                 </button>
+                <a href="http://localhost:3138" target="_blank"
+                   class="px-3 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer">
+                  <span>Running Bridge on this PC? Localhost ↗</span>
+                </a>
               </div>
             </div>
 
@@ -1435,13 +1600,27 @@ const TmsSyncService = {
           category: t.category || "Process development"
         };
 
-        const res = await fetch(`${this.activeRelayUrl || this.RELAY_URL}/sync-task`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (data.success && data.taskId) {
+        let data = null;
+        if (this.activeRelayMode === 'firebase_cloud_highway') {
+          const cloudRes = await this.syncTaskViaFirebaseCloud(month, t, payload, null, assigneeName, null);
+          if (cloudRes && cloudRes.success) {
+            data = {
+              success: true,
+              taskId: cloudRes.tms_code,
+              tmsUrl: cloudRes.tms_link,
+              syncedAt: new Date().toISOString()
+            };
+          }
+        } else {
+          const res = await fetch(`${this.activeRelayUrl || this.RELAY_URL}/sync-task`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          data = await res.json();
+        }
+
+        if (data && data.success && data.taskId) {
           window.appState.workbookMgr.updateTask(month, t.task_id, {
             tms_task_id: data.taskId,
             tms_url: data.tmsUrl,

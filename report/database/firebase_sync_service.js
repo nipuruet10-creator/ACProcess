@@ -363,6 +363,7 @@ const FirebaseSyncService = {
     this.unbindCurrentMonth();
 
     this.currentListeningMonth = normMonth;
+    this._monthRef = this.db.ref(`walton_monthly_report/workbooks/${normMonth}/tasks`);
     // 0. Initial Hydration: Load all current tasks from Firebase on startup/connect
     this._initialHydrationDone = false;
     this.hydrateMonth(normMonth).then(() => {
@@ -844,6 +845,7 @@ const FirebaseSyncService = {
       if (typeof MonthlyInputView !== 'undefined') {
         if (MonthlyInputView.updateRankingTable) MonthlyInputView.updateRankingTable();
         if (MonthlyInputView.updateEngineerSummary) MonthlyInputView.updateEngineerSummary();
+        if (MonthlyInputView.updateTaskPointDisplay) MonthlyInputView.updateTaskPointDisplay(taskId, cleanPts);
       }
       if (typeof DashboardController !== 'undefined' && window.appState && window.appState.activeTab === 'dashboard') {
         DashboardController.render();
@@ -894,6 +896,7 @@ const FirebaseSyncService = {
         if (typeof MonthlyInputView !== 'undefined') {
           if (MonthlyInputView.updateRankingTable) MonthlyInputView.updateRankingTable();
           if (MonthlyInputView.updateEngineerSummary) MonthlyInputView.updateEngineerSummary();
+          if (MonthlyInputView.updateTaskPointDisplay) MonthlyInputView.updateTaskPointDisplay(taskId, cleanPts);
         }
         if (typeof DashboardController !== 'undefined' && window.appState && window.appState.activeTab === 'dashboard') {
           DashboardController.render();

@@ -307,12 +307,11 @@ const MonthlyInputView = {
           return;
         }
         cleanVal = (value !== '' && value !== null && !isNaN(parseFloat(value))) ? parseFloat(value) : '';
-        patch.hod_point_set_at = Date.now();
-        patch.hod_point_locked = true;
       }
 
       const patch = { [field]: cleanVal };
       if (field === 'points') {
+        patch.points = cleanVal;
         patch.hod_point_set_at = Date.now();
         patch.hod_point_locked = true;
       }
@@ -364,6 +363,17 @@ const MonthlyInputView = {
       }
     } catch (e) {
       console.warn("Inline update notice:", e);
+    }
+  },
+
+  updateTaskPointDisplay(taskId, cleanPts) {
+    const input = document.getElementById(`task-point-${taskId}`) || document.querySelector(`input[id="task-point-${taskId}"]`);
+    if (input) {
+      input.value = (cleanPts !== undefined && cleanPts !== null && cleanPts !== '') ? cleanPts : '';
+      const parent = input.parentElement;
+      if (parent) {
+        parent.title = `HOD Point: ${cleanPts || 'Not set'}`;
+      }
     }
   },
 
