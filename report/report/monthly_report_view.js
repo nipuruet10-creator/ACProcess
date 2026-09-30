@@ -339,33 +339,19 @@ const MonthlyReportView = {
     this._activePhotoSlot = 'after_photo';
 
     container.innerHTML = `
-      <!-- Single Unified Photo Slot for Monthly Report (Req 4: Image option 2 ta theke 1 ta) -->
-      <div id="modal-slot-photo" class="bg-white border ${photo ? 'border-slate-200' : 'border-dashed border-slate-300 hover:border-blue-400'} rounded-2xl p-3.5 flex flex-col justify-between shadow-xs transition group">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
-            <span class="w-2.5 h-2.5 rounded-full ${photo ? 'bg-emerald-500' : 'bg-slate-300'}"></span>
-            <span>Slide Photo Attachment (16:9 Single Canvas)</span>
-          </span>
-          <div class="flex items-center gap-1">
-            <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-              📋 Ctrl+V
-            </span>
-            <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${photo ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400'}">
-              ${photo ? 'ATTACHED' : 'EMPTY'}
-            </span>
-          </div>
-        </div>
-
-        <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200"
-             ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-blue-500');"
-             ondragleave="this.classList.remove('ring-2', 'ring-blue-500');"
-             ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-blue-500'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'after_photo');">
+      <!-- Single Unified Photo Slot for Monthly Report -->
+      <div id="modal-slot-photo" class="bg-white border ${photo ? 'border-slate-200' : 'border-dashed border-blue-300 hover:border-blue-500 bg-blue-50/20'} rounded-xl p-2.5 flex flex-col justify-between shadow-2xs transition group"
+           ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-blue-500');"
+           ondragleave="this.classList.remove('ring-2', 'ring-blue-500');"
+           ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-blue-500'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'after_photo');">
+        
+        <div class="relative w-full h-32 rounded-lg overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
           ${photo ? `
             <div class="photo-fit-wrapper photo-fit-blur relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
-              <img src="${photo}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(16px) brightness(0.65); opacity: 0.65;" />
+              <img src="${photo}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
               <img src="${photo}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-md" alt="Slide Photo" />
             </div>
-            <div class="absolute inset-0 z-20 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
+            <div class="absolute inset-0 z-20 bg-black/45 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
               <button type="button" onclick="event.stopPropagation(); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold shadow transition cursor-pointer">
                 📋 Paste Ctrl+V
               </button>
@@ -377,27 +363,33 @@ const MonthlyReportView = {
               </button>
             </div>
           ` : `
-            <label for="modal-photo-file-single" class="cursor-pointer flex flex-col items-center justify-center p-4 text-center w-full h-full hover:bg-blue-50/30 transition">
-              <span class="text-3xl mb-1 text-slate-400 group-hover:scale-110 transition">📷</span>
-              <span class="text-xs font-bold text-slate-800">Add Slide Photo</span>
-              <span class="text-[9.5px] text-blue-600 font-semibold mt-0.5">Click to browse, drop file, or paste with Ctrl+V</span>
-            </label>
+            <div class="cursor-pointer flex flex-col items-center justify-center p-2 text-center w-full h-full hover:bg-blue-50/40 transition"
+                 onclick="MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')">
+              <span class="text-2xl text-blue-500 mb-0.5 group-hover:scale-110 transition">📋</span>
+              <span class="text-xs font-bold text-slate-800">Paste Photo (Ctrl+V)</span>
+              <span class="text-[9.5px] text-slate-500 mt-0.5">Click to paste from clipboard, or drag & drop</span>
+              <div class="mt-1 flex items-center gap-1.5" onclick="event.stopPropagation()">
+                <label for="modal-photo-file-single" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9.5px] font-bold cursor-pointer transition">
+                  📁 Browse File
+                </label>
+              </div>
+            </div>
           `}
           <input type="file" id="modal-photo-file-single" accept="image/*" class="hidden" onchange="MonthlyReportView.uploadModalPhoto(event, '${taskId}', 'after_photo')" />
         </div>
 
-        <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-          <span class="text-slate-400 font-mono">16:9 Canvas (Adaptive blur-fit)</span>
+        <div class="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[9.5px]">
+          <span class="text-slate-400 font-mono">16:9 Presentation Slot</span>
           <div class="flex items-center gap-1.5">
             <button type="button" onclick="event.stopPropagation(); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" 
-                    class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition flex items-center gap-1 cursor-pointer">
+                    class="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition flex items-center gap-1 cursor-pointer">
               <span>📋</span> <span>Paste (Ctrl+V)</span>
             </button>
-            <label for="modal-photo-file-single" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
-              ${photo ? '🔄 Replace' : '➕ Upload'}
+            <label for="modal-photo-file-single" onclick="event.stopPropagation()" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
+              ${photo ? '🔄 Replace' : '📁 Upload'}
             </label>
             ${photo ? `
-              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'after_photo')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition cursor-pointer">
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'after_photo')" class="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition cursor-pointer">
                 🗑 Remove
               </button>
             ` : ''}
@@ -452,13 +444,16 @@ const MonthlyReportView = {
             }
           }
         }
-        if (typeof window.showToast === 'function') {
-          window.showToast("No image in clipboard! Copy a photo first (Ctrl+C).", "warning");
+      }
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = (await navigator.clipboard.readText() || '').trim();
+        if (text.startsWith('data:image/') || /^https?:\/\/.*\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(text)) {
+          await this.uploadPhotoFromBlob(text, taskId, slot);
+          return;
         }
-      } else {
-        if (typeof window.showToast === 'function') {
-          window.showToast("Press Ctrl+V on your keyboard to paste the photo.", "info");
-        }
+      }
+      if (typeof window.showToast === 'function') {
+        window.showToast("No image found in clipboard! Copy a photo first (Ctrl+C).", "warning");
       }
     } catch (err) {
       if (typeof window.showToast === 'function') {
@@ -523,6 +518,27 @@ const MonthlyReportView = {
   async uploadPhotoFromBlob(blobOrFile, taskId, slot = 'after_photo') {
     if (!blobOrFile || !taskId) return;
     try {
+      if (typeof blobOrFile === 'string') {
+        const base64Url = blobOrFile;
+        if (typeof photoManager !== 'undefined') {
+          if (photoManager.savePhoto) {
+            await photoManager.savePhoto(taskId, slot, base64Url, this.selectedMonth);
+          } else if (photoManager.setTaskPhoto) {
+            await photoManager.setTaskPhoto(taskId, slot, base64Url, null, this.selectedMonth);
+          }
+        }
+        if (this._activeModalTaskId === taskId) {
+          this.renderModalPhotoSlots(taskId);
+          this.renderModalLivePreview(taskId);
+        } else {
+          this.updateSlideCardPhoto(taskId);
+        }
+        if (typeof window.showToast === 'function') {
+          window.showToast(`📋 Photo attached successfully to Task ${taskId}!`, "success");
+        }
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64Url = e.target.result;
@@ -540,8 +556,7 @@ const MonthlyReportView = {
           this.updateSlideCardPhoto(taskId);
         }
         if (typeof window.showToast === 'function') {
-          const slotLabel = slot === 'before_photo' ? '1. Present Condition (Before)' : '2. Proposed Project (After / Hero)';
-          window.showToast(`📋 Photo attached successfully to ${slotLabel}!`, "success");
+          window.showToast(`📋 Photo attached successfully to Task ${taskId}!`, "success");
         }
       };
       reader.readAsDataURL(blobOrFile);
@@ -605,33 +620,73 @@ const MonthlyReportView = {
     const overrides = window.appState && window.appState.syncEngine
       ? window.appState.syncEngine.getManualOverride(taskId) || {}
       : {};
-    const task = window.appState && window.appState.workbookMgr
+    let task = window.appState && window.appState.workbookMgr
       ? window.appState.workbookMgr.getTask(this.selectedMonth, taskId)
       : null;
+    if (!task && window.appState && window.appState.workbookMgr && window.appState.workbookMgr.workbooks) {
+      for (const m of Object.keys(window.appState.workbookMgr.workbooks)) {
+        const found = (window.appState.workbookMgr.workbooks[m] || []).find(t => t && t.task_id === taskId);
+        if (found) { task = found; break; }
+      }
+    }
     const allSlides = window.appState && window.appState.syncEngine
       ? window.appState.syncEngine.getActiveSlides(this.selectedMonth)
       : [];
     const currentSlide = allSlides.find(s => s && s.task_id === taskId) || null;
 
-    const rawTaskName = (task && task.task_name) ? task.task_name : (breakdown ? breakdown.original_task_name : "Task " + taskId);
-    const currentCategory = overrides.category || (task ? task.category : null) || (currentSlide ? currentSlide.category : null) || (breakdown ? breakdown.ai_category : "Process development");
-    const currentTitle = overrides.slide_title || (breakdown ? breakdown.ai_report_title : rawTaskName);
+    // Bulletproof Title Resolution: Guarantee genuine task name populates
+    let currentTitle = "";
+    if (overrides && overrides.slide_title && overrides.slide_title.trim()) {
+      currentTitle = overrides.slide_title.trim();
+    } else if (task && (task.task_name || task.title || task.name || task.task)) {
+      currentTitle = (task.task_name || task.title || task.name || task.task).trim();
+    } else if (currentSlide && (currentSlide.slide_title || currentSlide.raw_task_name)) {
+      currentTitle = (currentSlide.slide_title || currentSlide.raw_task_name).trim();
+    } else if (breakdown && (breakdown.ai_report_title || breakdown.original_task_name)) {
+      currentTitle = (breakdown.ai_report_title || breakdown.original_task_name).trim();
+    }
 
-    // Requirement 3: Auto-generate description and impact according to title
-    // "2nd photo, ekhane description and impact auto generate hoye thakbe title onujayi."
+    if (!currentTitle || currentTitle.toLowerCase() === `task ${taskId.toLowerCase()}`) {
+      if (window.appState && window.appState.workbookMgr) {
+        const rawList = window.appState.workbookMgr.getTasksForMonth ? window.appState.workbookMgr.getTasksForMonth(this.selectedMonth) : [];
+        const match = rawList.find(t => t && t.task_id === taskId);
+        if (match && match.task_name) currentTitle = match.task_name.trim();
+      }
+      if (!currentTitle) {
+        try {
+          const cached = JSON.parse(localStorage.getItem(`walton_pd_active_slides_${this.selectedMonth}`) || '[]');
+          const cs = cached.find(s => s && s.task_id === taskId);
+          if (cs && cs.slide_title) currentTitle = cs.slide_title.trim();
+        } catch(e) {}
+      }
+      if (!currentTitle) {
+        try {
+          const syncedMap = JSON.parse(localStorage.getItem('walton_tms_synced_records') || '{}');
+          if (syncedMap[taskId] && syncedMap[taskId].task_name) currentTitle = syncedMap[taskId].task_name.trim();
+        } catch(e) {}
+      }
+    }
+    if (!currentTitle) currentTitle = `Process Development - ${taskId}`;
+
+    const currentCategory = overrides.category || (task ? task.category : null) || (currentSlide ? currentSlide.category : null) || (breakdown ? breakdown.ai_category : "Process development");
+
+    // Requirement: Description and impact auto generate tailored to title
     const generated = this.generateDetailsFromTitle(currentTitle, currentCategory);
 
-    let currentDesc = overrides.description || (breakdown ? breakdown.ai_description : ((task && task.task_details) ? task.task_details : ""));
+    let currentDesc = overrides.description || "";
     const isGenericDesc = !currentDesc || currentDesc.trim() === '' || 
-      currentDesc.length < 40 ||
+      currentDesc.length < 35 ||
       currentDesc.toLowerCase().includes("developed and implemented engineering") ||
       currentDesc.toLowerCase().includes("1. concept design & layout analysis") ||
-      currentDesc.toLowerCase().includes("specialized process engineering mechanism");
+      currentDesc.toLowerCase().includes("specialized process engineering mechanism") ||
+      currentDesc.toLowerCase().includes("concept layout feasibility study") ||
+      currentDesc.toLowerCase().includes("process requirement cad modeling") ||
+      currentDesc.toLowerCase().includes("standard operating procedure execution");
 
     if (!overrides.description || isGenericDesc) {
       currentDesc = generated.desc;
     } else {
-      // Clean any legacy bullet marks or line breaks into clean narrative sentences
+      // Clean any legacy bullet marks into clean narrative sentences
       const descParts = String(currentDesc)
         .split(/(?:\r?\n|•|\s*;\s*)/)
         .map(p => p.replace(/^([•\-\*\s]+|\d+[\.\)\:\-]\s*)+/, '').trim())
@@ -658,9 +713,10 @@ const MonthlyReportView = {
 
     const isGenericImp = !currentImpact || currentImpact.trim() === '' ||
       currentImpact.toLowerCase().includes("process cycle time reduced and standardized across shifts") ||
-      (currentImpact.toLowerCase().includes("improved process accuracy and consistency") && currentImpact.toLowerCase().includes("increased production operational efficiency"));
+      (currentImpact.toLowerCase().includes("improved process accuracy and consistency") && currentImpact.toLowerCase().includes("increased production operational efficiency")) ||
+      currentImpact.toLowerCase().includes("zero defect manufacturing");
 
-    if (overrides.impact === undefined || overrides.impact === null || isGenericImp) {
+    if (!overrides.impact || isGenericImp) {
       currentImpact = generated.bullets.join("\n");
     }
 
@@ -682,102 +738,109 @@ const MonthlyReportView = {
 
     const container = this.renderContainer();
     container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md">
-        <div class="relative w-full max-w-[98vw] 2xl:max-w-[1680px] h-[96vh] bg-white border border-slate-200 rounded-3xl shadow-2xl p-4 sm:p-6 text-slate-800 flex flex-col overflow-hidden">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 bg-slate-950/85 backdrop-blur-md">
+        <div class="relative w-full max-w-[96vw] 2xl:max-w-[1550px] max-h-[92vh] h-[90vh] bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 sm:p-4 text-slate-800 flex flex-col overflow-hidden">
           
           <!-- Top Header -->
-          <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-shrink-0">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-lg font-bold shadow-md shadow-blue-500/20">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100 flex-shrink-0">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-sm font-bold shadow-xs">
                 🎨
               </div>
               <div>
                 <div class="flex items-center gap-2 flex-wrap">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                  <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
                     SLIDE STUDIO &amp; EDITORIAL
                   </span>
-                  <span class="text-xs font-mono text-slate-400">ID: ${taskId}</span>
+                  <span class="text-xs font-mono text-slate-400 font-bold">ID: ${taskId}</span>
                   ${(overrides && overrides.updated_at) ? `
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                    <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-300">
                       ✏️ Overridden at ${this.formatOverrideTime(overrides.updated_at)}
                     </span>
                   ` : ''}
                 </div>
-                <h3 class="text-base font-black text-slate-900 mt-0.5">Customize Slide Content, Photos &amp; Live In-Modal Preview</h3>
+                <h3 class="text-sm font-black text-slate-900 mt-0.5">Customize Slide Content, Photo &amp; Live In-Modal Preview</h3>
               </div>
             </div>
-            <button onclick="MonthlyReportView.closeModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition">&times;</button>
+            <button onclick="MonthlyReportView.closeModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition font-bold text-sm cursor-pointer">&times;</button>
           </div>
 
           <!-- Body: Split 2-Column (Controls on Left: 5 cols, Real-Time Preview on Right: 7 cols) -->
-          <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 py-3 overflow-y-auto flex-1 items-start">
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-3.5 pt-2 flex-1 min-h-0 items-stretch overflow-hidden">
             
-            <!-- Left: Unified Editorial & Photo Form (5 Columns) -->
-            <form id="slide-override-form" onsubmit="MonthlyReportView.saveOverrides(event, '${taskId}')" class="xl:col-span-5 space-y-3.5 text-xs pr-1">
+            <!-- Left: Unified Editorial & Photo Form (5 Columns) - Fits viewport with zero scrolling -->
+            <form id="slide-override-form" onsubmit="MonthlyReportView.saveOverrides(event, '${taskId}')" class="xl:col-span-5 flex flex-col justify-between overflow-y-auto space-y-2 pr-1 min-h-0 text-xs">
               
               <!-- Slide Title -->
               <div>
-                <div class="flex items-center justify-between mb-1">
-                  <label class="block font-bold text-slate-700">Slide Title (Headline) <span class="text-red-500">*</span></label>
-                  <span class="text-[10px] text-slate-400 font-mono">Live updates on right →</span>
+                <div class="flex items-center justify-between mb-0.5">
+                  <label class="block font-bold text-slate-700 text-xs">Slide Title (Headline) <span class="text-red-500">*</span></label>
+                  <span class="text-[9.5px] text-slate-400 font-mono">Live updates →</span>
                 </div>
                 <input type="text" id="edit-slide-title" value="${HELPERS.escapeHtml(currentTitle)}" 
                        oninput="MonthlyReportView.debouncedLivePreview('${taskId}')"
-                       class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-bold shadow-xs" required />
+                       class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-bold shadow-2xs" required />
               </div>
 
-              <!-- Project Overview / Description (Sentence narrative format, Requirement 4) -->
+              <!-- Project Overview / Description (Auto-generated narrative sentence format) -->
               <div>
-                <div class="flex items-center justify-between mb-1.5">
-                  <label class="block font-bold text-slate-700">Project Overview / Description <span class="font-normal text-slate-500">(Narrative sentence format)</span></label>
+                <div class="flex items-center justify-between mb-0.5">
+                  <label class="block font-bold text-slate-700 text-xs">Project Overview / Description <span class="font-normal text-slate-400">(Narrative)</span></label>
                   <button type="button" onclick="MonthlyReportView.generateSlideDetails('${taskId}')"
                           title="Auto-generate concise narrative overview and deliverables based on task name"
-                          class="px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-bold shadow-xs transition flex items-center gap-1 cursor-pointer">
-                    <span>✨</span> <span>Auto-Generate Sentences</span>
+                          class="px-2 py-0.5 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[9.5px] font-bold shadow-2xs transition flex items-center gap-1 cursor-pointer">
+                    <span>✨</span> <span>Auto-Generate</span>
                   </button>
                 </div>
-                <textarea id="edit-slide-desc" rows="3" 
+                <textarea id="edit-slide-desc" rows="2" 
                           oninput="MonthlyReportView.debouncedLivePreview('${taskId}')"
                           placeholder="e.g. Developed and fabricated precision automated mechanism for active assembly line."
-                          class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 leading-relaxed font-sans shadow-xs resize-none">${HELPERS.escapeHtml(currentDesc)}</textarea>
+                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 leading-snug font-sans shadow-2xs resize-none">${HELPERS.escapeHtml(currentDesc)}</textarea>
               </div>
 
               <!-- Key Outcomes (Short bullets) -->
               <div>
-                <label class="block font-bold text-slate-700 mb-1">Project Impact &amp; Outcomes (One bullet per line)</label>
-                <textarea id="edit-slide-impact" rows="3" 
+                <div class="flex items-center justify-between mb-0.5">
+                  <label class="block font-bold text-slate-700 text-xs">Project Impact &amp; Outcomes (Bullets)</label>
+                  <span class="text-[9.5px] text-slate-400 font-mono">1 bullet / line</span>
+                </div>
+                <textarea id="edit-slide-impact" rows="2" 
                           oninput="MonthlyReportView.debouncedLivePreview('${taskId}')"
-                          class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-sans shadow-xs resize-none">${HELPERS.escapeHtml(currentImpact)}</textarea>
+                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-sans shadow-2xs resize-none">${HELPERS.escapeHtml(currentImpact)}</textarea>
               </div>
 
-              <!-- Slide Category (Auto-updates Report Metrics) -->
-              <div>
-                <label class="block font-bold text-slate-700 mb-1">Slide Category (Auto-updates Report Metrics)</label>
-                <select id="edit-slide-category" 
-                        onchange="MonthlyReportView.renderModalLivePreview('${taskId}')"
-                        class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-bold shadow-xs cursor-pointer">
-                  ${allCategories.map(c => `<option value="${c}" ${c === currentCategory ? 'selected' : ''}>${c}</option>`).join('')}
-                </select>
+              <!-- Category & Concern Engineer in 2 Columns Side-by-Side -->
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block font-bold text-slate-700 mb-0.5 text-[11px]">Slide Category</label>
+                  <select id="edit-slide-category" 
+                          onchange="MonthlyReportView.renderModalLivePreview('${taskId}')"
+                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-bold shadow-2xs cursor-pointer">
+                    ${allCategories.map(c => `<option value="${c}" ${c === currentCategory ? 'selected' : ''}>${c}</option>`).join('')}
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block font-bold text-slate-700 mb-0.5 text-[11px]">Concern Engineer</label>
+                  <select id="edit-slide-engineer" 
+                          onchange="MonthlyReportView.renderModalLivePreview('${taskId}')"
+                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-bold shadow-2xs cursor-pointer">
+                    ${allEngineersList.map(eng => `<option value="${HELPERS.escapeHtml(eng)}" ${eng.trim().toLowerCase() === String(currentEngineer).trim().toLowerCase() ? 'selected' : ''}>${HELPERS.escapeHtml(eng)}</option>`).join('')}
+                  </select>
+                </div>
               </div>
 
-              <!-- Concern Engineer (Dropdown with transfer to engineer's tab) -->
-              <div>
-                <label class="block font-bold text-slate-700 mb-1">Concern Engineer (Changing moves task to their tab)</label>
-                <select id="edit-slide-engineer" 
-                        onchange="MonthlyReportView.renderModalLivePreview('${taskId}')"
-                        class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-bold shadow-xs cursor-pointer">
-                  ${allEngineersList.map(eng => `<option value="${HELPERS.escapeHtml(eng)}" ${eng.trim().toLowerCase() === String(currentEngineer).trim().toLowerCase() ? 'selected' : ''}>${HELPERS.escapeHtml(eng)}</option>`).join('')}
-                </select>
-              </div>
-
-              <!-- PHOTO MANAGEMENT SECTION (Req 4: Single Image Option in Monthly Report) -->
-              <div class="bg-slate-50/80 border border-slate-200 rounded-2xl p-3.5 space-y-2.5">
+              <!-- PHOTO MANAGEMENT SECTION (Single Image Option in Monthly Report with Direct Paste) -->
+              <div class="bg-slate-50/90 border border-slate-200 rounded-xl p-2 space-y-1">
                 <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <span class="text-base">📷</span>
-                    <span class="font-bold text-slate-800 text-xs">Slide Photo Attachment (16:9 Presentation Canvas)</span>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-xs">📷</span>
+                    <span class="font-bold text-slate-800 text-[11px]">Slide Photo Attachment (16:9 Single Canvas)</span>
                   </div>
-                  <span class="text-[10px] text-slate-400 font-mono">16:9 Single Canvas</span>
+                  <button type="button" onclick="MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')"
+                          class="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9.5px] shadow-2xs flex items-center gap-1 cursor-pointer">
+                    <span>📋</span> <span>Paste (Ctrl+V)</span>
+                  </button>
                 </div>
                 
                 <div class="w-full" id="modal-photos-slot-container">
@@ -786,15 +849,15 @@ const MonthlyReportView = {
               </div>
 
               <!-- Actions -->
-              <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <button type="button" onclick="MonthlyReportView.resetOverrides('${taskId}')" class="px-3.5 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition cursor-pointer">
-                  Reset to AI Defaults
+              <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <button type="button" onclick="MonthlyReportView.resetOverrides('${taskId}')" class="px-2.5 py-1 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 text-[11px] font-bold transition cursor-pointer">
+                  Reset AI Defaults
                 </button>
                 <div class="flex items-center gap-2">
-                  <button type="button" onclick="MonthlyReportView.closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
+                  <button type="button" onclick="MonthlyReportView.closeModal()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
                     Cancel
                   </button>
-                  <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-xs font-black text-white shadow-md shadow-blue-500/20 transition cursor-pointer flex items-center gap-1.5">
+                  <button type="submit" class="px-4 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-xs font-black text-white shadow-sm shadow-blue-500/20 transition cursor-pointer flex items-center gap-1">
                     <span>💾</span> <span>Save Slide Overrides</span>
                   </button>
                 </div>
@@ -802,11 +865,11 @@ const MonthlyReportView = {
             </form>
 
             <!-- Right: Real-Time In-Modal Live Preview (7 Columns, Large Presentation Display) -->
-            <div class="xl:col-span-7 bg-slate-900 rounded-2xl p-4 sm:p-5 flex flex-col justify-between border border-slate-800 shadow-2xl xl:sticky xl:top-0 min-h-[580px] overflow-hidden">
-              <div class="flex items-center justify-between pb-2.5 border-b border-slate-800 mb-3 flex-shrink-0">
+            <div class="xl:col-span-7 bg-slate-900 rounded-2xl p-3 sm:p-4 flex flex-col justify-between border border-slate-800 shadow-2xl xl:sticky xl:top-0 min-h-0 overflow-hidden">
+              <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2 flex-shrink-0">
                 <div class="flex items-center gap-2">
                   <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span class="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">Exact Presentation Slide Preview (Actual 16:9 Scale)</span>
+                  <span class="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">Exact Presentation Slide Preview (16:9 Scale)</span>
                 </div>
                 <button type="button" onclick="MonthlyReportView.openModalFullScreenPreview('${taskId}')" 
                         class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 border border-slate-700 transition flex items-center gap-1 cursor-pointer">
@@ -815,11 +878,11 @@ const MonthlyReportView = {
               </div>
 
               <!-- Presentation Stage inside Modal (Responsive 16:9 Presentation Slide Canvas) -->
-              <div id="modal-slide-live-preview" class="w-full flex-1 flex items-center justify-center overflow-hidden my-auto rounded-xl shadow-2xl">
+              <div id="modal-slide-live-preview" class="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden my-auto rounded-xl shadow-2xl">
                 <!-- Injected via renderModalLivePreview -->
               </div>
 
-              <div class="pt-2 text-[11px] text-slate-400 flex items-center justify-between font-mono flex-shrink-0">
+              <div class="pt-2 text-[10px] text-slate-400 flex items-center justify-between font-mono flex-shrink-0">
                 <span>Walton Executive Theme &bull; 16:9 Widescreen Presentation Canvas</span>
                 <span class="text-emerald-400 font-bold">✨ Real-time synced</span>
               </div>
@@ -1077,30 +1140,50 @@ const MonthlyReportView = {
     }
   },
 
-  previewFullDeck() {
+  previewFullDeck(slideIndex = 0) {
     const month = this.selectedMonth;
-    if (typeof ReportBuilderView !== 'undefined' && ReportBuilderView.previewFullDeck) {
+    const allTasks = window.appState && window.appState.workbookMgr ? window.appState.workbookMgr.getTasksForMonth(month) : [];
+    let activeSlides = window.appState && window.appState.syncEngine
+      ? window.appState.syncEngine.getActiveSlides(month)
+      : [];
+    if (allTasks && allTasks.length > 0) {
+      activeSlides = activeSlides.filter(s => s && s.task_id && allTasks.some(t => t.task_id === s.task_id));
+    }
+    if (typeof photoManager !== 'undefined') {
+      activeSlides.forEach(s => {
+        const p = photoManager.getTaskPhotos(s.task_id, month);
+        s.photo_before = p ? (p.before_photo || null) : null;
+        s.photo_after = p ? (p.after_photo || null) : null;
+        s.photo = p ? (p.before_photo || p.after_photo || null) : null;
+        s.has_dual_photo = Boolean(s.photo_before && s.photo_after);
+      });
+    }
+
+    if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.openFullDeck) {
+      SlidePreviewModal.openFullDeck({ month, slides: activeSlides }, null, slideIndex);
+      if (slideIndex > 0 && typeof SlidePreviewModal.goToSlide === 'function') {
+        SlidePreviewModal.goToSlide(slideIndex);
+      }
+    } else if (typeof ReportBuilderView !== 'undefined' && ReportBuilderView.previewFullDeck) {
       ReportBuilderView.previewFullDeck(month);
-    } else if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.openFullDeck) {
-      const allTasks = window.appState && window.appState.workbookMgr ? window.appState.workbookMgr.getTasksForMonth(month) : [];
-      let activeSlides = window.appState && window.appState.syncEngine
-        ? window.appState.syncEngine.getActiveSlides(month)
-        : [];
-      if (allTasks && allTasks.length > 0) {
-        activeSlides = activeSlides.filter(s => s && s.task_id && allTasks.some(t => t.task_id === s.task_id));
-      }
-      if (typeof photoManager !== 'undefined') {
-        activeSlides.forEach(s => {
-          const p = photoManager.getTaskPhotos(s.task_id, month);
-          s.photo_before = p ? (p.before_photo || null) : null;
-          s.photo_after = p ? (p.after_photo || null) : null;
-          s.photo = p ? (p.before_photo || p.after_photo || null) : null;
-          s.has_dual_photo = Boolean(s.photo_before && s.photo_after);
-        });
-      }
-      SlidePreviewModal.openFullDeck({ month, slides: activeSlides });
     } else {
       ExportController.exportHTML(month);
+    }
+  },
+
+  previewCoverSlide() {
+    this.previewFullDeck(0);
+  },
+
+  previewDashboardSlide() {
+    this.previewFullDeck(2);
+  },
+
+  previewClosingSlide() {
+    if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.deckHtmlList && SlidePreviewModal.deckHtmlList.length > 0) {
+      this.previewFullDeck(SlidePreviewModal.deckHtmlList.length - 1);
+    } else {
+      this.previewFullDeck(999);
     }
   },
 
@@ -1266,28 +1349,35 @@ const MonthlyReportView = {
       });
     }
 
-    // Unique engineers for filter pills
+    // Unique engineers for filter pills and task count calculation
+    const engineerCounts = {};
+    activeSlides.forEach(s => {
+      const raw = (s.engineer || 'Unassigned').split('(')[0].trim();
+      engineerCounts[raw] = (engineerCounts[raw] || 0) + 1;
+    });
+
     const uniqueEngineers = Array.from(new Set(activeSlides.map(s => {
       const raw = s.engineer || 'Unassigned';
       return raw.split('(')[0].trim();
     }))).filter(Boolean);
+    uniqueEngineers.sort((a, b) => (engineerCounts[b] || 0) - (engineerCounts[a] || 0));
 
     // Total sequence slide count calculation
     const totalPresentationSlides = activeSlides.length + 4; // Cover + Executive Dashboard + Tasks + Top 5 + Closing
 
     container.innerHTML = `
-      <!-- Single Unified Executive Container for Monthly Report (Req 1 & 2: Single box, immediate slide edit visibility) -->
+      <!-- Single Unified Executive Container for Monthly Report (Immediate slide edit visibility) -->
       <div class="bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 shadow-xs space-y-2.5">
         
         <!-- 1. COMPACT TOP CONTROL BAR (One sleek executive row) -->
-        <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+        <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2 pb-2 border-b border-slate-100">
           
           <!-- Left: Brand + Title + Month Selector + Stats -->
           <div class="flex items-center gap-2.5 flex-wrap">
-            <img src="assets/img/walton_logo.png" alt="WALTON" class="h-6.5 w-auto object-contain flex-shrink-0 drop-shadow-2xs">
+            <img src="assets/img/walton_logo.png" alt="WALTON" class="h-6 w-auto object-contain flex-shrink-0 drop-shadow-2xs">
             <div class="flex items-center gap-1.5 flex-wrap">
               <h2 class="text-sm sm:text-base font-black text-slate-900 tracking-tight">Monthly Report Presentation Hub</h2>
-              <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+              <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
                 ${month}
               </span>
             </div>
@@ -1319,62 +1409,71 @@ const MonthlyReportView = {
           </div>
         </div>
 
-        <!-- 2. COMPACT SEARCH, FILTER & SPECIAL DECK SLIDE QUICK-PILLS -->
-        <div class="space-y-2 pb-0.5">
-          <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
-            <!-- Search Box & Slide Counter -->
-            <div class="flex items-center gap-2.5 flex-1 max-w-md">
-              <div class="relative flex-1">
-                <input type="text" oninput="MonthlyReportView.handleSearch(this.value)" placeholder="Search slides by title, engineer..." 
-                       class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 font-medium shadow-2xs" />
-                <span class="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
-              </div>
-              <span id="monthly-report-filtered-counter" class="text-xs font-mono text-slate-500 whitespace-nowrap">
-                Showing all ${displayedSlides.length} task slides
-              </span>
-            </div>
-
-            <!-- Quick Deck Slides Navigation Pills (Direct preview without tall push-down cards) -->
+        <!-- 2. ESSENTIAL PRESENTATION DECK PAGES (Kept neatly separate in compact strip) -->
+        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-xl px-3 py-2 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 shadow-xs border border-slate-700/80">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30 uppercase tracking-wider flex-shrink-0">
+              📑 Essential Deck Slides:
+            </span>
             <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Deck Slides:</span>
-              <button onclick="MonthlyReportView.previewFullDeck()" title="Slide #1: Opening Cover" class="px-2.5 py-1 rounded-lg bg-slate-900 text-white text-[11px] font-bold hover:bg-slate-800 transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>#1 Cover</span> <span class="text-[10px]">👁️</span>
+              <button onclick="MonthlyReportView.previewCoverSlide()" title="Slide #1: Opening Cover Presentation"
+                      class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-600 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>#1 Cover Page</span> <span class="text-[10px]">👁️</span>
               </button>
-              <button onclick="MonthlyReportView.previewFullDeck()" title="Slide #2: Executive Performance Matrix" class="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700 transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>#2 Matrix</span> <span class="text-[10px]">👁️</span>
+              <button onclick="MonthlyReportView.previewDashboardSlide()" title="Slide #2: Executive Performance Matrix & Points"
+                      class="px-2.5 py-1 rounded-lg bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 hover:text-white border border-indigo-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>#2 Dashboard Slide</span> <span class="text-[10px]">👁️</span>
               </button>
-              <button onclick="App.switchTab('top5-summary')" title="Slide #Summary: Top 5 Completed & Ongoing Summary" class="px-2.5 py-1 rounded-lg bg-red-600 text-white text-[11px] font-bold hover:bg-red-700 transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>#Summary</span> <span class="text-[10px]">✏️</span>
+              <button onclick="App.switchTab('top5-summary')" title="Slide #Summary: Top 5 Completed & Ongoing Summary"
+                      class="px-2.5 py-1 rounded-lg bg-rose-900/80 hover:bg-rose-800 text-rose-200 hover:text-white border border-rose-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>🏆 Top 5 Projects Summary</span> <span class="text-[10px]">✏️</span>
               </button>
-              <button onclick="MonthlyReportView.previewFullDeck()" title="Slide #Closing: Thank You & Conclusion" class="px-2.5 py-1 rounded-lg bg-slate-700 text-white text-[11px] font-bold hover:bg-slate-600 transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>#Closing</span> <span class="text-[10px]">👁️</span>
+              <button onclick="MonthlyReportView.previewClosingSlide()" title="Slide #Closing: Thank You & Conclusion"
+                      class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>#Closing Slide</span> <span class="text-[10px]">👁️</span>
               </button>
             </div>
           </div>
 
-          <!-- Engineer & Category Filter Pills -->
-          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin text-xs">
-            <span class="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider flex-shrink-0">Filter:</span>
-            <button onclick="MonthlyReportView.handleEngineerFilter('')" 
-                    class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition border flex-shrink-0 ${!this.filterEngineer ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
-              All Engineers (${activeSlides.length})
-            </button>
-            ${uniqueEngineers.map(eng => {
-              const isSel = (this.filterEngineer.toLowerCase() === eng.toLowerCase());
-              return `
-                <button onclick="MonthlyReportView.handleEngineerFilter('${HELPERS.escapeHtml(eng)}')" 
-                        class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition border flex-shrink-0 ${isSel ? 'bg-blue-600 text-white border-blue-600 shadow-2xs' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
-                  👤 ${HELPERS.escapeHtml(eng)}
-                </button>
-              `;
-            }).join('')}
-            ${this.filterCategory ? `
-              <button onclick="MonthlyReportView.handleCategoryFilter('')" class="ml-auto px-2.5 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-[11px] font-bold border border-red-200 transition flex items-center gap-1 cursor-pointer flex-shrink-0">
-                <span>✕</span> <span>Reset ${HELPERS.escapeHtml(this.filterCategory)}</span>
-              </button>
-            ` : ''}
+          <!-- Search Box & Slide Counter -->
+          <div class="flex items-center gap-2 w-full md:w-auto">
+            <div class="relative flex-1 md:w-60">
+              <input type="text" oninput="MonthlyReportView.handleSearch(this.value)" placeholder="Search slides, engineer..." 
+                     class="w-full bg-slate-800/90 border border-slate-600 rounded-lg pl-7 pr-2.5 py-1 text-xs text-white placeholder-slate-400 focus:bg-slate-900 focus:outline-none focus:border-blue-400 font-medium shadow-2xs" />
+              <span class="absolute left-2 top-1.5 text-slate-400 text-xs">🔍</span>
+            </div>
+            <span id="monthly-report-filtered-counter" class="text-[11px] font-mono text-slate-400 whitespace-nowrap">
+              ${displayedSlides.length} slides
+            </span>
           </div>
         </div>
+
+        <!-- 3. SINGLE DEDICATED ROW FOR ENGINEER NAMES WITH (TASK QTY) -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-thin text-xs">
+          <span class="text-[10.5px] font-mono font-bold text-slate-400 uppercase tracking-wider flex-shrink-0">Engineers:</span>
+          <button onclick="MonthlyReportView.handleEngineerFilter('')" 
+                  class="px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 ${!this.filterEngineer ? 'bg-slate-900 text-white border-slate-900 shadow-2xs' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
+            <span>All Engineers</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black ${!this.filterEngineer ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-800'}">(${activeSlides.length})</span>
+          </button>
+          ${uniqueEngineers.map(eng => {
+            const isSel = (this.filterEngineer.toLowerCase() === eng.toLowerCase());
+            const count = engineerCounts[eng] || 0;
+            return `
+              <button onclick="MonthlyReportView.handleEngineerFilter('${HELPERS.escapeHtml(eng)}')" 
+                      class="px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 ${isSel ? 'bg-blue-600 text-white border-blue-600 shadow-2xs' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'}">
+                <span>👤 ${HELPERS.escapeHtml(eng)}</span>
+                <span class="px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black ${isSel ? 'bg-white/25 text-white' : 'bg-blue-50 text-blue-700'}">(${count})</span>
+              </button>
+            `;
+          }).join('')}
+          ${this.filterCategory ? `
+            <button onclick="MonthlyReportView.handleCategoryFilter('')" class="ml-auto px-2.5 py-1.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold border border-red-200 transition flex items-center gap-1 cursor-pointer flex-shrink-0">
+              <span>✕</span> <span>Reset ${HELPERS.escapeHtml(this.filterCategory)}</span>
+            </button>
+          ` : ''}
+        </div>
+      </div>
 
         <!-- 3. TASK PRESENTATION SLIDES GRID (Starts IMMEDIATELY right at top, Requirement 1) -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
@@ -1619,6 +1718,14 @@ if (typeof window !== 'undefined' && !window._mrvPhotoPasteBound) {
         }
       }
     }
+    // 3. Data URL text support
+    try {
+      const text = cbd.getData('text/plain') || cbd.getData('text');
+      if (text && (text.startsWith('data:image/') || /^https?:\/\/.*\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(text.trim()))) {
+        return text.trim();
+      }
+    } catch (e) {}
+
     return null;
   }
 
@@ -1639,7 +1746,7 @@ if (typeof window !== 'undefined' && !window._mrvPhotoPasteBound) {
 
     // Scenario B: Monthly Report Section view (Requirement 1: "monthly report er section e")
     const activeTab = (window.appState && window.appState.activeTab) || (typeof App !== 'undefined' ? App.currentTab : '');
-    if (activeTab === 'monthly-report') {
+    if (activeTab === 'monthly-report' || activeTab === 'monthly-report-view' || activeTab === 'report') {
       event.preventDefault();
       const targetTaskId = MonthlyReportView._selectedCardTaskId || MonthlyReportView.getFirstVisibleTaskId();
       if (targetTaskId) {

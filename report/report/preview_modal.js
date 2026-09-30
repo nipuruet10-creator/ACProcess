@@ -32,7 +32,7 @@ const SlidePreviewModal = {
    * Slides 4..N: Task Slides (1 Row = 1 Slide, Image 3 pattern)
    * Slide N+1: Top 5 Completed Works + Ongoing Projects (Image 2 pattern)
    */
-  openFullDeck(reportData = {}, template = null) {
+  openFullDeck(reportData = {}, template = null, startIndex = 0) {
     if (!reportData) return;
     const tmpl = template || reportData.template || "walton_executive_crimson";
     this.isDeckMode = true;
@@ -71,7 +71,7 @@ const SlidePreviewModal = {
 
     const orderedSlides = [...standardTaskSlides, ...completedProjectSlides, ...ongoingProjectSlides];
     this.activeSlides = orderedSlides;
-    this.currentSlideIndex = 0;
+    this.currentSlideIndex = (typeof startIndex === 'number' && startIndex >= 0 && startIndex < this.deckHtmlList.length) ? startIndex : 0;
 
     const total = this.deckHtmlList.length;
 
