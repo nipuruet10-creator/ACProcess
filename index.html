@@ -26,26 +26,23 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    /* Executive Card Hover Transitions */
-    .hub-card {
-      background: #FFFFFF;
-      border: 1px solid #E2E8F0;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    /* Executive Card Gradient & Hover Transitions (Task Entry Dashboard Pattern) */
+    .gradient-card {
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .hub-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.03);
-      border-color: #CBD5E1;
+    .gradient-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.12), 0 4px 8px -2px rgba(15, 23, 42, 0.04);
     }
   </style>
 </head>
 <body class="min-h-screen xl:h-screen xl:overflow-hidden bg-[#F8FAFC] text-slate-800 flex flex-col justify-between font-sans selection:bg-[#C5161D] selection:text-white">
 
-  <!-- 1. TOP HEADER (Exact Match to User Reference Mockup) -->
+  <!-- 1. TOP HEADER (Crossed-out plant, clock, and avatar removed; sleek clean bar) -->
   <header class="bg-white border-b border-slate-200/90 flex-shrink-0 z-30 shadow-2xs">
-    <div class="max-w-[1720px] mx-auto px-4 sm:px-6 h-15 sm:h-16 flex items-center justify-between gap-3">
+    <div class="max-w-[1720px] mx-auto px-4 sm:px-6 h-15 flex items-center justify-between gap-4">
       
-      <!-- Left: Walton Logo + AC Process Development + Engineering Hub Pill -->
+      <!-- Left: Walton Logo + Department Title + Engineering Hub Badge -->
       <div class="flex items-center gap-3 flex-shrink-0">
         <a href="/" class="flex items-center gap-2.5 group">
           <div class="h-10 w-auto flex items-center justify-center p-1 bg-white rounded-lg border border-slate-200 group-hover:border-blue-300 transition">
@@ -67,68 +64,35 @@
         </a>
       </div>
 
-      <!-- Center: Navigation Tabs (Home, Reports, SOP, Dashboard, Projects, Documents) -->
-      <nav class="hidden lg:flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
-        <a href="/" class="px-3 py-1 rounded-lg bg-blue-600 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition">
+      <!-- Right: Navigation Tabs (Cleanly Aligned) -->
+      <nav class="flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
+        <a href="/" class="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition">
           <span>🏠</span> <span>Home</span>
         </a>
-        <a href="./report/" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1">
+        <a href="./report/" class="px-3 py-1.5 rounded-lg hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1">
           <span>📑</span> <span>Reports</span>
         </a>
-        <a href="./sop/" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1">
+        <a href="./sop/" class="px-3 py-1.5 rounded-lg hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1">
           <span>📄</span> <span>SOP</span>
         </a>
-        <a href="./dashboard/" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1">
+        <a href="./dashboard/" class="px-3 py-1.5 rounded-lg hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1">
           <span>📊</span> <span>Dashboard</span>
         </a>
-        <a href="https://sajjadulmech.github.io/Walton-Microchannel-Dashboard/Microchannel%20Market%20Failure.html" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1">
+        <a href="https://sajjadulmech.github.io/Walton-Microchannel-Dashboard/Microchannel%20Market%20Failure.html" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1">
           <span>📁</span> <span>Projects</span>
         </a>
-        <a href="https://docs.google.com/spreadsheets/d/1HzLGHBNKV3X0s07GGHyJrN5znfdVVRXKxCS00b_6020/edit?gid=17724684#gid=17724684" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1">
+        <a href="https://docs.google.com/spreadsheets/d/1HzLGHBNKV3X0s07GGHyJrN5znfdVVRXKxCS00b_6020/edit?gid=17724684#gid=17724684" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1">
           <span>📚</span> <span>Documents</span>
         </a>
       </nav>
 
-      <!-- Right: Plant Location, Live Clock & User Avatar (MS) -->
-      <div class="flex items-center gap-2.5 flex-shrink-0">
-        
-        <!-- Plant Info -->
-        <div class="hidden xl:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 shadow-2xs">
-          <span class="text-sm">🏭</span>
-          <div class="flex flex-col text-left">
-            <span class="text-[10px] font-bold text-slate-800 leading-tight">Chandra, Gazipur</span>
-            <span class="text-[9px] text-slate-400 font-medium">AC Plant Operations</span>
-          </div>
-        </div>
-
-        <!-- Clock & Date -->
-        <div class="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 shadow-2xs">
-          <span class="text-sm">⏱️</span>
-          <div class="flex flex-col text-right">
-            <span id="live-clock" class="font-mono text-[11px] font-black text-slate-800 tracking-tight leading-tight">--:--:--</span>
-            <span id="live-date" class="text-[9px] text-slate-400 font-medium font-mono">-- --- 2026</span>
-          </div>
-        </div>
-
-        <!-- User Profile Avatar (MS - Md Sazzad) -->
-        <div class="flex items-center gap-2 pl-1.5 border-l border-slate-200">
-          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-[11px] flex items-center justify-center shadow-xs ring-2 ring-blue-100">
-            MS
-          </div>
-          <div class="hidden md:flex flex-col text-left">
-            <span class="text-xs font-bold text-slate-800 leading-tight">Md Sazzad</span>
-            <span class="text-[9.5px] text-slate-400 font-medium">Process Development</span>
-          </div>
-        </div>
-
-      </div>
     </div>
   </header>
 
-  <!-- 2. MAIN WORKSPACE (No Extra Text, Exact Reference Pattern, Fits Viewport) -->
-  <main class="max-w-[1720px] mx-auto px-4 sm:px-6 py-2.5 sm:py-3.5 flex-1 w-full flex flex-col justify-between gap-3 sm:gap-4 overflow-y-auto xl:overflow-hidden">
+  <!-- 2. MAIN WORKSPACE (Optimized Gaps & Taller Gradient Cards - Fits Viewport Seamlessly) -->
+  <main class="max-w-[1720px] mx-auto px-4 sm:px-6 py-4 flex-1 w-full flex flex-col justify-center gap-4 sm:gap-5 overflow-y-auto xl:overflow-hidden">
 
-    <!-- HERO TITLE STRIP (Compact, clean, no paragraph, red-x items removed) -->
+    <!-- HERO TITLE STRIP (Floating acprocess pill removed, compact header) -->
     <div class="flex items-center justify-between flex-shrink-0">
       <div>
         <span class="inline-block px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-rose-50 text-rose-600 border border-rose-200/80 mb-1 font-mono">
@@ -139,145 +103,144 @@
         </h2>
       </div>
 
-      <div class="flex items-center gap-2">
-        <a href="https://acprocess.com" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold font-mono shadow-2xs transition">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>acprocess.com</span>
-        </a>
+      <div class="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-500">
+        <span>Departmental Suite</span>
+        <span>&bull;</span>
+        <span class="text-emerald-700 font-bold font-mono">Version 2.0 Live</span>
       </div>
     </div>
 
-    <!-- ROW 1: 3 PRIMARY CORE APPLICATION CARDS (With Exact Watermarks, Badges & Solid Buttons) -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4 flex-shrink-0">
+    <!-- ROW 1: 3 PRIMARY CORE CARDS (Task Entry Dashboard Gradient Style, Taller & Optimized) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 flex-shrink-0">
 
-      <!-- CARD 1: Monthly Report System -->
-      <div class="hub-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group">
-        <!-- Top Blue Stripe -->
-        <div class="absolute top-0 left-0 right-0 h-1 bg-blue-600"></div>
+      <!-- CARD 1: Monthly Report System (Blue Gradient) -->
+      <div class="gradient-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-blue-50/95 via-[#F0F7FF] to-blue-100/90 border border-blue-200/90 shadow-xs hover:border-blue-400">
+        <!-- Top Blue Accent Line -->
+        <div class="absolute top-0 left-0 right-0 h-1.5 bg-blue-600"></div>
 
         <!-- Watermark Graphic: Bar Chart -->
-        <svg class="absolute right-4 bottom-14 w-28 h-18 text-blue-100 pointer-events-none opacity-50 group-hover:opacity-75 transition" viewBox="0 0 120 70" fill="currentColor">
-          <rect x="15" y="45" width="11" height="25" rx="2" fill="#BFDBFE" />
-          <rect x="33" y="32" width="11" height="38" rx="2" fill="#93C5FD" />
-          <rect x="51" y="22" width="11" height="48" rx="2" fill="#60A5FA" />
-          <rect x="69" y="14" width="11" height="56" rx="2" fill="#3B82F6" opacity="0.8" />
-          <rect x="87" y="6" width="11" height="64" rx="2" fill="#2563EB" opacity="0.6" />
-          <rect x="105" y="0" width="11" height="70" rx="2" fill="#1D4ED8" opacity="0.5" />
+        <svg class="absolute right-4 bottom-16 w-32 h-20 text-blue-200/70 pointer-events-none opacity-60 group-hover:opacity-85 transition" viewBox="0 0 120 70" fill="currentColor">
+          <rect x="15" y="45" width="11" height="25" rx="2" fill="#93C5FD" />
+          <rect x="33" y="32" width="11" height="38" rx="2" fill="#60A5FA" />
+          <rect x="51" y="22" width="11" height="48" rx="2" fill="#3B82F6" />
+          <rect x="69" y="14" width="11" height="56" rx="2" fill="#2563EB" opacity="0.85" />
+          <rect x="87" y="6" width="11" height="64" rx="2" fill="#1D4ED8" opacity="0.75" />
+          <rect x="105" y="0" width="11" height="70" rx="2" fill="#1E40AF" opacity="0.65" />
         </svg>
 
         <div>
           <!-- Top Row: Icon + Status Pill -->
-          <div class="flex items-center justify-between mb-3">
-            <div class="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-2xs group-hover:scale-105 transition-transform">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-white border border-blue-200/80 flex items-center justify-center text-blue-600 shadow-xs group-hover:scale-105 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
               </svg>
             </div>
 
-            <div class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            <div class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-white/95 px-2.5 py-1 rounded-full border border-emerald-200/90 shadow-2xs">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span>Active</span>
               <span class="text-slate-400 font-normal ml-0.5">&gt;</span>
             </div>
           </div>
 
-          <!-- Title (NO EXTRA TEXT) -->
-          <h3 class="text-lg sm:text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">
+          <!-- Title -->
+          <h3 class="text-xl sm:text-2xl font-black text-slate-900 group-hover:text-blue-700 transition-colors">
             Monthly Report System
           </h3>
         </div>
 
         <!-- Solid Bottom Button -->
-        <div class="mt-4 pt-1 z-10">
-          <a href="./report/" class="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-all group-hover:gap-2 cursor-pointer">
+        <div class="mt-6 pt-1 z-10">
+          <a href="./report/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 transition-all group-hover:gap-2.5 cursor-pointer">
             <span>Open Report</span>
             <span>&rarr;</span>
           </a>
         </div>
       </div>
 
-      <!-- CARD 2: Process Dashboard & TMS -->
-      <div class="hub-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group">
-        <!-- Top Green Stripe -->
-        <div class="absolute top-0 left-0 right-0 h-1 bg-emerald-600"></div>
+      <!-- CARD 2: Process Dashboard & TMS (Emerald Gradient) -->
+      <div class="gradient-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-emerald-50/95 via-[#F0FDF7] to-emerald-100/90 border border-emerald-200/90 shadow-xs hover:border-emerald-400">
+        <!-- Top Green Accent Line -->
+        <div class="absolute top-0 left-0 right-0 h-1.5 bg-emerald-600"></div>
 
         <!-- Watermark Graphic: Wave Curve -->
-        <svg class="absolute right-2 bottom-14 w-32 h-18 text-emerald-200 pointer-events-none opacity-50 group-hover:opacity-75 transition" viewBox="0 0 140 60" fill="none">
+        <svg class="absolute right-2 bottom-16 w-36 h-20 text-emerald-200/80 pointer-events-none opacity-60 group-hover:opacity-85 transition" viewBox="0 0 140 60" fill="none">
           <path d="M0,45 C30,50 50,28 75,32 C100,38 115,12 140,8" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" fill="none" />
-          <path d="M0,45 C30,50 50,28 75,32 C100,38 115,12 140,8 L140,60 L0,60 Z" fill="#D1FAE5" opacity="0.4" />
+          <path d="M0,45 C30,50 50,28 75,32 C100,38 115,12 140,8 L140,60 L0,60 Z" fill="#A7F3D0" opacity="0.45" />
         </svg>
 
         <div>
           <!-- Top Row: Icon + Status Pill -->
-          <div class="flex items-center justify-between mb-3">
-            <div class="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shadow-2xs group-hover:scale-105 transition-transform">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-white border border-emerald-200/80 flex items-center justify-center text-emerald-600 shadow-xs group-hover:scale-105 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
               </svg>
             </div>
 
-            <div class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            <div class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-white/95 px-2.5 py-1 rounded-full border border-emerald-200/90 shadow-2xs">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span>Live</span>
               <span class="text-slate-400 font-normal ml-0.5">&gt;</span>
             </div>
           </div>
 
-          <!-- Title (NO EXTRA TEXT) -->
-          <h3 class="text-lg sm:text-xl font-black text-slate-900 group-hover:text-emerald-600 transition-colors">
+          <!-- Title -->
+          <h3 class="text-xl sm:text-2xl font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
             Process Dashboard &amp; TMS
           </h3>
         </div>
 
         <!-- Solid Bottom Button -->
-        <div class="mt-4 pt-1 z-10">
-          <a href="./dashboard/" class="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-all group-hover:gap-2 cursor-pointer">
+        <div class="mt-6 pt-1 z-10">
+          <a href="./dashboard/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition-all group-hover:gap-2.5 cursor-pointer">
             <span>Open Dashboard</span>
             <span>&rarr;</span>
           </a>
         </div>
       </div>
 
-      <!-- CARD 3: SOP Making Automation -->
-      <div class="hub-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden group">
-        <!-- Top Orange Stripe -->
-        <div class="absolute top-0 left-0 right-0 h-1 bg-orange-500"></div>
+      <!-- CARD 3: SOP Making Automation (Orange Gradient) -->
+      <div class="gradient-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-orange-50/95 via-[#FFF9F3] to-orange-100/90 border border-orange-200/90 shadow-xs hover:border-orange-400">
+        <!-- Top Orange Accent Line -->
+        <div class="absolute top-0 left-0 right-0 h-1.5 bg-orange-500"></div>
 
         <!-- Watermark Graphic: Document Sheets -->
-        <svg class="absolute right-4 bottom-14 w-24 h-18 text-orange-200 pointer-events-none opacity-50 group-hover:opacity-75 transition" viewBox="0 0 90 70" fill="none">
-          <rect x="25" y="5" width="50" height="58" rx="4" fill="#FFEDD5" stroke="#FDBA74" stroke-width="1.5" />
-          <line x1="33" y1="18" x2="62" y2="18" stroke="#FB923C" stroke-width="1.5" stroke-linecap="round" />
-          <line x1="33" y1="26" x2="58" y2="26" stroke="#FB923C" stroke-width="1.5" stroke-linecap="round" />
-          <rect x="10" y="14" width="50" height="58" rx="4" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1.5" />
-          <line x1="18" y1="26" x2="48" y2="26" stroke="#F97316" stroke-width="1.5" stroke-linecap="round" />
-          <line x1="18" y1="34" x2="44" y2="34" stroke="#F97316" stroke-width="1.5" stroke-linecap="round" />
+        <svg class="absolute right-4 bottom-16 w-28 h-20 text-orange-200/80 pointer-events-none opacity-60 group-hover:opacity-85 transition" viewBox="0 0 90 70" fill="none">
+          <rect x="25" y="5" width="52" height="60" rx="4" fill="#FED7AA" stroke="#FB923C" stroke-width="1.5" />
+          <line x1="33" y1="18" x2="65" y2="18" stroke="#F97316" stroke-width="1.5" stroke-linecap="round" />
+          <line x1="33" y1="27" x2="60" y2="27" stroke="#F97316" stroke-width="1.5" stroke-linecap="round" />
+          <rect x="10" y="14" width="52" height="60" rx="4" fill="#FFEDD5" stroke="#FB923C" stroke-width="1.5" />
+          <line x1="18" y1="27" x2="50" y2="27" stroke="#EA580C" stroke-width="1.5" stroke-linecap="round" />
+          <line x1="18" y1="36" x2="45" y2="36" stroke="#EA580C" stroke-width="1.5" stroke-linecap="round" />
         </svg>
 
         <div>
           <!-- Top Row: Icon + Status Pill -->
-          <div class="flex items-center justify-between mb-3">
-            <div class="w-11 h-11 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 shadow-2xs group-hover:scale-105 transition-transform">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-white border border-orange-200/80 flex items-center justify-center text-orange-600 shadow-xs group-hover:scale-105 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
               </svg>
             </div>
 
-            <div class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            <div class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-white/95 px-2.5 py-1 rounded-full border border-emerald-200/90 shadow-2xs">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span>Operational</span>
               <span class="text-slate-400 font-normal ml-0.5">&gt;</span>
             </div>
           </div>
 
-          <!-- Title (NO EXTRA TEXT) -->
-          <h3 class="text-lg sm:text-xl font-black text-slate-900 group-hover:text-orange-600 transition-colors">
+          <!-- Title -->
+          <h3 class="text-xl sm:text-2xl font-black text-slate-900 group-hover:text-orange-700 transition-colors">
             SOP Making Automation
           </h3>
         </div>
 
         <!-- Solid Bottom Button -->
-        <div class="mt-4 pt-1 z-10">
-          <a href="./sop/" class="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs sm:text-sm shadow-xs transition-all group-hover:gap-2 cursor-pointer">
+        <div class="mt-6 pt-1 z-10">
+          <a href="./sop/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm shadow-md shadow-orange-500/20 transition-all group-hover:gap-2.5 cursor-pointer">
             <span>Open SOP System</span>
             <span>&rarr;</span>
           </a>
@@ -286,149 +249,149 @@
 
     </div>
 
-    <!-- ROW 2: 5 SPECIALIZED SUB-CARDS (Exact 5 Colors, Icons, Status & Outlined Buttons from Mockup) -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5 flex-shrink-0">
+    <!-- ROW 2: 5 SPECIALIZED SUB-CARDS (Task Entry Dashboard Gradient Style, Taller & Balanced) -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 flex-shrink-0">
 
-      <!-- SUB-CARD 1: BOM Observation Report (Purple Theme) -->
-      <div class="hub-card rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group">
+      <!-- SUB-CARD 1: BOM Observation Report (Purple Gradient) -->
+      <div class="gradient-card rounded-2xl p-4 sm:p-4.5 flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-purple-50/95 via-[#FAF6FF] to-purple-100/90 border border-purple-200/90 shadow-xs hover:border-purple-400">
         <div class="absolute top-0 left-0 right-0 h-1 bg-purple-600"></div>
         <div>
-          <div class="flex items-center justify-between mb-2">
-            <div class="w-8 h-8 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shadow-2xs group-hover:scale-105 transition-transform">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-9 h-9 rounded-lg bg-white border border-purple-200/80 flex items-center justify-center text-purple-600 shadow-2xs group-hover:scale-105 transition-transform">
+              <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
               </svg>
             </div>
-            <div class="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded-full border border-emerald-200">
+            <div class="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-white/95 px-2 py-0.5 rounded-full border border-emerald-200/90 shadow-2xs">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span>Live</span>
               <span class="text-slate-400 font-normal">&gt;</span>
             </div>
           </div>
-          <h4 class="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-purple-600 transition-colors truncate" title="BOM Observation Report">
+          <h4 class="text-sm font-bold text-slate-900 group-hover:text-purple-700 transition-colors truncate" title="BOM Observation Report">
             BOM Observation Report
           </h4>
         </div>
-        <div class="mt-3">
+        <div class="mt-4">
           <a href="https://docs.google.com/spreadsheets/d/1HzLGHBNKV3X0s07GGHyJrN5znfdVVRXKxCS00b_6020/edit?gid=17724684#gid=17724684" target="_blank" rel="noopener noreferrer" 
-             class="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-600 text-purple-700 hover:text-white font-bold text-[11px] border border-purple-200 hover:border-purple-600 transition-all cursor-pointer">
+             class="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-white hover:bg-purple-600 text-purple-700 hover:text-white font-bold text-xs border border-purple-200 shadow-2xs transition-all cursor-pointer">
             <span>Open System</span>
             <span>&rarr;</span>
           </a>
         </div>
       </div>
 
-      <!-- SUB-CARD 2: Critical Item Analysis Dashboard (Blue Theme) -->
-      <div class="hub-card rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group">
-        <div class="absolute top-0 left-0 right-0 h-1 bg-blue-600"></div>
+      <!-- SUB-CARD 2: Critical Item Analysis Dashboard (Sky Blue Gradient) -->
+      <div class="gradient-card rounded-2xl p-4 sm:p-4.5 flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-sky-50/95 via-[#F0F9FF] to-sky-100/90 border border-sky-200/90 shadow-xs hover:border-sky-400">
+        <div class="absolute top-0 left-0 right-0 h-1 bg-sky-500"></div>
         <div>
-          <div class="flex items-center justify-between mb-2">
-            <div class="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-2xs group-hover:scale-105 transition-transform">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-9 h-9 rounded-lg bg-white border border-sky-200/80 flex items-center justify-center text-sky-600 shadow-2xs group-hover:scale-105 transition-transform">
+              <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
               </svg>
             </div>
-            <div class="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded-full border border-emerald-200">
+            <div class="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-white/95 px-2 py-0.5 rounded-full border border-emerald-200/90 shadow-2xs">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span>Operational</span>
               <span class="text-slate-400 font-normal">&gt;</span>
             </div>
           </div>
-          <h4 class="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate" title="Critical Item Analysis">
+          <h4 class="text-sm font-bold text-slate-900 group-hover:text-sky-700 transition-colors truncate" title="Critical Item Analysis">
             Critical Item Analysis
           </h4>
         </div>
-        <div class="mt-3">
+        <div class="mt-4">
           <a href="https://docs.google.com/spreadsheets/d/11IAHdcCgsJ_7JAWLdVRZBzATEXAkPb-aK546l71FHSg/edit?gid=1246335470#gid=1246335470" target="_blank" rel="noopener noreferrer" 
-             class="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white font-bold text-[11px] border border-blue-200 hover:border-blue-600 transition-all cursor-pointer">
+             class="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-white hover:bg-sky-600 text-sky-700 hover:text-white font-bold text-xs border border-sky-200 shadow-2xs transition-all cursor-pointer">
             <span>Open Analytics</span>
             <span>&rarr;</span>
           </a>
         </div>
       </div>
 
-      <!-- SUB-CARD 3: Microchannel Failure Analytics (Coral / Red Theme) -->
-      <div class="hub-card rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group">
+      <!-- SUB-CARD 3: Microchannel Failure Analytics (Rose/Red Gradient) -->
+      <div class="gradient-card rounded-2xl p-4 sm:p-4.5 flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-rose-50/95 via-[#FFF4F6] to-rose-100/90 border border-rose-200/90 shadow-xs hover:border-rose-400">
         <div class="absolute top-0 left-0 right-0 h-1 bg-rose-500"></div>
         <div>
-          <div class="flex items-center justify-between mb-2">
-            <div class="w-8 h-8 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shadow-2xs group-hover:scale-105 transition-transform">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-9 h-9 rounded-lg bg-white border border-rose-200/80 flex items-center justify-center text-rose-600 shadow-2xs group-hover:scale-105 transition-transform">
+              <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
               </svg>
             </div>
-            <div class="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded-full border border-emerald-200">
+            <div class="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-white/95 px-2 py-0.5 rounded-full border border-emerald-200/90 shadow-2xs">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span>Operational</span>
               <span class="text-slate-400 font-normal">&gt;</span>
             </div>
           </div>
-          <h4 class="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-rose-600 transition-colors truncate" title="Machine & Process / MFC Analytics">
+          <h4 class="text-sm font-bold text-slate-900 group-hover:text-rose-700 transition-colors truncate" title="Machine & Process / MFC Analytics">
             Machine &amp; Process
           </h4>
         </div>
-        <div class="mt-3">
+        <div class="mt-4">
           <a href="https://sajjadulmech.github.io/Walton-Microchannel-Dashboard/Microchannel%20Market%20Failure.html" target="_blank" rel="noopener noreferrer" 
-             class="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white font-bold text-[11px] border border-rose-200 hover:border-rose-600 transition-all cursor-pointer">
+             class="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-white hover:bg-rose-600 text-rose-700 hover:text-white font-bold text-xs border border-rose-200 shadow-2xs transition-all cursor-pointer">
             <span>Open System</span>
             <span>&rarr;</span>
           </a>
         </div>
       </div>
 
-      <!-- SUB-CARD 4: Continuous Improvement / BOM Automation (Amber / Yellow Theme) -->
-      <div class="hub-card rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group">
+      <!-- SUB-CARD 4: Continuous Improvement / BOM Automation (Amber/Yellow Gradient) -->
+      <div class="gradient-card rounded-2xl p-4 sm:p-4.5 flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-amber-50/95 via-[#FFFDF5] to-amber-100/90 border border-amber-200/90 shadow-xs hover:border-amber-400">
         <div class="absolute top-0 left-0 right-0 h-1 bg-amber-500"></div>
         <div>
-          <div class="flex items-center justify-between mb-2">
-            <div class="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shadow-2xs group-hover:scale-105 transition-transform">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-9 h-9 rounded-lg bg-white border border-amber-200/80 flex items-center justify-center text-amber-600 shadow-2xs group-hover:scale-105 transition-transform">
+              <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
               </svg>
             </div>
-            <div class="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded-full border border-emerald-200">
+            <div class="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-white/95 px-2 py-0.5 rounded-full border border-emerald-200/90 shadow-2xs">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span>Active</span>
               <span class="text-slate-400 font-normal">&gt;</span>
             </div>
           </div>
-          <h4 class="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-amber-600 transition-colors truncate" title="Continuous Improvement">
+          <h4 class="text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors truncate" title="Continuous Improvement">
             Continuous Improvement
           </h4>
         </div>
-        <div class="mt-3">
+        <div class="mt-4">
           <a href="https://mdrafiulanam1994.github.io/BOM-Automation-Dashboard/" target="_blank" rel="noopener noreferrer" 
-             class="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white font-bold text-[11px] border border-amber-200 hover:border-amber-600 transition-all cursor-pointer">
+             class="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-white hover:bg-amber-600 text-amber-800 hover:text-white font-bold text-xs border border-amber-200 shadow-2xs transition-all cursor-pointer">
             <span>Open CI System</span>
             <span>&rarr;</span>
           </a>
         </div>
       </div>
 
-      <!-- SUB-CARD 5: Engineering Library (Teal Theme) -->
-      <div class="hub-card rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden group">
+      <!-- SUB-CARD 5: Engineering Library (Teal Gradient) -->
+      <div class="gradient-card rounded-2xl p-4 sm:p-4.5 flex flex-col justify-between relative overflow-hidden group bg-gradient-to-br from-teal-50/95 via-[#F2FCF9] to-teal-100/90 border border-teal-200/90 shadow-xs hover:border-teal-400">
         <div class="absolute top-0 left-0 right-0 h-1 bg-teal-500"></div>
         <div>
-          <div class="flex items-center justify-between mb-2">
-            <div class="w-8 h-8 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 shadow-2xs group-hover:scale-105 transition-transform">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-9 h-9 rounded-lg bg-white border border-teal-200/80 flex items-center justify-center text-teal-600 shadow-2xs group-hover:scale-105 transition-transform">
+              <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
               </svg>
             </div>
-            <div class="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded-full border border-emerald-200">
+            <div class="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-white/95 px-2 py-0.5 rounded-full border border-emerald-200/90 shadow-2xs">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span>Ready</span>
               <span class="text-slate-400 font-normal">&gt;</span>
             </div>
           </div>
-          <h4 class="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-teal-600 transition-colors truncate" title="Engineering Library">
+          <h4 class="text-sm font-bold text-slate-900 group-hover:text-teal-700 transition-colors truncate" title="Engineering Library">
             Engineering Library
           </h4>
         </div>
-        <div class="mt-3">
+        <div class="mt-4">
           <a href="./sop/" 
-             class="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-600 text-teal-700 hover:text-white font-bold text-[11px] border border-teal-200 hover:border-teal-600 transition-all cursor-pointer">
+             class="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-white hover:bg-teal-600 text-teal-700 hover:text-white font-bold text-xs border border-teal-200 shadow-2xs transition-all cursor-pointer">
             <span>Open Documents</span>
             <span>&rarr;</span>
           </a>
@@ -437,16 +400,16 @@
 
     </div>
 
-    <!-- 3. SYSTEM STATUS BAR (Exact Match to Mockup Bottom Bar) -->
-    <div class="bg-white border border-slate-200 rounded-xl p-2.5 sm:p-3 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-2.5 flex-shrink-0">
+    <!-- 3. SYSTEM STATUS BAR (Clean, compact, no huge gap above) -->
+    <div class="bg-white/95 border border-slate-200/90 rounded-xl p-2.5 sm:p-3 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-2.5 flex-shrink-0">
       <div class="flex items-center gap-2">
-        <div class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold">
+        <div class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold shadow-2xs">
           ✔
         </div>
         <span class="text-xs font-black text-slate-800">System Status</span>
       </div>
       
-      <div class="flex items-center gap-3 sm:gap-5 flex-wrap text-[11px] font-medium text-slate-600 justify-center">
+      <div class="flex items-center gap-3 sm:gap-6 flex-wrap text-[11px] font-medium text-slate-600 justify-center">
         <div class="flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
           <span>Production <strong class="text-emerald-700 font-semibold font-mono">Connected</strong></span>
@@ -477,7 +440,7 @@
 
   </main>
 
-  <!-- 4. ULTRA COMPACT FOOTER -->
+  <!-- 4. FOOTER -->
   <footer class="bg-white border-t border-slate-200 py-1.5 px-4 sm:px-6 flex-shrink-0">
     <div class="max-w-[1720px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-1 text-[11px] text-slate-400 font-mono">
       <div class="flex items-center gap-2">
@@ -491,25 +454,5 @@
     </div>
   </footer>
 
-  <script>
-    // Live clock and date update (Exact match to Mockup top right)
-    function updateClock() {
-      const now = new Date();
-      const clockEl = document.getElementById('live-clock');
-      const dateEl = document.getElementById('live-date');
-      if (clockEl) {
-        clockEl.textContent = now.toLocaleTimeString('en-US', { hour12: false });
-      }
-      if (dateEl) {
-        const day = String(now.getDate()).padStart(2, '0');
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const mon = months[now.getMonth()];
-        const year = now.getFullYear();
-        dateEl.textContent = `${day} ${mon} ${year}`;
-      }
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-  </script>
 </body>
 </html>
