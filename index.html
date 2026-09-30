@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AC Process Development Central Suite | WALTON Hi-Tech Industries PLC</title>
+  <title>AC Process Engineering Hub | WALTON Hi-Tech Industries PLC</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -31,68 +31,124 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    .glass-card {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(226, 232, 240, 0.8);
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    .hub-card {
+      background: #FFFFFF;
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .glass-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.12), 0 10px 15px -5px rgba(15, 23, 42, 0.04);
-      border-color: rgba(197, 22, 29, 0.3);
+    .hub-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 30px -8px rgba(15, 23, 42, 0.08), 0 8px 12px -4px rgba(15, 23, 42, 0.04);
+      border-color: rgba(203, 213, 225, 1);
     }
   </style>
 </head>
 <body class="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col font-sans selection:bg-[#C5161D] selection:text-white">
 
-  <!-- TOP HEADER / BRAND BAR -->
-  <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-50 shadow-xs">
-    <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-      <!-- Walton Logo & Title -->
-      <div class="flex items-center gap-4">
-        <a href="/" class="flex items-center gap-3.5 group">
-          <div class="h-13 w-auto flex items-center justify-center p-1.5 bg-white rounded-xl shadow-xs border border-slate-200/80 group-hover:border-blue-300 transition">
-            <img src="./assets/img/walton_logo.png" alt="Walton Logo" class="h-10 w-auto object-contain" />
+  <!-- TOP HEADER / BRAND BAR (Matching User Design Mockup) -->
+  <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-50 shadow-2xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-4">
+      
+      <!-- Left: Walton Logo & Department Title + Engineering Hub Badge -->
+      <div class="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+        <a href="/" class="flex items-center gap-3 group">
+          <div class="h-12 w-auto flex items-center justify-center p-1.5 bg-white rounded-xl shadow-2xs border border-slate-200/80 group-hover:border-blue-300 transition">
+            <img src="./assets/img/walton_logo.png" alt="Walton Logo" class="h-9 w-auto object-contain" />
           </div>
-          <div class="border-l border-slate-200/80 pl-3.5 py-0.5">
+          <div class="border-l border-slate-200/80 pl-3 py-0.5">
             <div class="flex items-center gap-2">
-              <span class="text-[11px] font-black tracking-widest text-[#00529B] uppercase font-mono">WALTON HI-TECH INDUSTRIES PLC</span>
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
-                Live Portal
+              <h1 class="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-none">
+                AC Process Development
+              </h1>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                Engineering Hub
               </span>
             </div>
-            <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <span>AC Process Development</span>
-              <span class="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-50 text-[#00529B] border border-blue-200 uppercase tracking-wider hidden sm:inline-block">Master Suite</span>
-            </h1>
+            <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono mt-0.5 block">
+              Walton Hi-Tech Industries PLC
+            </span>
           </div>
         </a>
       </div>
 
-      <!-- Realtime Clock & Status -->
-      <div class="flex items-center gap-4">
-        <div class="hidden lg:flex items-center gap-2.5 bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 shadow-2xs">
-          <span class="text-base">🏭</span>
+      <!-- Center: Navigation Tabs (Home, Reports, SOP, Dashboard, Analytics, Sheets) -->
+      <nav class="hidden xl:flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/80">
+        <a href="/" class="px-3.5 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition">
+          <span>🏠</span> <span>Home</span>
+        </a>
+        <a href="./report/" class="px-3 py-1.5 rounded-xl hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1.5">
+          <span>📑</span> <span>Reports</span>
+        </a>
+        <a href="./sop/" class="px-3 py-1.5 rounded-xl hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1.5">
+          <span>📄</span> <span>SOP</span>
+        </a>
+        <a href="./dashboard/" class="px-3 py-1.5 rounded-xl hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1.5">
+          <span>📊</span> <span>Dashboard</span>
+        </a>
+        <a href="https://sajjadulmech.github.io/Walton-Microchannel-Dashboard/Microchannel%20Market%20Failure.html" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1.5">
+          <span>🔬</span> <span>Reliability</span>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1HzLGHBNKV3X0s07GGHyJrN5znfdVVRXKxCS00b_6020/edit?gid=17724684#gid=17724684" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl hover:bg-white text-slate-700 hover:text-slate-900 font-bold text-xs transition flex items-center gap-1.5">
+          <span>📋</span> <span>BOM Sheets</span>
+        </a>
+      </nav>
+
+      <!-- Right: Plant Location, Live Clock & User Avatar -->
+      <div class="flex items-center gap-3 flex-shrink-0">
+        
+        <!-- Plant Info -->
+        <div class="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5 shadow-2xs">
+          <span class="text-sm">🏭</span>
           <div class="flex flex-col text-left">
-            <span class="text-[11px] font-bold text-slate-800 leading-tight">Chandra, Gazipur</span>
-            <span class="text-[10px] text-slate-400 font-medium">AC Plant Operations</span>
+            <span class="text-[10px] font-bold text-slate-800 leading-tight">Chandra, Gazipur</span>
+            <span class="text-[9.5px] text-slate-400 font-medium">AC Plant Operations</span>
           </div>
         </div>
 
-        <div class="hidden md:flex items-center gap-2.5 bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 shadow-2xs">
-          <span class="text-base">⏱️</span>
+        <!-- Clock & Date -->
+        <div class="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5 shadow-2xs">
+          <span class="text-sm">⏱️</span>
           <div class="flex flex-col text-right">
-            <span id="live-clock" class="font-mono text-xs font-black text-slate-800 tracking-tight leading-tight">--:--:--</span>
-            <span class="text-[10px] text-slate-400 font-medium">BST (UTC+6)</span>
+            <span id="live-clock" class="font-mono text-[11px] font-black text-slate-800 tracking-tight leading-tight">--:--:--</span>
+            <span id="live-date" class="text-[9.5px] text-slate-400 font-medium font-mono">-- --- 2026</span>
           </div>
         </div>
 
-        <a href="https://acprocess.com" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition group">
+        <!-- User Profile Avatar (MS - Md Sazzad) -->
+        <div class="flex items-center gap-2.5 pl-2 border-l border-slate-200/80">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-xs ring-2 ring-blue-100">
+            MS
+          </div>
+          <div class="hidden sm:flex flex-col text-left">
+            <span class="text-xs font-bold text-slate-800 leading-tight">Md Sazzad</span>
+            <span class="text-[10px] text-slate-400 font-medium">Process Development</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO SECTION (Clean, uncluttered, matching mockup) -->
+  <section class="py-8 sm:py-10 px-6 bg-gradient-to-b from-white via-slate-50 to-[#F8FAFC] border-b border-slate-200/80">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div>
+        <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200/80 mb-3 font-mono">
+          Engineering Operations Hub
+        </span>
+        <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
+          AC Process Engineering Hub
+        </h2>
+        <p class="mt-2 text-sm sm:text-base text-slate-600 max-w-3xl leading-relaxed">
+          Unified central gateway for Walton Air Conditioner Process Development Department. Access automated management reports, operational standard operating procedures (SOP), and real-time plant engineering synchronization.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2.5 flex-shrink-0">
+        <a href="https://acprocess.com" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition group">
           <span class="relative flex h-2 w-2">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -101,64 +157,55 @@
         </a>
       </div>
     </div>
-  </header>
-
-  <!-- HERO SECTION -->
-  <section class="py-12 px-6 bg-gradient-to-b from-white via-slate-50 to-[#F8FAFC] border-b border-slate-200/80">
-    <div class="max-w-5xl mx-auto text-center">
-      <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-[#C5161D] border border-red-200/60 mb-4 font-mono">
-        Executive Engineering Control Hub
-      </span>
-      <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight">
-        Central Process Automation & Operations Suite
-      </h2>
-      <p class="mt-4 text-base sm:text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
-        Unified gateway for Walton Air Conditioner Process Development Department. Access the automated monthly management report, standard operating procedures (SOP), and real-time plant engineering synchronization.
-      </p>
-    </div>
   </section>
 
-  <!-- 5 MASTER PROJECT & INTELLIGENCE CARDS -->
-  <main class="max-w-7xl mx-auto px-6 py-10 flex-1 w-full space-y-10">
+  <!-- MAIN DASHBOARD CONTENT AREA -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-10">
 
-    <!-- SECTION 1: CORE PROCESS SYSTEMS -->
+    <!-- ROW 1: PRIMARY 3 CORE APPLICATION CARDS (Exact Mockup Pattern) -->
     <div>
-      <div class="flex items-center justify-between mb-5 pb-2.5 border-b border-slate-200/80">
-        <div class="flex items-center gap-2.5">
-          <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-base font-bold border border-blue-100 shadow-2xs">⚙️</span>
-          <div>
-            <h3 class="text-lg font-black text-slate-900 tracking-tight">Core Departmental Systems</h3>
-            <p class="text-xs text-slate-500">Primary operational automation applications for Walton AC Process Development.</p>
-          </div>
-        </div>
-        <span class="text-xs font-mono font-bold text-slate-400 hidden sm:inline">3 Core Suites</span>
-      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- CARD 1: Monthly Report System -->
+        <div class="hub-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between relative overflow-hidden group">
+          <!-- Top Blue Stripe -->
+          <div class="absolute top-0 left-0 right-0 h-1.5 bg-blue-600"></div>
 
-        <!-- PROJECT CARD 1: Monthly Report Automation -->
-        <div class="glass-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between relative overflow-hidden group">
-          <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
+          <!-- Subtle Background Graphic Watermark (Bar Chart) -->
+          <svg class="absolute right-4 bottom-18 w-32 h-20 text-blue-100 pointer-events-none opacity-60 group-hover:opacity-85 transition" viewBox="0 0 120 80" fill="currentColor">
+            <rect x="10" y="55" width="12" height="25" rx="3" fill="#BFDBFE" />
+            <rect x="28" y="42" width="12" height="38" rx="3" fill="#93C5FD" />
+            <rect x="46" y="30" width="12" height="50" rx="3" fill="#60A5FA" />
+            <rect x="64" y="20" width="12" height="60" rx="3" fill="#3B82F6" opacity="0.8" />
+            <rect x="82" y="8" width="12" height="72" rx="3" fill="#2563EB" opacity="0.6" />
+            <rect x="100" y="0" width="12" height="80" rx="3" fill="#1D4ED8" opacity="0.5" />
+          </svg>
+
           <div>
-            <div class="flex items-center justify-between mb-5">
-              <div class="w-13 h-13 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+            <!-- Top Row: Icon Container + Status Pill & Chevron -->
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-13 h-13 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-2xs group-hover:scale-105 transition-transform">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
               </div>
-              <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 font-mono">
-                Active v2.0
-              </span>
+
+              <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Active</span>
+                <span class="text-slate-400 font-normal ml-0.5">&gt;</span>
+              </div>
             </div>
 
-            <h3 class="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+            <!-- Title & Details -->
+            <h3 class="text-xl sm:text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">
               Monthly Report System
             </h3>
-            <p class="mt-2 text-sm text-slate-500 leading-relaxed">
+            <p class="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed max-w-sm">
               Automated monthly report builder, task management entry grid, TMS live sync, radial gauges, and PowerPoint (.pptx) vector presentation generation.
             </p>
 
-            <div class="mt-5 pt-4 border-t border-slate-100 space-y-2">
+            <div class="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
               <div class="flex items-center text-xs text-slate-600">
                 <span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
                 <span>185+ Walton Production Tasks (SEP-2026)</span>
@@ -174,101 +221,135 @@
             </div>
           </div>
 
+          <!-- Bottom Solid Button -->
           <div class="mt-6 pt-2">
-            <a href="./report/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 transition-all group-hover:gap-3">
-              <span>Launch Monthly Report</span>
+            <a href="./report/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 transition-all group-hover:gap-3 cursor-pointer">
+              <span>Open Report</span>
               <span>&rarr;</span>
             </a>
           </div>
         </div>
 
-        <!-- PROJECT CARD 2: SOP Making Automation -->
-        <div class="glass-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between relative overflow-hidden group">
-          <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-600"></div>
+        <!-- CARD 2: Process Dashboard & TMS -->
+        <div class="hub-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between relative overflow-hidden group">
+          <!-- Top Green Stripe -->
+          <div class="absolute top-0 left-0 right-0 h-1.5 bg-emerald-600"></div>
+
+          <!-- Subtle Background Graphic Watermark (Wave Curve) -->
+          <svg class="absolute right-2 bottom-18 w-36 h-20 text-emerald-200 pointer-events-none opacity-60 group-hover:opacity-85 transition" viewBox="0 0 140 70" fill="none">
+            <path d="M0,55 C30,60 50,35 75,40 C100,45 115,15 140,10" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" fill="none" />
+            <path d="M0,55 C30,60 50,35 75,40 C100,45 115,15 140,10 L140,70 L0,70 Z" fill="#D1FAE5" opacity="0.5" />
+          </svg>
+
           <div>
-            <div class="flex items-center justify-between mb-5">
-              <div class="w-13 h-13 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-              </div>
-              <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 font-mono">
-                Operational
-              </span>
-            </div>
-
-            <h3 class="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
-              SOP Making Automation
-            </h3>
-            <p class="mt-2 text-sm text-slate-500 leading-relaxed">
-              Standard Operating Procedure (SOP) generator, process flow documentation, machine line safety compliance, and assembly guidelines for AC manufacturing.
-            </p>
-
-            <div class="mt-5 pt-4 border-t border-slate-100 space-y-2">
-              <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
-                <span>Visual Work Instruction (VWI) Builder</span>
-              </div>
-              <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
-                <span>Tooling, Safety &amp; Parameter Checklists</span>
-              </div>
-              <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
-                <span>Instant PDF &amp; Print Formulation</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-6 pt-2">
-            <a href="./sop/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition-all group-hover:gap-3">
-              <span>Open SOP System</span>
-              <span>&rarr;</span>
-            </a>
-          </div>
-        </div>
-
-        <!-- PROJECT CARD 3: Process Dashboard & TMS Central Bridge -->
-        <div class="glass-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between relative overflow-hidden group">
-          <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 to-[#C5161D]"></div>
-          <div>
-            <div class="flex items-center justify-between mb-5">
-              <div class="w-13 h-13 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
+            <!-- Top Row: Icon Container + Status Pill & Chevron -->
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-13 h-13 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shadow-2xs group-hover:scale-105 transition-transform">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                 </svg>
               </div>
-              <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 font-mono">
-                Live Bridge
-              </span>
+
+              <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Live</span>
+                <span class="text-slate-400 font-normal ml-0.5">&gt;</span>
+              </div>
             </div>
 
-            <h3 class="text-xl font-bold text-slate-900 group-hover:text-orange-600 transition-colors">
-              Process Dashboard &amp; TMS Bridge
+            <!-- Title & Details -->
+            <h3 class="text-xl sm:text-2xl font-black text-slate-900 group-hover:text-emerald-600 transition-colors">
+              Process Dashboard &amp; TMS
             </h3>
-            <p class="mt-2 text-sm text-slate-500 leading-relaxed">
+            <p class="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed max-w-sm">
               Central monitoring dashboard, Walton ERP/TMS relay synchronization, departmental KPI metrics, and engineer workload distribution analytics.
             </p>
 
-            <div class="mt-5 pt-4 border-t border-slate-100 space-y-2">
+            <div class="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
               <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
                 <span>Walton TMS Live Sync Tunnel</span>
               </div>
               <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
                 <span>Real-Time Plant Engineering Stats</span>
               </div>
               <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>
                 <span>Master Admin Access &amp; Role Control</span>
               </div>
             </div>
           </div>
 
+          <!-- Bottom Solid Button -->
           <div class="mt-6 pt-2">
-            <a href="./dashboard/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-900 hover:bg-[#C5161D] text-white font-bold text-sm shadow-md transition-all group-hover:gap-3">
-              <span>Launch Dashboard</span>
+            <a href="./dashboard/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition-all group-hover:gap-3 cursor-pointer">
+              <span>Open Dashboard</span>
+              <span>&rarr;</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- CARD 3: SOP Making Automation -->
+        <div class="hub-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between relative overflow-hidden group">
+          <!-- Top Orange Stripe -->
+          <div class="absolute top-0 left-0 right-0 h-1.5 bg-orange-500"></div>
+
+          <!-- Subtle Background Graphic Watermark (Document Sheets) -->
+          <svg class="absolute right-4 bottom-18 w-28 h-22 text-orange-200 pointer-events-none opacity-60 group-hover:opacity-85 transition" viewBox="0 0 100 80" fill="none">
+            <rect x="25" y="5" width="55" height="65" rx="5" fill="#FFEDD5" stroke="#FDBA74" stroke-width="1.5" />
+            <line x1="35" y1="20" x2="65" y2="20" stroke="#FB923C" stroke-width="2" stroke-linecap="round" />
+            <line x1="35" y1="30" x2="60" y2="30" stroke="#FB923C" stroke-width="2" stroke-linecap="round" />
+            <rect x="10" y="15" width="55" height="65" rx="5" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1.5" />
+            <line x1="20" y1="30" x2="50" y2="30" stroke="#F97316" stroke-width="2" stroke-linecap="round" />
+            <line x1="20" y1="40" x2="45" y2="40" stroke="#F97316" stroke-width="2" stroke-linecap="round" />
+            <line x1="20" y1="50" x2="35" y2="50" stroke="#F97316" stroke-width="2" stroke-linecap="round" />
+          </svg>
+
+          <div>
+            <!-- Top Row: Icon Container + Status Pill & Chevron -->
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-13 h-13 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 shadow-2xs group-hover:scale-105 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+              </div>
+
+              <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Operational</span>
+                <span class="text-slate-400 font-normal ml-0.5">&gt;</span>
+              </div>
+            </div>
+
+            <!-- Title & Details -->
+            <h3 class="text-xl sm:text-2xl font-black text-slate-900 group-hover:text-orange-600 transition-colors">
+              SOP Making Automation
+            </h3>
+            <p class="mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed max-w-sm">
+              Standard Operating Procedure (SOP) generator, process flow documentation, machine line safety compliance, and assembly guidelines for AC manufacturing.
+            </p>
+
+            <div class="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
+              <div class="flex items-center text-xs text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2"></span>
+                <span>Visual Work Instruction (VWI) Builder</span>
+              </div>
+              <div class="flex items-center text-xs text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2"></span>
+                <span>Tooling, Safety &amp; Parameter Checklists</span>
+              </div>
+              <div class="flex items-center text-xs text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2"></span>
+                <span>Instant PDF &amp; Print Formulation</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Solid Button -->
+          <div class="mt-6 pt-2">
+            <a href="./sop/" class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm shadow-md shadow-orange-500/20 transition-all group-hover:gap-3 cursor-pointer">
+              <span>Open SOP System</span>
               <span>&rarr;</span>
             </a>
           </div>
@@ -277,119 +358,237 @@
       </div>
     </div>
 
-    <!-- SECTION 2: SPECIALIZED ENGINEERING & QUALITY INTELLIGENCE DASHBOARDS (Req 5) -->
+    <!-- ROW 2: SPECIALIZED ENGINEERING INTELLIGENCE & SPREADSHEETS (Matching User Design Mockup) -->
     <div>
-      <div class="flex items-center justify-between mb-5 pb-2.5 border-b border-slate-200/80">
-        <div class="flex items-center gap-2.5">
-          <span class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-base font-bold border border-rose-100 shadow-2xs">🔬</span>
+      <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-200/80">
+        <div class="flex items-center gap-2">
+          <span class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-bold border border-indigo-100 shadow-2xs">🔬</span>
           <div>
-            <h3 class="text-lg font-black text-slate-900 tracking-tight">Engineering Intelligence &amp; Quality Dashboards</h3>
-            <p class="text-xs text-slate-500">Post-sales condenser reliability analytics and BOM verification automation portals.</p>
+            <h3 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Engineering Intelligence &amp; Analytical Sheets</h3>
+            <p class="text-xs text-slate-500">Live Google Spreadsheets, condenser failure metrics, and automated BOM verification portals.</p>
           </div>
         </div>
-        <span class="text-xs font-mono font-bold text-slate-400 hidden sm:inline">2 Portals</span>
+        <span class="text-xs font-mono font-bold text-slate-400 hidden sm:inline">4 Portals</span>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 
-        <!-- PROJECT CARD 4: Microchannel Market Failure Analytics -->
-        <div class="glass-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between relative overflow-hidden group">
-          <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-500 via-red-600 to-amber-600"></div>
+        <!-- SUB-CARD 1: BOM Observation Report (Google Sheet) -->
+        <div class="hub-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group">
+          <div class="absolute top-0 left-0 right-0 h-1 bg-emerald-500"></div>
           <div>
-            <div class="flex items-center justify-between mb-5">
-              <div class="w-13 h-13 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="flex items-center justify-between mb-3.5">
+              <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+              </div>
+              <div class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span>Live Sheets</span>
+                <span class="text-slate-400 font-normal">&gt;</span>
+              </div>
+            </div>
+
+            <h4 class="text-base font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+              BOM Observation Report
+            </h4>
+            <p class="mt-1.5 text-xs text-slate-500 leading-relaxed">
+              Live shop-floor observation findings, part discrepancy tracking, and modification audit Google Spreadsheet.
+            </p>
+
+            <div class="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
+              <div class="flex items-center text-[11px] text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                <span>Physical Part Count Verification</span>
+              </div>
+              <div class="flex items-center text-[11px] text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                <span>Live Google Spreadsheet Sync</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-1">
+            <a href="https://docs.google.com/spreadsheets/d/1HzLGHBNKV3X0s07GGHyJrN5znfdVVRXKxCS00b_6020/edit?gid=17724684#gid=17724684" target="_blank" rel="noopener noreferrer" 
+               class="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white font-bold text-xs border border-emerald-200 hover:border-emerald-600 transition-all cursor-pointer">
+              <span>Open BOM Sheet</span>
+              <span>↗</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- SUB-CARD 2: Critical Item Analysis Dashboard (Google Sheet) -->
+        <div class="hub-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group">
+          <div class="absolute top-0 left-0 right-0 h-1 bg-amber-500"></div>
+          <div>
+            <div class="flex items-center justify-between mb-3.5">
+              <div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+              </div>
+              <div class="flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                <span>Active Matrix</span>
+                <span class="text-slate-400 font-normal">&gt;</span>
+              </div>
+            </div>
+
+            <h4 class="text-base font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
+              Critical Item Analysis
+            </h4>
+            <p class="mt-1.5 text-xs text-slate-500 leading-relaxed">
+              High-priority components, critical dimension variance monitoring, and key parameter inspection tracking spreadsheet.
+            </p>
+
+            <div class="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
+              <div class="flex items-center text-[11px] text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+                <span>Critical Component Risk Matrix</span>
+              </div>
+              <div class="flex items-center text-[11px] text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>
+                <span>Tolerance &amp; Parameter Auditing</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-1">
+            <a href="https://docs.google.com/spreadsheets/d/11IAHdcCgsJ_7JAWLdVRZBzATEXAkPb-aK546l71FHSg/edit?gid=1246335470#gid=1246335470" target="_blank" rel="noopener noreferrer" 
+               class="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white font-bold text-xs border border-amber-200 hover:border-amber-600 transition-all cursor-pointer">
+              <span>Open Item Analysis</span>
+              <span>↗</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- SUB-CARD 3: Microchannel Failure Analytics -->
+        <div class="hub-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group">
+          <div class="absolute top-0 left-0 right-0 h-1 bg-rose-500"></div>
+          <div>
+            <div class="flex items-center justify-between mb-3.5">
+              <div class="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 group-hover:scale-105 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
               </div>
-              <div class="flex items-center gap-2">
-                <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 font-mono">
-                  Reliability Intel
-                </span>
+              <div class="flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                <span>Reliability</span>
+                <span class="text-slate-400 font-normal">&gt;</span>
               </div>
             </div>
 
-            <h3 class="text-xl font-bold text-slate-900 group-hover:text-rose-600 transition-colors">
-              Microchannel Market Failure Analytics
-            </h3>
-            <p class="mt-2 text-sm text-slate-500 leading-relaxed">
-              Post-Sales Service &amp; Condenser Reliability Intelligence portal. In-depth analysis on 5,168+ failure records, ODU chassis normalization, and coated vs uncoated condenser failure incidence.
+            <h4 class="text-base font-bold text-slate-900 group-hover:text-rose-600 transition-colors">
+              Microchannel Failure Analytics
+            </h4>
+            <p class="mt-1.5 text-xs text-slate-500 leading-relaxed">
+              Post-Sales Service &amp; Condenser Reliability portal. In-depth analysis on 5,168+ failure records and ODU chassis normalization.
             </p>
 
-            <div class="mt-5 pt-4 border-t border-slate-100 space-y-2">
-              <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-2"></span>
-                <span>74.4% Leakage Occurrence Timeline &amp; Peak Claim Periods</span>
+            <div class="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
+              <div class="flex items-center text-[11px] text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5"></span>
+                <span>74.4% Leakage Occurrence Timeline</span>
               </div>
-              <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-2"></span>
-                <span>ODU Chassis Normalization &amp; Coatec Series Tracking</span>
-              </div>
-              <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-2"></span>
-                <span>Coil Replacement vs Localized Brazing Repair Auditing</span>
+              <div class="flex items-center text-[11px] text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5"></span>
+                <span>ODU Chassis Normalization</span>
               </div>
             </div>
           </div>
 
-          <div class="mt-6 pt-2">
+          <div class="mt-4 pt-1">
             <a href="https://sajjadulmech.github.io/Walton-Microchannel-Dashboard/Microchannel%20Market%20Failure.html" target="_blank" rel="noopener noreferrer" 
-               class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-bold text-sm shadow-md shadow-red-500/20 transition-all group-hover:gap-3 cursor-pointer">
-              <span>Launch MFC Analytics Portal</span>
+               class="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white font-bold text-xs border border-rose-200 hover:border-rose-600 transition-all cursor-pointer">
+              <span>Launch MFC Portal</span>
               <span>↗</span>
             </a>
           </div>
         </div>
 
-        <!-- PROJECT CARD 5: BOM Automation & Verification Dashboard -->
-        <div class="glass-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between relative overflow-hidden group">
-          <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600"></div>
+        <!-- SUB-CARD 4: BOM Automation & Verifier -->
+        <div class="hub-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group">
+          <div class="absolute top-0 left-0 right-0 h-1 bg-purple-600"></div>
           <div>
-            <div class="flex items-center justify-between mb-5">
-              <div class="w-13 h-13 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="flex items-center justify-between mb-3.5">
+              <div class="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-105 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
                 </svg>
               </div>
-              <div class="flex items-center gap-2">
-                <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 font-mono">
-                  Audit &amp; Reconciliation
-                </span>
+              <div class="flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                <span>Operational</span>
+                <span class="text-slate-400 font-normal">&gt;</span>
               </div>
             </div>
 
-            <h3 class="text-xl font-bold text-slate-900 group-hover:text-purple-600 transition-colors">
-              BOM Automation &amp; Cross-Verifier
-            </h3>
-            <p class="mt-2 text-sm text-slate-500 leading-relaxed">
-              BOM Observation &amp; Modification Reporting system. Connects directly to Google Spreadsheet findings and Oracle EBS to cross-verify physical shop-floor parts against engineering drawings.
+            <h4 class="text-base font-bold text-slate-900 group-hover:text-purple-600 transition-colors">
+              BOM Automation &amp; Verifier
+            </h4>
+            <p class="mt-1.5 text-xs text-slate-500 leading-relaxed">
+              BOM Observation &amp; Modification Reporting system connecting Google Spreadsheet findings with Oracle EBS drawings.
             </p>
 
-            <div class="mt-5 pt-4 border-t border-slate-100 space-y-2">
-              <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-purple-500 mr-2"></span>
-                <span>BOM Observation &amp; Modification Interactive Matrix</span>
+            <div class="mt-3 pt-2.5 border-t border-slate-100 space-y-1">
+              <div class="flex items-center text-[11px] text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-purple-500 mr-1.5"></span>
+                <span>Oracle EBS &amp; CSV Integration</span>
               </div>
-              <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-purple-500 mr-2"></span>
-                <span>Live Google Spreadsheet CSV &amp; Oracle EBS Integration</span>
-              </div>
-              <div class="flex items-center text-xs text-slate-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-purple-500 mr-2"></span>
-                <span>Physical Audit vs Engineering Drawing Reconciliation</span>
+              <div class="flex items-center text-[11px] text-slate-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-purple-500 mr-1.5"></span>
+                <span>Physical vs Drawing Cross-Check</span>
               </div>
             </div>
           </div>
 
-          <div class="mt-6 pt-2">
+          <div class="mt-4 pt-1">
             <a href="https://mdrafiulanam1994.github.io/BOM-Automation-Dashboard/" target="_blank" rel="noopener noreferrer" 
-               class="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-purple-700 to-indigo-800 hover:from-purple-600 hover:to-indigo-700 text-white font-bold text-sm shadow-md shadow-purple-500/20 transition-all group-hover:gap-3 cursor-pointer">
-              <span>Open BOM Automation Suite</span>
+               class="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-600 text-purple-700 hover:text-white font-bold text-xs border border-purple-200 hover:border-purple-600 transition-all cursor-pointer">
+              <span>Open BOM Suite</span>
               <span>↗</span>
             </a>
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- BOTTOM SYSTEM STATUS BAR (From User Design Mockup) -->
+    <div class="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-bold shadow-2xs">
+          ✔
+        </div>
+        <span class="text-sm font-black text-slate-800">System Status:</span>
+        <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+          All Systems Operational
+        </span>
+      </div>
+      
+      <div class="flex items-center gap-4 sm:gap-6 flex-wrap text-xs font-medium text-slate-600">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Production: <strong class="text-slate-800 font-mono">Connected</strong></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>TMS Bridge: <strong class="text-slate-800 font-mono">Synced</strong></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>Monthly Report: <strong class="text-slate-800 font-mono">Updated</strong></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>SOP System: <strong class="text-slate-800 font-mono">Operational</strong></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>BOM Intelligence: <strong class="text-slate-800 font-mono">Active</strong></span>
+        </div>
       </div>
     </div>
 
@@ -412,12 +611,20 @@
   </footer>
 
   <script>
-    // Live clock update
+    // Live clock and date update (Matching User Mockup)
     function updateClock() {
       const now = new Date();
-      const el = document.getElementById('live-clock');
-      if (el) {
-        el.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+      const clockEl = document.getElementById('live-clock');
+      const dateEl = document.getElementById('live-date');
+      if (clockEl) {
+        clockEl.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+      }
+      if (dateEl) {
+        const day = String(now.getDate()).padStart(2, '0');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const mon = months[now.getMonth()];
+        const year = now.getFullYear();
+        dateEl.textContent = `${day} ${mon} ${year}`;
       }
     }
     setInterval(updateClock, 1000);
