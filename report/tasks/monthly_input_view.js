@@ -97,10 +97,17 @@ const MonthlyInputView = {
 
   autoAdjustAllTextareas() {
     if (typeof document === 'undefined') return;
-    const areas = document.querySelectorAll('textarea[id^="task-name-input-"]');
-    areas.forEach(el => {
-      el.style.height = 'auto';
-      el.style.height = Math.max(36, el.scrollHeight) + 'px';
+    if (typeof CSS !== 'undefined' && CSS.supports && CSS.supports('field-sizing', 'content')) {
+      return; // Handled natively by browser GPU with 0ms overhead
+    }
+    requestAnimationFrame(() => {
+      const areas = document.querySelectorAll('textarea[id^="task-name-input-"]');
+      const limit = Math.min(areas.length, 30);
+      for (let i = 0; i < limit; i++) {
+        const el = areas[i];
+        el.style.height = 'auto';
+        el.style.height = Math.max(36, el.scrollHeight) + 'px';
+      }
     });
   },
 
@@ -179,8 +186,8 @@ const MonthlyInputView = {
   openHodPointUnlockModal(targetTaskId = null) {
     const container = this.renderHodUnlockModalContainer();
     container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md font-sans">
-        <div class="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-7 text-slate-800">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md font-sans">
+        <div class="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-7 text-slate-800 max-h-[92vh] overflow-y-auto">
           
           <!-- Header -->
           <div class="flex items-center justify-between pb-4 border-b border-slate-100">
@@ -948,8 +955,8 @@ const MonthlyInputView = {
     const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
     container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-        <div class="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 text-slate-800">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-md">
+        <div class="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 text-slate-800 max-h-[92vh] overflow-y-auto">
           <div class="flex items-center justify-between pb-3 border-b border-slate-100">
             <div class="flex items-center gap-2.5">
               <span class="text-2xl">📅</span>
@@ -1481,8 +1488,8 @@ const MonthlyInputView = {
     const defaultEng = this.filterEngineer || (engineers[0] ? engineers[0].name : "Sazzad");
 
     modal.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md">
-        <div class="relative w-full max-w-4xl bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-8 text-slate-800 flex flex-col max-h-[92vh] overflow-y-auto">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/50 backdrop-blur-md">
+        <div class="relative w-full max-w-4xl bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-8 text-slate-800 flex flex-col max-h-[92vh] overflow-y-auto">
           
           <!-- Header Bar -->
           <div class="flex items-start justify-between pb-4 border-b border-slate-100">
@@ -2848,10 +2855,10 @@ const MonthlyInputView = {
 
     const modal = document.createElement('div');
     modal.id = 'change-password-modal';
-    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm';
 
     modal.innerHTML = `
-      <div class="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-200 font-sans">
+      <div class="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl max-w-md w-full p-4 sm:p-7 shadow-2xl relative max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in duration-200 font-sans">
         <!-- Accent Top Strip -->
         <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-600 via-rose-500 to-indigo-600"></div>
 

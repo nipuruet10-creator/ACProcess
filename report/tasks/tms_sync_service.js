@@ -234,8 +234,8 @@ const TmsSyncService = {
     const needsPasswordPrompt = (empId === '52800' || currentPass !== 'Sep@2026' || (typeof localStorage !== 'undefined' && localStorage.getItem('walton_tms_failed_pwd_' + empId) === 'true'));
 
     container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md font-sans animate-in fade-in duration-150">
-        <div class="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-7 text-slate-800 animate-in zoom-in-95 duration-150">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md font-sans animate-in fade-in duration-150">
+        <div class="relative w-full max-w-lg bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-7 text-slate-800 max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-150">
           
           <!-- Header -->
           <div class="flex items-center justify-between pb-3.5 border-b border-slate-100">
@@ -444,8 +444,8 @@ const TmsSyncService = {
     const cleanName = engName || empId;
 
     container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-        <div class="relative w-full max-w-sm bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 text-slate-800 space-y-4">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-md">
+        <div class="relative w-full max-w-sm bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 text-slate-800 space-y-4 max-h-[92vh] overflow-y-auto">
           
           <div class="flex items-start justify-between pb-3 border-b border-slate-100">
             <div class="flex items-center gap-2.5">
@@ -1314,8 +1314,8 @@ const TmsSyncService = {
     const currentBridge = this.activeRelayUrl || 'http://127.0.0.1:3138';
 
     container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-        <div class="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-7 text-slate-800">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-md">
+        <div class="relative w-full max-w-lg bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-7 text-slate-800 max-h-[92vh] overflow-y-auto">
           
           <div class="flex items-start justify-between pb-3.5 border-b border-slate-100">
             <div class="flex items-center gap-3">

@@ -63,6 +63,9 @@ const App = {
       photoMgr,
       photoManager,
       syncEngine,
+      markTabDirty: (t) => App.markTabDirty(t),
+      toggleMobileSidebar: () => App.toggleMobileSidebar(),
+      closeMobileSidebar: () => App.closeMobileSidebar(),
       switchTab: (t) => App.switchTab(t),
       get activeTab() { return App.currentTab; },
       get currentTab() { return App.currentTab; },
@@ -145,6 +148,40 @@ const App = {
     console.log("System initialized successfully.");
   },
 
+  _renderedTabs: new Set(),
+  _tabDirty: {},
+
+  markTabDirty(tabId = null) {
+    if (tabId) {
+      this._tabDirty[tabId] = true;
+    } else {
+      this.VALID_TABS.forEach(t => { this._tabDirty[t] = true; });
+    }
+  },
+
+  toggleMobileSidebar() {
+    const drawer = document.getElementById('sidebar-drawer');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (!drawer) return;
+    drawer.classList.toggle('open');
+    drawer.classList.toggle('-translate-x-full');
+    if (backdrop) {
+      backdrop.classList.toggle('hidden');
+    }
+  },
+
+  closeMobileSidebar() {
+    const drawer = document.getElementById('sidebar-drawer');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (drawer) {
+      drawer.classList.remove('open');
+      drawer.classList.add('-translate-x-full');
+    }
+    if (backdrop) {
+      backdrop.classList.add('hidden');
+    }
+  },
+
   async switchTab(tabId) {
     if (!tabId || !this.VALID_TABS.includes(tabId)) {
       tabId = 'dashboard';
@@ -162,6 +199,9 @@ const App = {
       }
     } catch (e) {}
 
+    // Close mobile drawer if open
+    this.closeMobileSidebar();
+
     // Update Navigation Tab UI Buttons (Executive Sidebar Style from Mockup)
     document.querySelectorAll('.nav-tab-btn').forEach(btn => {
       if (btn.dataset.tab === tabId) {
@@ -176,13 +216,18 @@ const App = {
     // Hide all view containers
     document.querySelectorAll('.view-container').forEach(c => c.classList.add('hidden'));
 
-    // Show active container & render
+    // Show active container
     const activeContainer = document.getElementById(`${tabId}-view-container`);
     if (activeContainer) {
       activeContainer.classList.remove('hidden');
     }
 
-    await this.refreshCurrentTab();
+    // INSTANT SWITCH (< 1ms): Only re-render if not rendered yet or explicitly marked dirty!
+    if (!this._renderedTabs.has(tabId) || this._tabDirty[tabId]) {
+      this._renderedTabs.add(tabId);
+      this._tabDirty[tabId] = false;
+      await this.refreshCurrentTab();
+    }
   },
 
   async refreshCurrentTab() {

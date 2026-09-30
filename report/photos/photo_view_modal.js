@@ -70,8 +70,8 @@ const PhotoViewModal = {
     const afterPhoto = photos.after_photo || photos.photo_2 || "";
 
     container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md">
-        <div class="relative w-full max-w-4xl bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-8 text-slate-800 flex flex-col max-h-[92vh] overflow-y-auto">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/50 backdrop-blur-md">
+        <div class="relative w-full max-w-4xl bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-8 text-slate-800 flex flex-col max-h-[92vh] overflow-y-auto">
           
           <!-- Header Bar -->
           <div class="flex items-start justify-between pb-4 border-b border-slate-100">

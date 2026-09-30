@@ -1690,7 +1690,9 @@ class MonthWorkbookManager {
 
       // 1. Assignee: 100% Actual Point, +1 Task Count, 75% WBS Point
       const assigneeName = t.assignee || t.engineer;
+      let canonicalAssignee = "";
       if (assigneeName && assigneeName.trim()) {
+        canonicalAssignee = formatName(assigneeName);
         const assigneeEntry = getOrInit(assigneeName);
         if (assigneeEntry) {
           assigneeEntry.total_point += validPts;
@@ -1699,24 +1701,35 @@ class MonthWorkbookManager {
         }
       }
 
-      // 2. Supervisor: 25% WBS Point (added to existing personnel row, never a duplicate row!)
-      // HOD (Kamrul) is excluded from accumulating 25% supervisor WBS points from subordinate tasks
+      // 2. Supervisor: 25% added to Total Point AND WBS Point
+      // If someone is supervisor, 25% of task points is added to Total Point and WBS Point
       const supName = t.supervisor;
       if (supName && supName.trim()) {
         const canonicalSup = formatName(supName);
         if (!isHod(canonicalSup)) {
           const supEntry = getOrInit(supName);
           if (supEntry) {
-            supEntry.wbs_point += Math.round(validPts * 0.25 * 100) / 100;
+            const supPts = Math.round(validPts * 0.25 * 100) / 100;
+            if (canonicalSup !== canonicalAssignee) {
+              supEntry.total_point += supPts;
+              supEntry.supervised_tasks = (supEntry.supervised_tasks || 0) + 1;
+            }
+            supEntry.wbs_point += supPts;
           }
         }
       }
     });
 
+    // Normalize precision
+    Object.values(personnelMap).forEach(r => {
+      r.total_point = Math.round(r.total_point * 100) / 100;
+      r.wbs_point = Math.round(r.wbs_point * 100) / 100;
+    });
+
     // Sort by Total Point (Actual Point) descending (Image 1 Ranking)
     // Kamrul is HOD, excluded from competitive engineer ranking table
     const ranking = Object.values(personnelMap)
-      .filter(r => !isHod(r.name) && (r.total_task > 0 || r.total_point > 0))
+      .filter(r => !isHod(r.name) && (r.total_task > 0 || r.total_point > 0 || r.wbs_point > 0))
       .sort((a, b) => {
         if (b.total_point !== a.total_point) return b.total_point - a.total_point;
         if (b.wbs_point !== a.wbs_point) return b.wbs_point - a.wbs_point;
