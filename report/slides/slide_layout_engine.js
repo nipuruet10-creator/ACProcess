@@ -99,25 +99,94 @@ const SlideLayoutEngine = {
   },
 
   /**
-   * Toggles image fit mode between 'cover' (fill entire frame) and 'contain' (fit aspect ratio)
+   * Renders high-end Blur-Fit photo container (Requirement 2):
+   * Adapts seamlessly to BOTH portrait and landscape photos without distortion or cropping.
+   * Background layer softly blurs the image to fill empty frame space ("faka jayga gulo ektu blur thakbe"),
+   * while the foreground layer retains the crisp, uncropped original aspect ratio.
+   */
+  renderPhotoContainerHtml(photoUrl, altText, taskId, slot = 'after_photo', defaultFit = 'blur') {
+    if (!photoUrl) {
+      return `
+        <div class="w-full h-full flex flex-col items-center justify-center p-4 text-center text-slate-400">
+          <span class="text-2xl mb-1">📸</span>
+          <span class="text-[10px] font-bold text-slate-300">Photo Empty</span>
+        </div>
+      `;
+    }
+    const isCover = defaultFit === 'cover';
+    return `
+      <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
+        <!-- Ambient Blurred Backdrop (Fills empty side/top bars with soft blur) -->
+        <img src="${photoUrl}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none"
+             style="filter: blur(18px) brightness(0.65); opacity: 0.65; transition: opacity 0.25s;" />
+        <!-- Crisp Foreground Image (Preserves uncropped original aspect ratio) -->
+        <img src="${photoUrl}" alt="${HELPERS.escapeHtml(altText || 'Process Photo')}" 
+             class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 max-w-full max-h-full object-contain'} transition-all duration-200 drop-shadow-md"
+             onerror="this.src='assets/images/walton_red_reference_sample.jpg'; this.onerror=null;" />
+      </div>
+    `;
+  },
+
+  /**
+   * Toggles image fit mode between 'Blur-Fit' (original aspect + blurred background) and 'Fill (Crop)'
    */
   togglePhotoFit(btn) {
     if (!btn) return;
     const frame = btn.closest('.slide-photo-frame') || btn.closest('.col-span-6') || btn.parentElement.parentElement;
     if (!frame) return;
-    const img = frame.querySelector('img');
-    if (!img) return;
+    const wrapper = frame.querySelector('.photo-fit-wrapper');
     const label = btn.querySelector('.mode-label');
-    if (img.classList.contains('object-contain')) {
-      img.classList.remove('object-contain');
-      img.classList.add('object-cover');
-      if (label) label.textContent = 'Fit';
-      else btn.textContent = '📐 Fit';
+
+    if (wrapper) {
+      if (wrapper.classList.contains('photo-fit-blur')) {
+        wrapper.classList.remove('photo-fit-blur');
+        wrapper.classList.add('photo-fit-cover');
+        const blurImg = wrapper.querySelector('.photo-blur-bg');
+        if (blurImg) blurImg.style.display = 'none';
+        const mainImg = wrapper.querySelector('.photo-main-img');
+        if (mainImg) {
+          mainImg.style.width = '100%';
+          mainImg.style.height = '100%';
+          mainImg.style.maxWidth = 'none';
+          mainImg.style.maxHeight = 'none';
+          mainImg.style.objectFit = 'cover';
+          mainImg.style.position = 'absolute';
+          mainImg.style.inset = '0';
+        }
+        if (label) label.textContent = 'Fit (Blur)';
+        else btn.innerHTML = '📐 <span class="mode-label">Fit (Blur)</span>';
+      } else {
+        wrapper.classList.remove('photo-fit-cover');
+        wrapper.classList.add('photo-fit-blur');
+        const blurImg = wrapper.querySelector('.photo-blur-bg');
+        if (blurImg) blurImg.style.display = 'block';
+        const mainImg = wrapper.querySelector('.photo-main-img');
+        if (mainImg) {
+          mainImg.style.width = 'auto';
+          mainImg.style.height = 'auto';
+          mainImg.style.maxWidth = '100%';
+          mainImg.style.maxHeight = '100%';
+          mainImg.style.objectFit = 'contain';
+          mainImg.style.position = 'relative';
+          mainImg.style.inset = '';
+        }
+        if (label) label.textContent = 'Fill (Crop)';
+        else btn.innerHTML = '↔ <span class="mode-label">Fill (Crop)</span>';
+      }
     } else {
-      img.classList.remove('object-cover');
-      img.classList.add('object-contain');
-      if (label) label.textContent = 'Fill';
-      else btn.textContent = '📐 Fill';
+      const img = frame.querySelector('img');
+      if (!img) return;
+      if (img.classList.contains('object-contain')) {
+        img.classList.remove('object-contain');
+        img.classList.add('object-cover');
+        if (label) label.textContent = 'Fit (Blur)';
+        else btn.textContent = '📐 Fit (Blur)';
+      } else {
+        img.classList.remove('object-cover');
+        img.classList.add('object-contain');
+        if (label) label.textContent = 'Fill (Crop)';
+        else btn.textContent = '↔ Fill (Crop)';
+      }
     }
   },
 
@@ -424,22 +493,15 @@ const SlideLayoutEngine = {
                ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-amber-500', 'ring-inset');"
                ondragleave="this.classList.remove('ring-2', 'ring-amber-500', 'ring-inset');"
                ondrop="this.classList.remove('ring-2', 'ring-amber-500', 'ring-inset'); SlideLayoutEngine.handleImageDrop(event, '${slideData.task_id}', 'before_photo');">
-            <div class="absolute top-2.5 left-2.5 z-10 px-2.5 py-1 rounded-md bg-amber-600/95 backdrop-blur-sm text-white font-extrabold text-[8.5px] uppercase tracking-wider shadow">
+            <div class="absolute top-2.5 left-2.5 z-20 px-2.5 py-1 rounded-md bg-amber-600/95 backdrop-blur-sm text-white font-extrabold text-[8.5px] uppercase tracking-wider shadow">
               1. PRESENT CONDITION (BEFORE)
             </div>
-            ${photoBefore ? `
-              <img src="${photoBefore}" alt="Present Condition" class="w-full h-full object-cover transition-all duration-200" />
-            ` : `
-              <div class="w-full h-full flex flex-col items-center justify-center p-4 text-center text-slate-400">
-                <span class="text-2xl mb-1">📸</span>
-                <span class="text-[10px] font-bold text-slate-300">Before Photo Empty</span>
-              </div>
-            `}
+            ${SlideLayoutEngine.renderPhotoContainerHtml(photoBefore, 'Present Condition', slideData.task_id, 'before_photo')}
             <!-- Floating Adjust Tool -->
-            <div class="absolute top-2.5 right-2.5 z-20 opacity-0 group-hover:opacity-100 transition">
-              <button onclick="SlideLayoutEngine.togglePhotoFit(this)" title="Toggle Fit/Fill" 
-                      class="px-2 py-0.5 rounded-md bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-[9px] font-mono border border-white/20 shadow">
-                📐 <span class="mode-label">Fit</span>
+            <div class="absolute top-2.5 right-2.5 z-30 opacity-0 group-hover:opacity-100 transition">
+              <button onclick="SlideLayoutEngine.togglePhotoFit(this)" title="Toggle Blur-Fit / Fill-Crop" 
+                      class="px-2 py-0.5 rounded-md bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[9px] font-mono border border-white/20 shadow">
+                📐 <span class="mode-label">Fill (Crop)</span>
               </button>
             </div>
           </div>
@@ -449,26 +511,19 @@ const SlideLayoutEngine = {
                ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-red-500', 'ring-inset');"
                ondragleave="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset');"
                ondrop="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset'); SlideLayoutEngine.handleImageDrop(event, '${slideData.task_id}', 'after_photo');">
-            <div class="absolute top-2.5 left-2.5 z-10 px-2.5 py-1 rounded-md bg-red-600/95 backdrop-blur-sm text-white font-extrabold text-[8.5px] uppercase tracking-wider shadow">
+            <div class="absolute top-2.5 left-2.5 z-20 px-2.5 py-1 rounded-md bg-red-600/95 backdrop-blur-sm text-white font-extrabold text-[8.5px] uppercase tracking-wider shadow">
               2. PROPOSED PROJECT (AFTER)
             </div>
-            ${photoAfter ? `
-              <img src="${photoAfter}" alt="Proposed Project" class="w-full h-full object-cover transition-all duration-200" />
-            ` : `
-              <div class="w-full h-full flex flex-col items-center justify-center p-4 text-center text-slate-400">
-                <span class="text-2xl mb-1">📸</span>
-                <span class="text-[10px] font-bold text-slate-300">After Photo Empty</span>
-              </div>
-            `}
+            ${SlideLayoutEngine.renderPhotoContainerHtml(photoAfter, 'Proposed Project', slideData.task_id, 'after_photo')}
             <!-- Floating Adjust Tool -->
-            <div class="absolute top-2.5 right-2.5 z-20 opacity-0 group-hover:opacity-100 transition">
-              <button onclick="SlideLayoutEngine.togglePhotoFit(this)" title="Toggle Fit/Fill" 
-                      class="px-2 py-0.5 rounded-md bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-[9px] font-mono border border-white/20 shadow">
-                📐 <span class="mode-label">Fit</span>
+            <div class="absolute top-2.5 right-2.5 z-30 opacity-0 group-hover:opacity-100 transition">
+              <button onclick="SlideLayoutEngine.togglePhotoFit(this)" title="Toggle Blur-Fit / Fill-Crop" 
+                      class="px-2 py-0.5 rounded-md bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[9px] font-mono border border-white/20 shadow">
+                📐 <span class="mode-label">Fill (Crop)</span>
               </button>
             </div>
             <!-- Smaller, semi-transparent quote badge -->
-            <div class="absolute bottom-0 right-0 py-1.5 px-3 text-right text-white" 
+            <div class="absolute bottom-0 right-0 py-1.5 px-3 text-right text-white z-20" 
                  style="background: rgba(197, 22, 29, 0.45); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top-left-radius: 10px; border-left: 1px solid rgba(255, 255, 255, 0.3); border-top: 1px solid rgba(255, 255, 255, 0.3); max-width: 170px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
               <div style="font-size: 9.5px; font-weight: 800; font-style: italic; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
                 "${quoteL1}<br/>${quoteL2}"
@@ -478,14 +533,14 @@ const SlideLayoutEngine = {
         </div>
         ` : `
         <div class="col-span-6 flex flex-col h-full rounded-2xl overflow-hidden border border-slate-200 relative shadow-md slide-photo-frame group" 
-             style="min-height: 340px; background: #0F172A;"
+             style="min-height: 340px; background: #020617;"
              ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-red-500', 'ring-inset');"
              ondragleave="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset');"
              ondrop="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset'); SlideLayoutEngine.handleImageDrop(event, '${slideData.task_id}', 'before_photo');">
           
           ${(photoBefore || photoAfter || (slideData.photo && !String(slideData.photo).includes('walton_red_reference_sample.jpg'))) ? `
-            <!-- Main Equipment Photo -->
-            <img src="${photoBefore || photoAfter || slideData.photo}" alt="Process Development Implementation" class="w-full h-full object-cover transition-all duration-200" />
+            <!-- Main Equipment Photo (Requirement 2: Blur-Fit handles both landscape and portrait gracefully) -->
+            ${SlideLayoutEngine.renderPhotoContainerHtml(photoBefore || photoAfter || slideData.photo, 'Process Development Implementation', slideData.task_id, 'after_photo')}
           ` : `
             <!-- Modern Walton Process Engineering Placeholder -->
             <div class="w-full h-full flex flex-col items-center justify-center p-6 text-center" 
@@ -503,13 +558,13 @@ const SlideLayoutEngine = {
           `}
 
           <!-- Frame Toolbar: Fit/Fill Toggle & Direct Replace Button -->
-          <div class="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition">
-            <button onclick="SlideLayoutEngine.togglePhotoFit(this)" title="Toggle Fit / Fill (adjust aspect ratio)" 
-                    class="px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-[10px] font-mono font-bold border border-white/25 shadow-md flex items-center gap-1 transition">
-              <span>📐</span><span class="mode-label">Fit</span>
+          <div class="absolute top-2.5 right-2.5 z-30 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition">
+            <button onclick="SlideLayoutEngine.togglePhotoFit(this)" title="Toggle Blur-Fit / Fill-Crop (adjust aspect ratio)" 
+                    class="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[10px] font-mono font-bold border border-white/25 shadow-md flex items-center gap-1 transition">
+              <span>📐</span><span class="mode-label">Fill (Crop)</span>
             </button>
             <button onclick="document.getElementById('frame-file-input-${slideData.task_id}').click()" title="Upload or Replace Image"
-                    class="px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-[10px] font-mono font-bold border border-white/25 shadow-md flex items-center gap-1 transition">
+                    class="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[10px] font-mono font-bold border border-white/25 shadow-md flex items-center gap-1 transition">
               <span>📷</span><span>Replace</span>
             </button>
             <input type="file" id="frame-file-input-${slideData.task_id}" accept="image/*" class="hidden" 
@@ -666,10 +721,8 @@ const SlideLayoutEngine = {
                    ondragover="event.preventDefault(); this.classList.add('drag-over');"
                    ondragleave="this.classList.remove('drag-over');"
                    ondrop="SlideLayoutEngine.handleImageDrop(event, '${slideData.task_id}', 'before_photo')">
-                <img src="${photoBefore}" alt="Present Condition" 
-                     style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #0F172A;"
-                     onerror="this.src='assets/images/walton_red_reference_sample.jpg'; this.onerror=null;" />
-                <span class="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[8px] text-white font-mono pointer-events-none z-10 shadow">
+                ${SlideLayoutEngine.renderPhotoContainerHtml(photoBefore, 'Present Condition', slideData.task_id, 'before_photo')}
+                <span class="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[8px] text-white font-mono pointer-events-none z-20 shadow">
                   Drop to replace
                 </span>
               </div>
@@ -694,10 +747,8 @@ const SlideLayoutEngine = {
                    ondragover="event.preventDefault(); this.classList.add('drag-over');"
                    ondragleave="this.classList.remove('drag-over');"
                    ondrop="SlideLayoutEngine.handleImageDrop(event, '${slideData.task_id}', 'after_photo')">
-                <img src="${photoAfter}" alt="Proposed Project" 
-                     style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #0F172A;"
-                     onerror="this.src='assets/images/walton_red_reference_sample.jpg'; this.onerror=null;" />
-                <span class="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[8px] text-white font-mono pointer-events-none z-10 shadow">
+                ${SlideLayoutEngine.renderPhotoContainerHtml(photoAfter, 'Proposed Project', slideData.task_id, 'after_photo')}
+                <span class="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[8px] text-white font-mono pointer-events-none z-20 shadow">
                   Drop to replace
                 </span>
               </div>

@@ -357,13 +357,16 @@ const MonthlyReportView = {
           </div>
         </div>
 
-        <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center border border-slate-100"
+        <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200"
              ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-blue-500');"
              ondragleave="this.classList.remove('ring-2', 'ring-blue-500');"
              ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-blue-500'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'before_photo');">
           ${beforePhoto ? `
-            <img src="${beforePhoto}" class="w-full h-full object-cover" alt="Before Photo" />
-            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
+            <div class="photo-fit-wrapper photo-fit-blur relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
+              <img src="${beforePhoto}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(16px) brightness(0.65); opacity: 0.65;" />
+              <img src="${beforePhoto}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-md" alt="Before Photo" />
+            </div>
+            <div class="absolute inset-0 z-20 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
               <label for="modal-photo-file-before" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold cursor-pointer shadow transition">
                 🔄 Replace
               </label>
@@ -382,8 +385,12 @@ const MonthlyReportView = {
         </div>
 
         <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-          <span class="text-slate-400 font-mono">16:9 Slide Canvas</span>
+          <span class="text-slate-400 font-mono">16:9 Canvas</span>
           <div class="flex items-center gap-1.5">
+            <button type="button" onclick="event.stopPropagation(); MonthlyReportView.pasteFromClipboard('${taskId}', 'before_photo')" 
+                    class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition flex items-center gap-1 cursor-pointer">
+              <span>📋</span> <span>Paste (Ctrl+V)</span>
+            </button>
             <label for="modal-photo-file-before" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
               ${beforePhoto ? '🔄 Replace' : '➕ Upload'}
             </label>
@@ -415,13 +422,16 @@ const MonthlyReportView = {
           </div>
         </div>
 
-        <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center border border-slate-100"
+        <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200"
              ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-blue-500');"
              ondragleave="this.classList.remove('ring-2', 'ring-blue-500');"
              ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-blue-500'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'after_photo');">
           ${afterPhoto ? `
-            <img src="${afterPhoto}" class="w-full h-full object-cover" alt="After Photo" />
-            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
+            <div class="photo-fit-wrapper photo-fit-blur relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
+              <img src="${afterPhoto}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(16px) brightness(0.65); opacity: 0.65;" />
+              <img src="${afterPhoto}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-md" alt="After Photo" />
+            </div>
+            <div class="absolute inset-0 z-20 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
               <label for="modal-photo-file-after" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold cursor-pointer shadow transition">
                 🔄 Replace
               </label>
@@ -442,6 +452,10 @@ const MonthlyReportView = {
         <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
           <span class="text-slate-400 font-mono">16:9 Hero Image</span>
           <div class="flex items-center gap-1.5">
+            <button type="button" onclick="event.stopPropagation(); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" 
+                    class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition flex items-center gap-1 cursor-pointer">
+              <span>📋</span> <span>Paste (Ctrl+V)</span>
+            </button>
             <label for="modal-photo-file-after" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
               ${afterPhoto ? '🔄 Replace' : '➕ Upload'}
             </label>
@@ -459,9 +473,114 @@ const MonthlyReportView = {
   handleSlotDrop(event, taskId, slot) {
     if (!event || !event.dataTransfer) return;
     const file = event.dataTransfer.files && event.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
+    if (file && (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name || ''))) {
       this.uploadPhotoFromBlob(file, taskId, slot);
     }
+  },
+
+  _selectedCardTaskId: null,
+  selectSlideCard(taskId) {
+    if (!taskId) return;
+    this._selectedCardTaskId = taskId;
+    // Highlight the card in monthly report section
+    document.querySelectorAll('.task-slide-card').forEach(c => {
+      c.classList.remove('ring-2', 'ring-blue-500', 'border-blue-500', 'bg-blue-50/20');
+    });
+    const card = document.getElementById(`slide-card-${taskId}`);
+    if (card) {
+      card.classList.add('ring-2', 'ring-blue-500', 'border-blue-500', 'bg-blue-50/20');
+    }
+  },
+
+  getFirstVisibleTaskId() {
+    const firstCard = document.querySelector('.task-slide-card:not([style*="display: none"])');
+    if (firstCard && firstCard.dataset && firstCard.dataset.taskId) {
+      return firstCard.dataset.taskId;
+    }
+    return null;
+  },
+
+  async pasteFromClipboard(taskId, slot = 'after_photo') {
+    if (!taskId) return;
+    this._activePhotoSlot = slot;
+    try {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          for (const type of item.types) {
+            if (type.startsWith('image/')) {
+              const blob = await item.getType(type);
+              await this.uploadPhotoFromBlob(blob, taskId, slot);
+              return;
+            }
+          }
+        }
+        if (typeof window.showToast === 'function') {
+          window.showToast("No image in clipboard! Copy a photo first (Ctrl+C).", "warning");
+        }
+      } else {
+        if (typeof window.showToast === 'function') {
+          window.showToast("Press Ctrl+V on your keyboard to paste the photo.", "info");
+        }
+      }
+    } catch (err) {
+      if (typeof window.showToast === 'function') {
+        window.showToast("Press Ctrl+V on your keyboard to paste the photo.", "info");
+      }
+    }
+  },
+
+  updateSlideCardPhoto(taskId) {
+    if (!taskId) return;
+    const card = document.getElementById(`slide-card-${taskId}`);
+    if (!card) {
+      this.render();
+      return;
+    }
+    const month = this.selectedMonth;
+    let photos = null;
+    if (typeof photoManager !== 'undefined') {
+      photos = photoManager.getTaskPhotos(taskId, month);
+    }
+    const photoBefore = photos ? (photos.before_photo || null) : null;
+    const photoAfter = photos ? (photos.after_photo || null) : null;
+    const photoSingle = photoAfter || photoBefore;
+    const hasPhoto = Boolean(photoSingle);
+
+    const pill = card.querySelector('.photo-status-pill');
+    if (pill) {
+      pill.className = `text-[10px] font-mono photo-status-pill ${hasPhoto ? 'text-emerald-600' : 'text-slate-400'}`;
+      pill.textContent = hasPhoto ? '📷 Photo Added' : '📷 No Photo';
+    }
+
+    const previewContainer = card.querySelector('.slide-card-photo-container');
+    if (previewContainer && hasPhoto) {
+      previewContainer.innerHTML = `
+        <div class="photo-fit-wrapper photo-fit-blur relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
+          <img src="${photoSingle}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
+          <img src="${photoSingle}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-sm" alt="Slide Photo" />
+          <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
+            <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
+              ${photoAfter && photoBefore ? 'Dual Photo' : (photoAfter ? 'After Photo' : 'Before Photo')}
+            </span>
+          </div>
+          <div class="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 opacity-90 hover:opacity-100">
+            <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" title="Replace via Clipboard (Ctrl+V)"
+                    class="px-2 py-0.5 rounded bg-black/60 hover:bg-black/80 text-white text-[9px] font-bold backdrop-blur-xs transition">
+              📋 Paste
+            </button>
+          </div>
+        </div>
+      `;
+    }
+  },
+
+  _livePreviewTimer: null,
+  debouncedLivePreview(taskId) {
+    if (this._livePreviewTimer) clearTimeout(this._livePreviewTimer);
+    this._livePreviewTimer = setTimeout(() => {
+      this.renderModalLivePreview(taskId);
+    }, 50);
   },
 
   async uploadPhotoFromBlob(blobOrFile, taskId, slot = 'after_photo') {
@@ -477,11 +596,15 @@ const MonthlyReportView = {
             await photoManager.setTaskPhoto(taskId, slot, base64Url, null, this.selectedMonth);
           }
         }
-        this.renderModalPhotoSlots(taskId);
-        this.renderModalLivePreview(taskId);
+        if (this._activeModalTaskId === taskId) {
+          this.renderModalPhotoSlots(taskId);
+          this.renderModalLivePreview(taskId);
+        } else {
+          this.updateSlideCardPhoto(taskId);
+        }
         if (typeof window.showToast === 'function') {
           const slotLabel = slot === 'before_photo' ? '1. Present Condition (Before)' : '2. Proposed Project (After / Hero)';
-          window.showToast(`📋 Photo pasted successfully into ${slotLabel}!`, "success");
+          window.showToast(`📋 Photo attached successfully to ${slotLabel}!`, "success");
         }
       };
       reader.readAsDataURL(blobOrFile);
@@ -502,6 +625,7 @@ const MonthlyReportView = {
     }
     this.renderModalPhotoSlots(taskId);
     this.renderModalLivePreview(taskId);
+    this.updateSlideCardPhoto(taskId);
     if (typeof window.showToast === 'function') {
       window.showToast("🗑 Photo removed. Live preview updated.", "info");
     }
@@ -640,7 +764,7 @@ const MonthlyReportView = {
                   <span class="text-[10px] text-slate-400 font-mono">Live updates on right →</span>
                 </div>
                 <input type="text" id="edit-slide-title" value="${HELPERS.escapeHtml(currentTitle)}" 
-                       oninput="MonthlyReportView.renderModalLivePreview('${taskId}')"
+                       oninput="MonthlyReportView.debouncedLivePreview('${taskId}')"
                        class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-bold shadow-xs" required />
               </div>
 
@@ -655,7 +779,7 @@ const MonthlyReportView = {
                   </button>
                 </div>
                 <textarea id="edit-slide-desc" rows="3" 
-                          oninput="MonthlyReportView.renderModalLivePreview('${taskId}')"
+                          oninput="MonthlyReportView.debouncedLivePreview('${taskId}')"
                           class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 leading-relaxed font-sans shadow-xs resize-none">${HELPERS.escapeHtml(currentDesc)}</textarea>
               </div>
 
@@ -663,7 +787,7 @@ const MonthlyReportView = {
               <div>
                 <label class="block font-bold text-slate-700 mb-1">Project Impact &amp; Outcomes (One bullet per line)</label>
                 <textarea id="edit-slide-impact" rows="3" 
-                          oninput="MonthlyReportView.renderModalLivePreview('${taskId}')"
+                          oninput="MonthlyReportView.debouncedLivePreview('${taskId}')"
                           class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-sans shadow-xs resize-none">${HELPERS.escapeHtml(currentImpact)}</textarea>
               </div>
 
@@ -1357,9 +1481,13 @@ const MonthlyReportView = {
                 ` : displayedSlides.map((s, idx) => {
                   const hasPhoto = Boolean(s.photo_before || s.photo_after || s.photo);
                   const isOverridden = Boolean(s.has_manual_override);
+                  const photoDisplay = s.photo_after || s.photo_before || s.photo;
+                  const isSelected = (this._selectedCardTaskId === s.task_id);
 
                   return `
-                    <div class="task-slide-card bg-white border ${isOverridden ? 'border-amber-400 bg-amber-50/10' : 'border-slate-200'} rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:border-blue-300 hover:shadow-sm transition space-y-3">
+                    <div id="slide-card-${s.task_id}" data-task-id="${s.task_id}" 
+                         onclick="MonthlyReportView.selectSlideCard('${s.task_id}')"
+                         class="task-slide-card bg-white border ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/15' : (isOverridden ? 'border-amber-400 bg-amber-50/10' : 'border-slate-200')} rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:border-blue-300 hover:shadow-sm transition space-y-3 cursor-pointer">
                       <div>
                         <!-- Slide Top Indicator -->
                         <div class="flex items-center justify-between pb-2 border-b border-slate-100">
@@ -1377,7 +1505,7 @@ const MonthlyReportView = {
                                 ✏️ Overridden ${this.formatOverrideTime(s.manual_override_time)}
                               </span>
                             ` : ''}
-                            <span class="text-[10px] font-mono text-slate-400">${s.task_id}</span>
+                            <span class="text-[10px] font-mono text-slate-400 font-bold">${s.task_id}</span>
                           </div>
                         </div>
 
@@ -1393,9 +1521,40 @@ const MonthlyReportView = {
                           <span class="text-[10px] text-slate-500 font-medium">
                             ⚙️ ${HELPERS.escapeHtml(s.category || 'Process')}
                           </span>
-                          <span class="text-[10px] font-mono ${hasPhoto ? 'text-emerald-600' : 'text-slate-400'}">
+                          <span class="text-[10px] font-mono photo-status-pill ${hasPhoto ? 'text-emerald-600 font-bold' : 'text-slate-400'}">
                             ${hasPhoto ? '📷 Photo Added' : '📷 No Photo'}
                           </span>
+                        </div>
+
+                        <!-- Photo Preview / Quick Drop Zone (Requirement 1: Direct photo paste in monthly report section) -->
+                        <div class="slide-card-photo-container mt-2.5">
+                          ${hasPhoto ? `
+                            <div class="photo-fit-wrapper photo-fit-blur relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200 shadow-2xs group/img">
+                              <img src="${photoDisplay}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
+                              <img src="${photoDisplay}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-sm" alt="Slide Photo" />
+                              <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
+                                <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
+                                  ${s.photo_after && s.photo_before ? 'Dual Photo' : (s.photo_after ? 'After Photo' : 'Before Photo')}
+                                </span>
+                              </div>
+                              <div class="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 opacity-90 hover:opacity-100">
+                                <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${s.task_id}'); MonthlyReportView.pasteFromClipboard('${s.task_id}', 'after_photo')" title="Replace from Clipboard (Ctrl+V)"
+                                        class="px-2 py-0.5 rounded bg-black/70 hover:bg-black/90 text-white text-[9px] font-bold backdrop-blur-xs transition cursor-pointer">
+                                  📋 Paste
+                                </button>
+                              </div>
+                            </div>
+                          ` : `
+                            <div class="relative w-full aspect-video rounded-xl border border-dashed border-slate-300 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/30 flex flex-col items-center justify-center p-2.5 text-center transition group/drop cursor-pointer"
+                                 onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${s.task_id}'); MonthlyReportView.pasteFromClipboard('${s.task_id}', 'after_photo');"
+                                 ondragover="event.preventDefault(); this.classList.add('border-blue-500', 'bg-blue-50');"
+                                 ondragleave="this.classList.remove('border-blue-500', 'bg-blue-50');"
+                                 ondrop="event.preventDefault(); this.classList.remove('border-blue-500', 'bg-blue-50'); MonthlyReportView.handleSlotDrop(event, '${s.task_id}', 'after_photo');">
+                              <span class="text-xl text-slate-400 group-hover/drop:scale-110 group-hover/drop:text-blue-600 transition">📋</span>
+                              <span class="text-[11px] font-bold text-slate-700 mt-1">Paste Photo (Ctrl+V)</span>
+                              <span class="text-[9px] text-slate-400 mt-0.5">Click card or drop photo here</span>
+                            </div>
+                          `}
                         </div>
 
                         <!-- Description Preview -->
@@ -1404,10 +1563,15 @@ const MonthlyReportView = {
                         </p>
                       </div>
 
-                      <!-- Slide Card Action (Unified Studio: Text, Photos & Live Preview) -->
-                      <div class="pt-3 border-t border-slate-100">
-                        <button onclick="MonthlyReportView.openModal('${s.task_id}')" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-xs font-black text-white shadow-sm shadow-blue-500/20 transition flex items-center justify-center gap-2 cursor-pointer">
-                          <span>🎨</span> <span>Customize Slide (Text &amp; Photos)</span>
+                      <!-- Slide Card Actions -->
+                      <div class="pt-3 border-t border-slate-100 flex items-center gap-2">
+                        <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${s.task_id}'); MonthlyReportView.pasteFromClipboard('${s.task_id}', 'after_photo')" 
+                                title="Paste photo directly from clipboard (Ctrl+C then Ctrl+V)"
+                                class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                          <span>📋</span> <span>Paste</span>
+                        </button>
+                        <button onclick="MonthlyReportView.openModal('${s.task_id}')" class="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-xs font-black text-white shadow-sm shadow-blue-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                          <span>🎨</span> <span>Customize</span>
                         </button>
                       </div>
                     </div>
@@ -1538,23 +1702,64 @@ if (typeof module !== 'undefined' && module.exports) {
   window.MonthlyReportView = MonthlyReportView;
 }
 
-// Global Clipboard Paste Listener for Photos (Ctrl+C / Ctrl+V - Requirement 2)
+// Global Clipboard Paste Listener for Photos (Ctrl+C / Ctrl+V - Requirements 1 & 2)
 if (typeof window !== 'undefined' && !window._mrvPhotoPasteBound) {
   window._mrvPhotoPasteBound = true;
-  window.addEventListener('paste', (event) => {
-    if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView._activeModalTaskId) {
-      const clipboardData = event.clipboardData || window.clipboardData;
-      if (!clipboardData || !clipboardData.items) return;
-      for (let i = 0; i < clipboardData.items.length; i++) {
-        const item = clipboardData.items[i];
-        if (item.type && item.type.indexOf('image') !== -1) {
-          const file = item.getAsFile();
-          if (file) {
-            event.preventDefault();
-            const slot = MonthlyReportView._activePhotoSlot || 'after_photo';
-            MonthlyReportView.uploadPhotoFromBlob(file, MonthlyReportView._activeModalTaskId, slot);
-            return;
-          }
+
+  function extractImageFromClipboard(event) {
+    const cbd = event.clipboardData || window.clipboardData;
+    if (!cbd) return null;
+
+    // 1. Direct file support (Windows Explorer Ctrl+C or file drag/paste)
+    if (cbd.files && cbd.files.length > 0) {
+      for (let i = 0; i < cbd.files.length; i++) {
+        const file = cbd.files[i];
+        if (file && ((file.type && file.type.startsWith('image/')) || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name || ''))) {
+          return file;
+        }
+      }
+    }
+
+    // 2. Clipboard item bitmap support (Snipping Tool, browser Copy Image)
+    if (cbd.items && cbd.items.length > 0) {
+      for (let i = 0; i < cbd.items.length; i++) {
+        const item = cbd.items[i];
+        if (item && item.type && item.type.indexOf('image') !== -1) {
+          return item.getAsFile();
+        }
+      }
+    }
+    return null;
+  }
+
+  window.addEventListener('paste', async (event) => {
+    if (typeof MonthlyReportView === 'undefined') return;
+
+    // Check if an image is present on clipboard
+    const file = extractImageFromClipboard(event);
+    if (!file) return;
+
+    // Scenario A: Customize Studio Modal is currently open
+    if (MonthlyReportView._activeModalTaskId) {
+      event.preventDefault();
+      const slot = MonthlyReportView._activePhotoSlot || 'after_photo';
+      await MonthlyReportView.uploadPhotoFromBlob(file, MonthlyReportView._activeModalTaskId, slot);
+      return;
+    }
+
+    // Scenario B: Monthly Report Section view (Requirement 1: "monthly report er section e")
+    const activeTab = (window.appState && window.appState.activeTab) || (typeof App !== 'undefined' ? App.currentTab : '');
+    if (activeTab === 'monthly-report') {
+      event.preventDefault();
+      const targetTaskId = MonthlyReportView._selectedCardTaskId || MonthlyReportView.getFirstVisibleTaskId();
+      if (targetTaskId) {
+        await MonthlyReportView.uploadPhotoFromBlob(file, targetTaskId, 'after_photo');
+        if (typeof window.showToast === 'function') {
+          window.showToast(`📋 Photo pasted directly to Task ${targetTaskId}!`, "success");
+        }
+      } else {
+        if (typeof window.showToast === 'function') {
+          window.showToast("Click on a slide card first, then press Ctrl+V to paste!", "info");
         }
       }
     }

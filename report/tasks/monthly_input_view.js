@@ -2628,10 +2628,14 @@ const MonthlyInputView = {
 
     if (typeof window !== 'undefined' && !window._tmsTextareaResizeBound) {
       window._tmsTextareaResizeBound = true;
+      let _tmsResizeTimer = null;
       window.addEventListener('resize', () => {
-        if (typeof MonthlyInputView !== 'undefined' && MonthlyInputView.autoAdjustAllTextareas) {
-          MonthlyInputView.autoAdjustAllTextareas();
-        }
+        if (_tmsResizeTimer) clearTimeout(_tmsResizeTimer);
+        _tmsResizeTimer = setTimeout(() => {
+          if (typeof MonthlyInputView !== 'undefined' && MonthlyInputView.autoAdjustAllTextareas) {
+            MonthlyInputView.autoAdjustAllTextareas();
+          }
+        }, 100);
       });
     }
 

@@ -996,18 +996,9 @@ const FirebaseSyncService = {
           }
         }
 
-        // Live re-render if user is on Photo Manager, Monthly Report, or Monthly Input
-        if (typeof window !== 'undefined' && window.appState) {
-          const curTab = window.appState.activeTab || window.appState.currentTab || (typeof App !== 'undefined' ? App.currentTab : '');
-          if (curTab === 'photo-manager' && typeof PhotoManagerView !== 'undefined' && PhotoManagerView.render) {
-            PhotoManagerView.render();
-          }
-          if (curTab === 'monthly-report' && typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
-            MonthlyReportView.render();
-          }
-          if (curTab === 'monthly-input' && typeof MonthlyInputView !== 'undefined' && MonthlyInputView.render) {
-            MonthlyInputView.render();
-          }
+        // Live re-render if user is on Photo Manager, Monthly Report, or Monthly Input (Debounced 120ms to eliminate UI stutter)
+        if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService._debouncePhotoSync) {
+          FirebaseSyncService._debouncePhotoSync();
         }
       }
     });
@@ -1018,6 +1009,25 @@ const FirebaseSyncService = {
     if (window.appState && window.appState.activeTab === 'dashboard' && typeof DashboardController !== 'undefined' && DashboardController.render) {
       DashboardController.render();
     }
+  },
+
+  _photoSyncTimer: null,
+  _debouncePhotoSync() {
+    if (this._photoSyncTimer) clearTimeout(this._photoSyncTimer);
+    this._photoSyncTimer = setTimeout(() => {
+      if (typeof window !== 'undefined' && window.appState) {
+        const curTab = window.appState.activeTab || window.appState.currentTab || (typeof App !== 'undefined' ? App.currentTab : '');
+        if (curTab === 'photo-manager' && typeof PhotoManagerView !== 'undefined' && PhotoManagerView.render) {
+          PhotoManagerView.render();
+        }
+        if (curTab === 'monthly-report' && typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
+          MonthlyReportView.render();
+        }
+        if (curTab === 'monthly-input' && typeof MonthlyInputView !== 'undefined' && MonthlyInputView.render) {
+          MonthlyInputView.render();
+        }
+      }
+    }, 120);
   },
 
   /**
