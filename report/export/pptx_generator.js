@@ -2430,16 +2430,18 @@ class PPTXGenerator {
     const desc = task.description || task.ai_description || 
       "Developed and implemented an automatic foil cutting system for compressor jacket production. The system was designed, fabricated and handed over to production for regular use.";
     
-    let impacts = Array.isArray(task.impact) && task.impact.length > 0
-      ? task.impact
-      : (typeof task.impact === 'string' && task.impact.trim() ? task.impact.split(';') : [
-          "Improved cutting accuracy and consistency",
-          "Increased production efficiency",
-          "Reduced manual handling",
-          "Better quality control and less material waste"
-        ]);
-    while (impacts.length < 4) {
-      impacts.push("Continuous operational reliability improvement");
+    let impacts = [];
+    if (task.impact !== undefined && task.impact !== null) {
+      if (Array.isArray(task.impact)) {
+        impacts = task.impact.map(i => String(i || '').trim()).filter(Boolean);
+      } else if (typeof task.impact === 'string' && task.impact.trim()) {
+        impacts = task.impact.split(/[\n;]/).map(i => i.trim()).filter(Boolean);
+      }
+    } else {
+      impacts = [
+        "Improved cutting accuracy and consistency",
+        "Increased production efficiency"
+      ];
     }
 
     const metrics = Array.isArray(task.metrics) && task.metrics.length >= 3

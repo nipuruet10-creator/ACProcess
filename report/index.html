@@ -98,18 +98,9 @@
       </div>
 
       <!-- Walton Logo -->
-      <div class="flex items-center justify-center text-center py-2.5 px-1 mb-2 border-b border-slate-100">
+      <div class="flex items-center justify-center text-center py-2.5 px-1 mb-3 border-b border-slate-100">
         <img src="assets/img/walton_logo.png" alt="WALTON" class="h-12 sm:h-14 w-auto object-contain max-w-[200px] mx-auto drop-shadow-sm transition-all hover:scale-105">
       </div>
-
-      <!-- Back to Portal Home Button (Requirement 3) -->
-      <a href="/" title="Back to Main Hub (acprocess.com)" class="flex items-center justify-between w-full py-2 px-3 mb-3 rounded-xl bg-blue-50/80 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition shadow-2xs group">
-        <span class="flex items-center gap-2">
-          <span class="text-sm">🏠</span>
-          <span>Back to acprocess.com</span>
-        </span>
-        <span class="text-[10px] font-mono text-blue-500 group-hover:-translate-x-0.5 transition-transform">↖</span>
-      </a>
 
       <!-- Vertical Navigation Tabs -->
       <nav class="space-y-1.5 font-medium">
@@ -184,16 +175,8 @@
             <span class="text-base font-bold">☰</span>
           </button>
 
-          <!-- Back to Master Portal Button (Requirement 3: https://acprocess.com/ te back jaoar button) -->
-          <a href="/" title="Back to Central Portal Hub (acprocess.com)" class="flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 border border-blue-200 text-xs font-bold transition shadow-2xs group">
-            <span class="text-sm">🏠</span>
-            <span class="hidden sm:inline">Back to</span>
-            <span class="font-bold">acprocess.com</span>
-            <span class="text-[10px] text-blue-500 font-mono group-hover:-translate-x-0.5 transition-transform">↖</span>
-          </a>
-
           <!-- Title & Subtitle -->
-          <div class="min-w-0 hidden md:block">
+          <div class="min-w-0">
             <div class="text-[11px] font-bold text-slate-500 tracking-wide truncate">Walton Hi-Tech Industries PLC.</div>
             <h1 class="text-sm sm:text-base font-black text-slate-900 tracking-tight truncate">AC Process Development</h1>
           </div>
@@ -201,6 +184,14 @@
 
         <!-- Right Quick Actions -->
         <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <!-- Back to acprocess.com (Requirement 3: Clean button on right side of Header) -->
+          <a href="/" title="Back to Central Portal Hub (acprocess.com)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 text-xs font-bold transition shadow-2xs group">
+            <span class="text-sm">🏠</span>
+            <span class="hidden sm:inline">Back to</span>
+            <span class="font-bold">acprocess.com</span>
+            <span class="text-[10px] text-blue-500 font-mono group-hover:-translate-x-0.5 transition-transform">↖</span>
+          </a>
+
           <!-- Live Status Badge -->
           <div id="navbar-cloud-sync-badge">
             <span class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">

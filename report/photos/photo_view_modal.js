@@ -339,3 +339,26 @@ if (typeof module !== 'undefined' && module.exports) {
   window.PhotoViewModal = PhotoViewModal;
   window.photoViewModal = photoViewModal;
 }
+
+// Global Clipboard Paste Listener for PhotoViewModal (Ctrl+C / Ctrl+V - Requirement 2)
+if (typeof window !== 'undefined' && !window._pvmPhotoPasteBound) {
+  window._pvmPhotoPasteBound = true;
+  window.addEventListener('paste', async (event) => {
+    if (typeof PhotoViewModal !== 'undefined' && PhotoViewModal.activeTaskId) {
+      const clipboardData = event.clipboardData || window.clipboardData;
+      if (!clipboardData || !clipboardData.items) return;
+      for (let i = 0; i < clipboardData.items.length; i++) {
+        const item = clipboardData.items[i];
+        if (item.type && item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile();
+          if (file) {
+            event.preventDefault();
+            const slot = PhotoViewModal.activeSlot || 'after_photo';
+            await PhotoViewModal.handleFileSelect(file, slot);
+            return;
+          }
+        }
+      }
+    }
+  });
+}

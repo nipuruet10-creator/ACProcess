@@ -197,19 +197,49 @@ const SlideLayoutEngine = {
     const description = slideData.description || slideData.ai_description || 
       "Developed and implemented an automatic foil cutting system for compressor jacket production. The system was designed, fabricated and handed over to production for regular use.";
     
-    // 4 Key Impact Bullet points
-    let impacts = Array.isArray(slideData.impact) && slideData.impact.length > 0
-      ? slideData.impact
-      : (typeof slideData.impact === 'string' && slideData.impact.trim()
-          ? slideData.impact.split(';')
-          : [
-              "Improved cutting accuracy and consistency",
-              "Increased production efficiency",
-              "Reduced manual handling",
-              "Better quality control and less material waste"
-            ]);
-    while (impacts.length < 4) {
-      impacts.push("Continuous operational reliability improvement");
+    // Key Impact Bullet points (Preserve user edits - Never force dummy filler bullets when user deletes or has fewer!)
+    let impacts = [];
+    if (slideData.impact !== undefined && slideData.impact !== null) {
+      if (Array.isArray(slideData.impact)) {
+        impacts = slideData.impact.map(i => String(i || '').trim()).filter(Boolean);
+      } else if (typeof slideData.impact === 'string' && slideData.impact.trim()) {
+        impacts = slideData.impact.split(/[\n;]/).map(i => i.trim()).filter(Boolean);
+      }
+    } else {
+      impacts = [
+        "Increased continuous line throughput",
+        "Continuous operational reliability improvement"
+      ];
+    }
+
+    // Enhanced description / engineering steps formatter (Requirement 1: "Description ta arektu sundor hobe")
+    let formattedDescriptionHtml = '';
+    const descRaw = String(description || '').trim();
+    const descLines = descRaw
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean);
+
+    if (descLines.length > 1 || (descLines.length === 1 && (descLines[0].startsWith('•') || descLines[0].startsWith('-') || /^\d+\./.test(descLines[0])))) {
+      formattedDescriptionHtml = `
+        <div class="space-y-1.5 pt-0.5">
+          ${descLines.map(line => {
+            const cleanLine = line.replace(/^([•\-\*]|\d+\.)\s*/, '').trim();
+            return `
+              <div class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0 mt-1.5 shadow-2xs"></span>
+                <span style="font-size: 11px; line-height: 1.45; color: #1E293B; font-weight: 500;">${HELPERS.escapeHtml(cleanLine)}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } else {
+      formattedDescriptionHtml = `
+        <div style="font-size: 11.5px; line-height: 1.5; color: #1E293B; font-weight: 500;">
+          ${HELPERS.escapeHtml(descRaw)}
+        </div>
+      `;
     }
 
     // 3 Metric Trend Pills
@@ -345,37 +375,44 @@ const SlideLayoutEngine = {
             </div>
           </div>
 
-          <!-- Project Overview Card (Full text visible without ellipsis) -->
-          <div class="px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-center flex-shrink-0">
-            <div class="flex items-center gap-1.5 mb-1 flex-shrink-0">
+          <!-- Project Overview Card (Requirement 1: Beautifully formatted engineering steps) -->
+          <div class="px-3.5 py-2.5 rounded-xl border border-slate-200/90 bg-slate-50/70 flex flex-col justify-start">
+            <div class="flex items-center gap-1.5 mb-1.5 flex-shrink-0">
               <div class="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0">
                 <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
               </div>
-              <span style="font-size: 11.5px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.03em;">Project Overview</span>
+              <span style="font-size: 11px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Project Overview</span>
             </div>
-            <div style="font-size: 11.5px; line-height: 1.45; color: #1E293B; margin: 0; font-weight: 500;">
-              ${description}
-            </div>
+            ${formattedDescriptionHtml}
           </div>
 
-          <!-- Key Impact Card (All deliverables visible) -->
-          <div class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white flex-1 min-h-0 flex flex-col justify-start gap-1">
-            <div class="flex items-center gap-1.5 mb-0.5 flex-shrink-0">
-              <div class="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0">
-                <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+          <!-- Key Impact Card (Requirement 4: Auto-adjusts size based on bullet count, no huge empty void) -->
+          ${impacts.length > 0 ? `
+          <div class="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white flex flex-col justify-start gap-1 shadow-2xs">
+            <div class="flex items-center gap-1.5 mb-1 flex-shrink-0">
+              <div class="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0 text-[9px] font-bold">
+                ✓
               </div>
-              <span style="font-size: 11.5px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.03em;">Key Impact &amp; Deliverables</span>
+              <span style="font-size: 11px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Key Impact &amp; Deliverables</span>
+              <span class="text-[9px] font-mono text-slate-400 font-bold ml-auto">${impacts.length} ${impacts.length === 1 ? 'Deliverable' : 'Deliverables'}</span>
             </div>
 
-            <div class="flex flex-col gap-1.5 flex-1 justify-around py-0.5">
-              ${impacts.slice(0, 4).map(imp => `
+            <div class="flex flex-col gap-1.5 py-0.5">
+              ${impacts.map(imp => `
                 <div class="flex items-start gap-2">
-                  <span class="w-3.5 h-3.5 rounded bg-red-600 text-white flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5 shadow-xs" style="line-height: 1;">✔</span>
-                  <span style="font-size: 11px; font-weight: 600; color: #1E293B; line-height: 1.35;">${imp.trim()}</span>
+                  <span class="w-3.5 h-3.5 rounded bg-red-50 text-red-700 border border-red-200 flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5" style="line-height: 1;">✔</span>
+                  <span style="font-size: 11px; font-weight: 600; color: #1E293B; line-height: 1.35;">${HELPERS.escapeHtml(imp.replace(/^[•\-\*]\s*/, '').trim())}</span>
                 </div>
               `).join("")}
             </div>
           </div>
+          ` : `
+          <!-- When user deleted all impacts, show clean subtle empty placeholder (Requirement 1) -->
+          <div class="px-3.5 py-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 flex items-center justify-between text-slate-400 text-[10.5px]">
+            <span>No key impact bullets entered</span>
+            <span class="text-[9px] font-mono text-slate-400 font-bold">Empty</span>
+          </div>
+          `}
 
         </div>
 
@@ -1016,14 +1053,15 @@ const SlideLayoutEngine = {
     const status = slideData.status || "Completed";
     const description = slideData.description || slideData.ai_description || "Optimized the RAC vacuum station by installing a booster pump. The system was redesigned and implemented to improve vacuum performance and stability for regular production.";
     
-    let impacts = ["Higher vacuum efficiency", "Reduced cycle time", "Improved production stability", "Lower maintenance requirement"];
-    if (Array.isArray(slideData.impact) && slideData.impact.length > 0) {
-      impacts = slideData.impact;
-    } else if (typeof slideData.impact === 'string' && slideData.impact.trim()) {
-      impacts = slideData.impact.split(';').map(s => s.trim()).filter(Boolean);
-    }
-    while (impacts.length < 4) {
-      impacts.push("Standardized operating procedure executed");
+    let impacts = [];
+    if (slideData.impact !== undefined && slideData.impact !== null) {
+      if (Array.isArray(slideData.impact)) {
+        impacts = slideData.impact.map(s => String(s || '').trim()).filter(Boolean);
+      } else if (typeof slideData.impact === 'string' && slideData.impact.trim()) {
+        impacts = slideData.impact.split(/[\n;]/).map(s => s.trim()).filter(Boolean);
+      }
+    } else {
+      impacts = ["Higher vacuum efficiency", "Reduced cycle time", "Improved production stability", "Lower maintenance requirement"];
     }
 
     // Photos

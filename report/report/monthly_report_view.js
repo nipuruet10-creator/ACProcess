@@ -291,6 +291,33 @@ const MonthlyReportView = {
     }
   },
 
+  _activeModalTaskId: null,
+  _activePhotoSlot: 'after_photo',
+
+  setActivePhotoSlot(slot) {
+    this._activePhotoSlot = slot;
+    const bSlot = document.getElementById('modal-slot-before');
+    const aSlot = document.getElementById('modal-slot-after');
+    if (bSlot) {
+      if (slot === 'before_photo') {
+        bSlot.classList.add('ring-2', 'ring-blue-500', 'border-blue-400');
+        bSlot.classList.remove('border-slate-200');
+      } else {
+        bSlot.classList.remove('ring-2', 'ring-blue-500', 'border-blue-400');
+        bSlot.classList.add('border-slate-200');
+      }
+    }
+    if (aSlot) {
+      if (slot === 'after_photo') {
+        aSlot.classList.add('ring-2', 'ring-blue-500', 'border-blue-400');
+        aSlot.classList.remove('border-slate-200');
+      } else {
+        aSlot.classList.remove('ring-2', 'ring-blue-500', 'border-blue-400');
+        aSlot.classList.add('border-slate-200');
+      }
+    }
+  },
+
   /**
    * Renders the Before/After photo management slots inside the unified modal
    */
@@ -308,35 +335,47 @@ const MonthlyReportView = {
       }
     }
 
+    const currentSlot = this._activePhotoSlot || 'after_photo';
+
     container.innerHTML = `
       <!-- Before Photo (Present Condition) -->
-      <div class="bg-white border ${beforePhoto ? 'border-slate-200' : 'border-dashed border-slate-300 hover:border-blue-400'} rounded-2xl p-3 flex flex-col justify-between shadow-xs transition group">
+      <div id="modal-slot-before" onclick="MonthlyReportView.setActivePhotoSlot('before_photo')" 
+           class="bg-white border ${beforePhoto ? 'border-slate-200' : 'border-dashed border-slate-300 hover:border-blue-400'} ${currentSlot === 'before_photo' ? 'ring-2 ring-blue-500' : ''} rounded-2xl p-3 flex flex-col justify-between shadow-xs transition group cursor-pointer"
+           title="Click to select this slot for pasting (Ctrl+V) or uploading">
         <div class="flex items-center justify-between mb-2">
           <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full ${beforePhoto ? 'bg-emerald-500' : 'bg-slate-300'}"></span>
             <span>1. Present Condition (Before)</span>
           </span>
-          <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${beforePhoto ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400'}">
-            ${beforePhoto ? 'ATTACHED' : 'EMPTY'}
-          </span>
+          <div class="flex items-center gap-1">
+            <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+              📋 Ctrl+V
+            </span>
+            <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${beforePhoto ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400'}">
+              ${beforePhoto ? 'ATTACHED' : 'EMPTY'}
+            </span>
+          </div>
         </div>
 
-        <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center border border-slate-100">
+        <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center border border-slate-100"
+             ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-blue-500');"
+             ondragleave="this.classList.remove('ring-2', 'ring-blue-500');"
+             ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-blue-500'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'before_photo');">
           ${beforePhoto ? `
             <img src="${beforePhoto}" class="w-full h-full object-cover" alt="Before Photo" />
             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
-              <label for="modal-photo-file-before" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold cursor-pointer shadow transition">
+              <label for="modal-photo-file-before" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold cursor-pointer shadow transition">
                 🔄 Replace
               </label>
-              <button type="button" onclick="MonthlyReportView.deleteModalPhoto('${taskId}', 'before_photo')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold shadow transition">
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'before_photo')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold shadow transition">
                 🗑 Delete
               </button>
             </div>
           ` : `
-            <label for="modal-photo-file-before" class="cursor-pointer flex flex-col items-center justify-center p-4 text-center w-full h-full hover:bg-blue-50/30 transition">
+            <label for="modal-photo-file-before" class="cursor-pointer flex flex-col items-center justify-center p-3 text-center w-full h-full hover:bg-blue-50/30 transition">
               <span class="text-2xl mb-1 text-slate-400 group-hover:scale-110 transition">📸</span>
               <span class="text-xs font-bold text-slate-700">Add Before Photo</span>
-              <span class="text-[10px] text-slate-400 mt-0.5">Click or Browse</span>
+              <span class="text-[9.5px] text-blue-600 font-semibold mt-0.5">Click, Drop, or Ctrl+V</span>
             </label>
           `}
           <input type="file" id="modal-photo-file-before" accept="image/*" class="hidden" onchange="MonthlyReportView.uploadModalPhoto(event, '${taskId}', 'before_photo')" />
@@ -345,11 +384,11 @@ const MonthlyReportView = {
         <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
           <span class="text-slate-400 font-mono">16:9 Slide Canvas</span>
           <div class="flex items-center gap-1.5">
-            <label for="modal-photo-file-before" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
+            <label for="modal-photo-file-before" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
               ${beforePhoto ? '🔄 Replace' : '➕ Upload'}
             </label>
             ${beforePhoto ? `
-              <button type="button" onclick="MonthlyReportView.deleteModalPhoto('${taskId}', 'before_photo')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition">
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'before_photo')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition">
                 🗑
               </button>
             ` : ''}
@@ -358,33 +397,43 @@ const MonthlyReportView = {
       </div>
 
       <!-- After Photo (Proposed Project / Hero) -->
-      <div class="bg-white border ${afterPhoto ? 'border-slate-200' : 'border-dashed border-slate-300 hover:border-blue-400'} rounded-2xl p-3 flex flex-col justify-between shadow-xs transition group">
+      <div id="modal-slot-after" onclick="MonthlyReportView.setActivePhotoSlot('after_photo')" 
+           class="bg-white border ${afterPhoto ? 'border-slate-200' : 'border-dashed border-slate-300 hover:border-blue-400'} ${currentSlot === 'after_photo' ? 'ring-2 ring-blue-500' : ''} rounded-2xl p-3 flex flex-col justify-between shadow-xs transition group cursor-pointer"
+           title="Click to select this slot for pasting (Ctrl+V) or uploading">
         <div class="flex items-center justify-between mb-2">
           <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full ${afterPhoto ? 'bg-sky-500' : 'bg-slate-300'}"></span>
             <span>2. Proposed Project (After / Hero)</span>
           </span>
-          <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${afterPhoto ? 'bg-sky-50 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-400'}">
-            ${afterPhoto ? 'ATTACHED' : 'EMPTY'}
-          </span>
+          <div class="flex items-center gap-1">
+            <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+              📋 Ctrl+V
+            </span>
+            <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${afterPhoto ? 'bg-sky-50 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-400'}">
+              ${afterPhoto ? 'ATTACHED' : 'EMPTY'}
+            </span>
+          </div>
         </div>
 
-        <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center border border-slate-100">
+        <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center border border-slate-100"
+             ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-blue-500');"
+             ondragleave="this.classList.remove('ring-2', 'ring-blue-500');"
+             ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-blue-500'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'after_photo');">
           ${afterPhoto ? `
             <img src="${afterPhoto}" class="w-full h-full object-cover" alt="After Photo" />
             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
-              <label for="modal-photo-file-after" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold cursor-pointer shadow transition">
+              <label for="modal-photo-file-after" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold cursor-pointer shadow transition">
                 🔄 Replace
               </label>
-              <button type="button" onclick="MonthlyReportView.deleteModalPhoto('${taskId}', 'after_photo')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold shadow transition">
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'after_photo')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold shadow transition">
                 🗑 Delete
               </button>
             </div>
           ` : `
-            <label for="modal-photo-file-after" class="cursor-pointer flex flex-col items-center justify-center p-4 text-center w-full h-full hover:bg-blue-50/30 transition">
+            <label for="modal-photo-file-after" class="cursor-pointer flex flex-col items-center justify-center p-3 text-center w-full h-full hover:bg-blue-50/30 transition">
               <span class="text-2xl mb-1 text-slate-400 group-hover:scale-110 transition">📸</span>
               <span class="text-xs font-bold text-slate-700">Add After Photo</span>
-              <span class="text-[10px] text-slate-400 mt-0.5">Click or Browse</span>
+              <span class="text-[9.5px] text-blue-600 font-semibold mt-0.5">Click, Drop, or Ctrl+V</span>
             </label>
           `}
           <input type="file" id="modal-photo-file-after" accept="image/*" class="hidden" onchange="MonthlyReportView.uploadModalPhoto(event, '${taskId}', 'after_photo')" />
@@ -393,11 +442,11 @@ const MonthlyReportView = {
         <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
           <span class="text-slate-400 font-mono">16:9 Hero Image</span>
           <div class="flex items-center gap-1.5">
-            <label for="modal-photo-file-after" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
+            <label for="modal-photo-file-after" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
               ${afterPhoto ? '🔄 Replace' : '➕ Upload'}
             </label>
             ${afterPhoto ? `
-              <button type="button" onclick="MonthlyReportView.deleteModalPhoto('${taskId}', 'after_photo')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition">
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'after_photo')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition">
                 🗑
               </button>
             ` : ''}
@@ -407,40 +456,44 @@ const MonthlyReportView = {
     `;
   },
 
+  handleSlotDrop(event, taskId, slot) {
+    if (!event || !event.dataTransfer) return;
+    const file = event.dataTransfer.files && event.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      this.uploadPhotoFromBlob(file, taskId, slot);
+    }
+  },
+
+  async uploadPhotoFromBlob(blobOrFile, taskId, slot = 'after_photo') {
+    if (!blobOrFile || !taskId) return;
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Url = e.target.result;
+        if (typeof photoManager !== 'undefined') {
+          if (photoManager.savePhoto) {
+            await photoManager.savePhoto(taskId, slot, base64Url, this.selectedMonth);
+          } else if (photoManager.setTaskPhoto) {
+            await photoManager.setTaskPhoto(taskId, slot, base64Url, null, this.selectedMonth);
+          }
+        }
+        this.renderModalPhotoSlots(taskId);
+        this.renderModalLivePreview(taskId);
+        if (typeof window.showToast === 'function') {
+          const slotLabel = slot === 'before_photo' ? '1. Present Condition (Before)' : '2. Proposed Project (After / Hero)';
+          window.showToast(`📋 Photo pasted successfully into ${slotLabel}!`, "success");
+        }
+      };
+      reader.readAsDataURL(blobOrFile);
+    } catch (err) {
+      console.error("Paste photo error:", err);
+    }
+  },
+
   async uploadModalPhoto(event, taskId, slot) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
-    try {
-      if (typeof photoManager !== 'undefined') {
-        if (photoManager.savePhotoFile) {
-          await photoManager.savePhotoFile(taskId, slot, file, this.selectedMonth);
-        } else if (photoManager.setTaskPhoto || photoManager.savePhoto) {
-          const reader = new FileReader();
-          reader.onload = async (e) => {
-            const base64Url = e.target.result;
-            if (photoManager.savePhoto) {
-              await photoManager.savePhoto(taskId, slot, base64Url, this.selectedMonth);
-            } else {
-              await photoManager.setTaskPhoto(taskId, slot, base64Url, null, this.selectedMonth);
-            }
-            this.renderModalPhotoSlots(taskId);
-            this.renderModalLivePreview(taskId);
-            if (typeof window.showToast === 'function') {
-              window.showToast("📷 Photo attached! Live preview updated.", "success");
-            }
-          };
-          reader.readAsDataURL(file);
-          return;
-        }
-      }
-      this.renderModalPhotoSlots(taskId);
-      this.renderModalLivePreview(taskId);
-      if (typeof window.showToast === 'function') {
-        window.showToast("📷 Photo attached! Live preview updated.", "success");
-      }
-    } catch (err) {
-      console.error("Photo upload error:", err);
-    }
+    await this.uploadPhotoFromBlob(file, taskId, slot);
   },
 
   async deleteModalPhoto(taskId, slot) {
@@ -479,6 +532,8 @@ const MonthlyReportView = {
    */
   openModal(taskId) {
     if (!taskId) return;
+    this._activeModalTaskId = taskId;
+    this._activePhotoSlot = 'after_photo';
 
     const breakdown = window.appState && window.appState.breakdownSheet
       ? window.appState.breakdownSheet.getBreakdown(taskId)
@@ -515,11 +570,15 @@ const MonthlyReportView = {
       currentDesc = HELPERS.formatDetailsAsShortBullets(currentDesc);
     }
 
-    // Auto-generate project impact & outcomes if empty
-    let currentImpact = overrides.impact
-      ? (Array.isArray(overrides.impact) ? overrides.impact.join("\n") : overrides.impact)
-      : (breakdown && Array.isArray(breakdown.ai_impact) ? breakdown.ai_impact.join("\n") : "");
-    if (!currentImpact || currentImpact.trim() === '') {
+    // Auto-generate project impact & outcomes if empty (Requirement 1: If user deleted impacts, keep empty!)
+    let currentImpact = "";
+    if (overrides.impact !== undefined && overrides.impact !== null) {
+      currentImpact = Array.isArray(overrides.impact) ? overrides.impact.join("\n") : String(overrides.impact);
+    } else if (breakdown && Array.isArray(breakdown.ai_impact) && breakdown.ai_impact.length > 0) {
+      currentImpact = breakdown.ai_impact.join("\n");
+    } else if (task && task.impact) {
+      currentImpact = Array.isArray(task.impact) ? task.impact.join("\n") : String(task.impact);
+    } else {
       currentImpact = "• Process cycle time reduced and standardized across shifts\n• Eliminates manual operator strain and operational defect risks\n• Increases active line throughput and ensures zero defect quality";
     }
 
@@ -808,6 +867,7 @@ const MonthlyReportView = {
   },
 
   closeModal() {
+    this._activeModalTaskId = null;
     const container = document.getElementById('monthly-report-modal-container');
     if (container) container.innerHTML = '';
   },
@@ -1476,4 +1536,27 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = MonthlyReportView;
 } else if (typeof window !== 'undefined') {
   window.MonthlyReportView = MonthlyReportView;
+}
+
+// Global Clipboard Paste Listener for Photos (Ctrl+C / Ctrl+V - Requirement 2)
+if (typeof window !== 'undefined' && !window._mrvPhotoPasteBound) {
+  window._mrvPhotoPasteBound = true;
+  window.addEventListener('paste', (event) => {
+    if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView._activeModalTaskId) {
+      const clipboardData = event.clipboardData || window.clipboardData;
+      if (!clipboardData || !clipboardData.items) return;
+      for (let i = 0; i < clipboardData.items.length; i++) {
+        const item = clipboardData.items[i];
+        if (item.type && item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile();
+          if (file) {
+            event.preventDefault();
+            const slot = MonthlyReportView._activePhotoSlot || 'after_photo';
+            MonthlyReportView.uploadPhotoFromBlob(file, MonthlyReportView._activeModalTaskId, slot);
+            return;
+          }
+        }
+      }
+    }
+  });
 }
