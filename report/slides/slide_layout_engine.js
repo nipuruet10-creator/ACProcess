@@ -319,11 +319,11 @@ const SlideLayoutEngine = {
     const quoteL1 = quoteParts.length > 1 ? quoteParts[0] : quote;
     const quoteL2 = quoteParts.length > 1 ? `for ${quoteParts[1]}` : "";
 
-    // Dual Photo detection (Before & After)
+    // Requirement 4: Image option 2 ta theke ekta thakbe only in monthly report
     const photoBefore = slideData.photo_before || slideData.photo_1 || null;
     const photoAfter = slideData.photo_after || slideData.photo_2 || null;
-    const photoSingle = slideData.photo || photoAfter || photoBefore || "assets/images/walton_red_reference_sample.jpg";
-    const hasDualPhoto = Boolean(photoBefore && photoAfter);
+    const photoSingle = slideData.photo_after || slideData.photo || slideData.photo_before || slideData.photo_1 || "assets/images/walton_red_reference_sample.jpg";
+    const hasDualPhoto = false; // Always single hero photo in monthly report
 
     // Month
     const month = (slideData.month || "SEPTEMBER 2026").toUpperCase();

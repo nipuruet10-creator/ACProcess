@@ -2111,16 +2111,22 @@ const MonthlyInputView = {
                   ${medal}
                 </td>
                 <td class="py-2 px-4 text-center font-mono font-black text-slate-900 text-sm border-r border-slate-200">
-                  ${r.total_point}
+                  <div>${r.total_point}</div>
+                  ${r.supervisor_point > 0 ? `<div class="text-[9.5px] font-sans font-bold text-blue-600 tracking-tight">Own: ${r.own_point || 0} + Sup: ${r.supervisor_point}</div>` : ''}
                 </td>
                 <td class="py-2 px-6 font-bold text-slate-800 border-r border-slate-200">
-                  ${HELPERS.escapeHtml(r.name)}
+                  <div class="flex items-center justify-between">
+                    <span>${HELPERS.escapeHtml(r.name)}</span>
+                    ${r.supervisor_point > 0 ? `<span class="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-700 border border-purple-200" title="Supervised ${r.supervised_tasks} tasks (+25% bonus)">Supervisor</span>` : ''}
+                  </div>
                 </td>
                 <td class="py-2 px-4 text-center font-mono font-bold text-slate-700 border-r border-slate-200">
-                  ${r.total_task}
+                  <div>${r.total_task}</div>
+                  ${r.supervised_tasks > 0 ? `<div class="text-[9.5px] font-sans font-semibold text-slate-400">(+${r.supervised_tasks} sup)</div>` : ''}
                 </td>
                 <td class="py-2 px-4 text-center font-mono font-black text-emerald-800 text-sm border-r border-slate-200 bg-emerald-50/30">
-                  ${r.wbs_point}
+                  <div>${r.wbs_point}</div>
+                  ${r.supervisor_point > 0 ? `<div class="text-[9.5px] font-sans font-bold text-emerald-700 tracking-tight">(+${r.supervisor_point} Sup 25%)</div>` : ''}
                 </td>
               </tr>
             `;

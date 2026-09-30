@@ -211,32 +211,42 @@ const MonthlyReportView = {
   },
 
   /**
-   * Auto-generates concise 5-step process breakdown and short bullet points derived from task name
-   * Requirement 1: "Monthly report theke task details generate korar option rakhio. Bullet point will be short and as per task name."
+   * Intelligently auto-generates engineering narrative sentences and deliverables tailored to the task title
+   * Requirement 3: "2nd photo, ekhane description and impact auto generate hoye thakbe title onujayi."
    */
-  generateSlideDetails(taskId) {
-    const titleInput = document.getElementById('edit-slide-title');
-    const taskName = (titleInput ? titleInput.value.trim() : '') || taskId;
+  generateDetailsFromTitle(taskName, category = '') {
     if (!taskName) {
-      if (typeof window.showToast === 'function') {
-        window.showToast("Please enter a slide title or task name first.", "warning");
-      }
-      return;
+      return {
+        desc: "Developed and implemented specialized process engineering mechanism. The system was designed, fabricated, calibrated, and commissioned for regular active production use.",
+        bullets: [
+          "Process cycle time reduced and standardized across shifts",
+          "Eliminates manual operator strain and operational defect risks",
+          "Increases active line throughput and ensures zero defect quality"
+        ]
+      };
     }
 
     const lower = taskName.toLowerCase();
     let desc = "";
     let bullets = [];
 
-    if (lower.includes("die") || lower.includes("fixture") || lower.includes("jig") || lower.includes("cutter") || lower.includes("mold") || lower.includes("tool")) {
-      desc = `Designed, fabricated, and verified precision tooling fixture for ${taskName.toLowerCase()}. Verified dimensional tolerance and commissioned on the active production line.`;
+    if (lower.includes("bom") || lower.includes("audit") || lower.includes("sfg") || lower.includes("verification") || lower.includes("inspection") || lower.includes("store") || lower.includes("sheet") || lower.includes("coil") || lower.includes("rm") || lower.includes("raw material")) {
+      desc = `Conducted physical inspection, dimensional verification, and quality audit for ${taskName.toLowerCase()}. Reconciled material usage and validated specifications against engineering drawing standards.`;
+      bullets = [
+        `Physical line observation & part count verified`,
+        `Verified material specifications & tolerance compliance`,
+        `Eliminated defective processing & storage scrap risks`,
+        `Audit sign-off completed for active production lines`
+      ];
+    } else if (lower.includes("die") || lower.includes("fixture") || lower.includes("jig") || lower.includes("cutter") || lower.includes("mold") || lower.includes("tool")) {
+      desc = `Designed, fabricated, and validated precision tooling fixture for ${taskName.toLowerCase()}. Verified fitment tolerance and commissioned on the active production line.`;
       bullets = [
         `Tooling design & 3D fabrication finalized`,
         `Verified fitment & dimensional tolerance`,
         `Reduced changeover & manual setup time`,
-        `Commissioned on active production line`
+        `Commissioned on active manufacturing line`
       ];
-    } else if (lower.includes("robot") || lower.includes("automation") || lower.includes("punch") || lower.includes("press") || lower.includes("turret") || lower.includes("sensor") || lower.includes("motor")) {
+    } else if (lower.includes("robot") || lower.includes("automation") || lower.includes("punch") || lower.includes("press") || lower.includes("turret") || lower.includes("sensor") || lower.includes("motor") || lower.includes("tms")) {
       desc = `Engineered and integrated automated control mechanism for ${taskName.toLowerCase()}. Successfully tested safety interlocks and commissioned on the active line.`;
       bullets = [
         `Automated cycle & safety interlock setup`,
@@ -244,21 +254,13 @@ const MonthlyReportView = {
         `Enhanced operator safety & handling speed`,
         `Validated operational reliability on line`
       ];
-    } else if (lower.includes("foil") || lower.includes("cutting") || lower.includes("vacuum") || lower.includes("brazing") || lower.includes("jacket") || lower.includes("coil")) {
+    } else if (lower.includes("foil") || lower.includes("cutting") || lower.includes("vacuum") || lower.includes("brazing") || lower.includes("jacket") || lower.includes("pipe") || lower.includes("bending")) {
       desc = `Developed and implemented specialized process mechanism for ${taskName.toLowerCase()}. Commissioned for daily manufacturing with zero quality deviation.`;
       bullets = [
         `Process flow & cycle parameters optimized`,
         `Eliminated manual handling bottlenecks`,
         `Improved cutting & assembly consistency`,
         `Ensured zero-defect line handover`
-      ];
-    } else if (lower.includes("bom") || lower.includes("audit") || lower.includes("sfg") || lower.includes("verification")) {
-      desc = `Conducted physical inspection, BOM verification, and structure audit for ${taskName.toLowerCase()}. Reconciled line usage against engineering drawing specifications.`;
-      bullets = [
-        `Physical line observation & part count verified`,
-        `ERP & engineering BOM structure reconciled`,
-        `Discrepancies rectified with store & planning`,
-        `Audit sign-off completed for running models`
       ];
     } else if (lower.includes("model") || lower.includes("trial") || lower.includes("pilot") || lower.includes("sample")) {
       desc = `Executed pilot production trial, tooling readiness, and assembly flow for ${taskName.toLowerCase()}. Addressed line balancing issues and confirmed commercial readiness.`;
@@ -280,6 +282,26 @@ const MonthlyReportView = {
       ];
     }
 
+    return { desc, bullets };
+  },
+
+  /**
+   * Auto-generates concise narrative overview and deliverables derived from task name
+   */
+  generateSlideDetails(taskId) {
+    const titleInput = document.getElementById('edit-slide-title');
+    const catInput = document.getElementById('edit-slide-category');
+    const taskName = (titleInput ? titleInput.value.trim() : '') || taskId;
+    const category = (catInput ? catInput.value.trim() : '') || 'Process development';
+    if (!taskName) {
+      if (typeof window.showToast === 'function') {
+        window.showToast("Please enter a slide title or task name first.", "warning");
+      }
+      return;
+    }
+
+    const { desc, bullets } = this.generateDetailsFromTitle(taskName, category);
+
     const descEl = document.getElementById('edit-slide-desc');
     const impactEl = document.getElementById('edit-slide-impact');
     if (descEl) descEl.value = desc;
@@ -287,7 +309,7 @@ const MonthlyReportView = {
 
     this.renderModalLivePreview(taskId);
     if (typeof window.showToast === 'function') {
-      window.showToast(`✨ Generated concise details & short bullets for "${taskName}"!`, "success");
+      window.showToast(`✨ Generated narrative description & deliverables for "${taskName}"!`, "success");
     }
   },
 
@@ -295,129 +317,41 @@ const MonthlyReportView = {
   _activePhotoSlot: 'after_photo',
 
   setActivePhotoSlot(slot) {
-    this._activePhotoSlot = slot;
-    const bSlot = document.getElementById('modal-slot-before');
-    const aSlot = document.getElementById('modal-slot-after');
-    if (bSlot) {
-      if (slot === 'before_photo') {
-        bSlot.classList.add('ring-2', 'ring-blue-500', 'border-blue-400');
-        bSlot.classList.remove('border-slate-200');
-      } else {
-        bSlot.classList.remove('ring-2', 'ring-blue-500', 'border-blue-400');
-        bSlot.classList.add('border-slate-200');
-      }
-    }
-    if (aSlot) {
-      if (slot === 'after_photo') {
-        aSlot.classList.add('ring-2', 'ring-blue-500', 'border-blue-400');
-        aSlot.classList.remove('border-slate-200');
-      } else {
-        aSlot.classList.remove('ring-2', 'ring-blue-500', 'border-blue-400');
-        aSlot.classList.add('border-slate-200');
-      }
-    }
+    this._activePhotoSlot = 'after_photo';
   },
 
   /**
-   * Renders the Before/After photo management slots inside the unified modal
+   * Renders the Single photo management slot inside the unified modal
+   * Requirement 4: "Image er option 2 ta theke ekta thakbe only in monthly report."
    */
   renderModalPhotoSlots(taskId) {
     const container = document.getElementById('modal-photos-slot-container');
     if (!container) return;
 
-    let beforePhoto = null;
-    let afterPhoto = null;
+    let photo = null;
     if (typeof photoManager !== 'undefined') {
       const p = photoManager.getTaskPhotos(taskId, this.selectedMonth);
       if (p) {
-        beforePhoto = p.before_photo || p.photo_1 || null;
-        afterPhoto = p.after_photo || p.photo_2 || null;
+        photo = p.after_photo || p.photo_1 || p.photo_2 || p.before_photo || null;
       }
     }
 
-    const currentSlot = this._activePhotoSlot || 'after_photo';
+    this._activePhotoSlot = 'after_photo';
 
     container.innerHTML = `
-      <!-- Before Photo (Present Condition) -->
-      <div id="modal-slot-before" onclick="MonthlyReportView.setActivePhotoSlot('before_photo')" 
-           class="bg-white border ${beforePhoto ? 'border-slate-200' : 'border-dashed border-slate-300 hover:border-blue-400'} ${currentSlot === 'before_photo' ? 'ring-2 ring-blue-500' : ''} rounded-2xl p-3 flex flex-col justify-between shadow-xs transition group cursor-pointer"
-           title="Click to select this slot for pasting (Ctrl+V) or uploading">
+      <!-- Single Unified Photo Slot for Monthly Report (Req 4: Image option 2 ta theke 1 ta) -->
+      <div id="modal-slot-photo" class="bg-white border ${photo ? 'border-slate-200' : 'border-dashed border-slate-300 hover:border-blue-400'} rounded-2xl p-3.5 flex flex-col justify-between shadow-xs transition group">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full ${beforePhoto ? 'bg-emerald-500' : 'bg-slate-300'}"></span>
-            <span>1. Present Condition (Before)</span>
+          <span class="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full ${photo ? 'bg-emerald-500' : 'bg-slate-300'}"></span>
+            <span>Slide Photo Attachment (16:9 Single Canvas)</span>
           </span>
           <div class="flex items-center gap-1">
             <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
               📋 Ctrl+V
             </span>
-            <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${beforePhoto ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400'}">
-              ${beforePhoto ? 'ATTACHED' : 'EMPTY'}
-            </span>
-          </div>
-        </div>
-
-        <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200"
-             ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-blue-500');"
-             ondragleave="this.classList.remove('ring-2', 'ring-blue-500');"
-             ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-blue-500'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'before_photo');">
-          ${beforePhoto ? `
-            <div class="photo-fit-wrapper photo-fit-blur relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
-              <img src="${beforePhoto}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(16px) brightness(0.65); opacity: 0.65;" />
-              <img src="${beforePhoto}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-md" alt="Before Photo" />
-            </div>
-            <div class="absolute inset-0 z-20 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
-              <label for="modal-photo-file-before" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold cursor-pointer shadow transition">
-                🔄 Replace
-              </label>
-              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'before_photo')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold shadow transition">
-                🗑 Delete
-              </button>
-            </div>
-          ` : `
-            <label for="modal-photo-file-before" class="cursor-pointer flex flex-col items-center justify-center p-3 text-center w-full h-full hover:bg-blue-50/30 transition">
-              <span class="text-2xl mb-1 text-slate-400 group-hover:scale-110 transition">📸</span>
-              <span class="text-xs font-bold text-slate-700">Add Before Photo</span>
-              <span class="text-[9.5px] text-blue-600 font-semibold mt-0.5">Click, Drop, or Ctrl+V</span>
-            </label>
-          `}
-          <input type="file" id="modal-photo-file-before" accept="image/*" class="hidden" onchange="MonthlyReportView.uploadModalPhoto(event, '${taskId}', 'before_photo')" />
-        </div>
-
-        <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-          <span class="text-slate-400 font-mono">16:9 Canvas</span>
-          <div class="flex items-center gap-1.5">
-            <button type="button" onclick="event.stopPropagation(); MonthlyReportView.pasteFromClipboard('${taskId}', 'before_photo')" 
-                    class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition flex items-center gap-1 cursor-pointer">
-              <span>📋</span> <span>Paste (Ctrl+V)</span>
-            </button>
-            <label for="modal-photo-file-before" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
-              ${beforePhoto ? '🔄 Replace' : '➕ Upload'}
-            </label>
-            ${beforePhoto ? `
-              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'before_photo')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition">
-                🗑
-              </button>
-            ` : ''}
-          </div>
-        </div>
-      </div>
-
-      <!-- After Photo (Proposed Project / Hero) -->
-      <div id="modal-slot-after" onclick="MonthlyReportView.setActivePhotoSlot('after_photo')" 
-           class="bg-white border ${afterPhoto ? 'border-slate-200' : 'border-dashed border-slate-300 hover:border-blue-400'} ${currentSlot === 'after_photo' ? 'ring-2 ring-blue-500' : ''} rounded-2xl p-3 flex flex-col justify-between shadow-xs transition group cursor-pointer"
-           title="Click to select this slot for pasting (Ctrl+V) or uploading">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full ${afterPhoto ? 'bg-sky-500' : 'bg-slate-300'}"></span>
-            <span>2. Proposed Project (After / Hero)</span>
-          </span>
-          <div class="flex items-center gap-1">
-            <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-              📋 Ctrl+V
-            </span>
-            <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${afterPhoto ? 'bg-sky-50 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-400'}">
-              ${afterPhoto ? 'ATTACHED' : 'EMPTY'}
+            <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${photo ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400'}">
+              ${photo ? 'ATTACHED' : 'EMPTY'}
             </span>
           </div>
         </div>
@@ -426,42 +360,45 @@ const MonthlyReportView = {
              ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-blue-500');"
              ondragleave="this.classList.remove('ring-2', 'ring-blue-500');"
              ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-blue-500'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'after_photo');">
-          ${afterPhoto ? `
+          ${photo ? `
             <div class="photo-fit-wrapper photo-fit-blur relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
-              <img src="${afterPhoto}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(16px) brightness(0.65); opacity: 0.65;" />
-              <img src="${afterPhoto}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-md" alt="After Photo" />
+              <img src="${photo}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(16px) brightness(0.65); opacity: 0.65;" />
+              <img src="${photo}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-md" alt="Slide Photo" />
             </div>
             <div class="absolute inset-0 z-20 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
-              <label for="modal-photo-file-after" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold cursor-pointer shadow transition">
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold shadow transition cursor-pointer">
+                📋 Paste Ctrl+V
+              </button>
+              <label for="modal-photo-file-single" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold cursor-pointer shadow transition">
                 🔄 Replace
               </label>
-              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'after_photo')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold shadow transition">
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'after_photo')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold shadow transition cursor-pointer">
                 🗑 Delete
               </button>
             </div>
           ` : `
-            <label for="modal-photo-file-after" class="cursor-pointer flex flex-col items-center justify-center p-3 text-center w-full h-full hover:bg-blue-50/30 transition">
-              <span class="text-2xl mb-1 text-slate-400 group-hover:scale-110 transition">📸</span>
-              <span class="text-xs font-bold text-slate-700">Add After Photo</span>
-              <span class="text-[9.5px] text-blue-600 font-semibold mt-0.5">Click, Drop, or Ctrl+V</span>
+            <label for="modal-photo-file-single" class="cursor-pointer flex flex-col items-center justify-center p-4 text-center w-full h-full hover:bg-blue-50/30 transition">
+              <span class="text-3xl mb-1 text-slate-400 group-hover:scale-110 transition">📷</span>
+              <span class="text-xs font-bold text-slate-800">Add Slide Photo</span>
+              <span class="text-[9.5px] text-blue-600 font-semibold mt-0.5">Click to browse, drop file, or paste with Ctrl+V</span>
             </label>
           `}
-          <input type="file" id="modal-photo-file-after" accept="image/*" class="hidden" onchange="MonthlyReportView.uploadModalPhoto(event, '${taskId}', 'after_photo')" />
+          <input type="file" id="modal-photo-file-single" accept="image/*" class="hidden" onchange="MonthlyReportView.uploadModalPhoto(event, '${taskId}', 'after_photo')" />
         </div>
 
         <div class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-          <span class="text-slate-400 font-mono">16:9 Hero Image</span>
+          <span class="text-slate-400 font-mono">16:9 Canvas (Adaptive blur-fit)</span>
           <div class="flex items-center gap-1.5">
             <button type="button" onclick="event.stopPropagation(); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" 
                     class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold transition flex items-center gap-1 cursor-pointer">
               <span>📋</span> <span>Paste (Ctrl+V)</span>
             </button>
-            <label for="modal-photo-file-after" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
-              ${afterPhoto ? '🔄 Replace' : '➕ Upload'}
+            <label for="modal-photo-file-single" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
+              ${photo ? '🔄 Replace' : '➕ Upload'}
             </label>
-            ${afterPhoto ? `
-              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'after_photo')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition">
-                🗑
+            ${photo ? `
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteModalPhoto('${taskId}', 'after_photo')" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition cursor-pointer">
+                🗑 Remove
               </button>
             ` : ''}
           </div>
@@ -621,7 +558,10 @@ const MonthlyReportView = {
 
   async deleteModalPhoto(taskId, slot) {
     if (typeof photoManager !== 'undefined' && photoManager.removePhoto) {
-      await photoManager.removePhoto(taskId, slot, this.selectedMonth);
+      await photoManager.removePhoto(taskId, 'after_photo', this.selectedMonth);
+      await photoManager.removePhoto(taskId, 'before_photo', this.selectedMonth);
+      await photoManager.removePhoto(taskId, 'photo_1', this.selectedMonth);
+      await photoManager.removePhoto(taskId, 'photo_2', this.selectedMonth);
     }
     this.renderModalPhotoSlots(taskId);
     this.renderModalLivePreview(taskId);
@@ -677,30 +617,36 @@ const MonthlyReportView = {
     const currentCategory = overrides.category || (task ? task.category : null) || (currentSlide ? currentSlide.category : null) || (breakdown ? breakdown.ai_category : "Process development");
     const currentTitle = overrides.slide_title || (breakdown ? breakdown.ai_report_title : rawTaskName);
 
-    // Auto-generate description / overview if empty so it is never blank in Monthly Report (Requirement 4: sentence format, NOT bullet points!)
+    // Requirement 3: Auto-generate description and impact according to title
+    // "2nd photo, ekhane description and impact auto generate hoye thakbe title onujayi."
+    const generated = this.generateDetailsFromTitle(currentTitle, currentCategory);
+
     let currentDesc = overrides.description || (breakdown ? breakdown.ai_description : ((task && task.task_details) ? task.task_details : ""));
-    if (!currentDesc || currentDesc.trim() === '' || currentDesc.toLowerCase().includes("1. concept design & layout analysis")) {
-      if (task && task.task_details && !task.task_details.toLowerCase().includes("1. concept design & layout analysis")) {
-        currentDesc = task.task_details;
-      } else {
-        currentDesc = "Developed and implemented specialized process engineering mechanism. The system was designed, fabricated, calibrated, and commissioned for regular active production use.";
+    const isGenericDesc = !currentDesc || currentDesc.trim() === '' || 
+      currentDesc.length < 40 ||
+      currentDesc.toLowerCase().includes("developed and implemented engineering") ||
+      currentDesc.toLowerCase().includes("1. concept design & layout analysis") ||
+      currentDesc.toLowerCase().includes("specialized process engineering mechanism");
+
+    if (!overrides.description || isGenericDesc) {
+      currentDesc = generated.desc;
+    } else {
+      // Clean any legacy bullet marks or line breaks into clean narrative sentences
+      const descParts = String(currentDesc)
+        .split(/(?:\r?\n|•|\s*;\s*)/)
+        .map(p => p.replace(/^([•\-\*\s]+|\d+[\.\)\:\-]\s*)+/, '').trim())
+        .filter(Boolean)
+        .map(p => {
+          let s = p.charAt(0).toUpperCase() + p.slice(1);
+          if (!/[.!?]$/.test(s)) s += '.';
+          return s;
+        });
+      if (descParts.length > 0) {
+        currentDesc = descParts.join(' ');
       }
     }
-    // Clean any legacy bullet marks or line breaks into clean narrative sentences
-    const descParts = String(currentDesc)
-      .split(/(?:\r?\n|•|\s*;\s*)/)
-      .map(p => p.replace(/^([•\-\*\s]+|\d+[\.\)\:\-]\s*)+/, '').trim())
-      .filter(Boolean)
-      .map(p => {
-        let s = p.charAt(0).toUpperCase() + p.slice(1);
-        if (!/[.!?]$/.test(s)) s += '.';
-        return s;
-      });
-    if (descParts.length > 0) {
-      currentDesc = descParts.join(' ');
-    }
 
-    // Auto-generate project impact & outcomes if empty (Requirement 1: If user deleted impacts, keep empty!)
+    // Auto-generate project impact & outcomes if empty or generic
     let currentImpact = "";
     if (overrides.impact !== undefined && overrides.impact !== null) {
       currentImpact = Array.isArray(overrides.impact) ? overrides.impact.join("\n") : String(overrides.impact);
@@ -708,8 +654,14 @@ const MonthlyReportView = {
       currentImpact = breakdown.ai_impact.join("\n");
     } else if (task && task.impact) {
       currentImpact = Array.isArray(task.impact) ? task.impact.join("\n") : String(task.impact);
-    } else {
-      currentImpact = "• Process cycle time reduced and standardized across shifts\n• Eliminates manual operator strain and operational defect risks\n• Increases active line throughput and ensures zero defect quality";
+    }
+
+    const isGenericImp = !currentImpact || currentImpact.trim() === '' ||
+      currentImpact.toLowerCase().includes("process cycle time reduced and standardized across shifts") ||
+      (currentImpact.toLowerCase().includes("improved process accuracy and consistency") && currentImpact.toLowerCase().includes("increased production operational efficiency"));
+
+    if (overrides.impact === undefined || overrides.impact === null || isGenericImp) {
+      currentImpact = generated.bullets.join("\n");
     }
 
     const currentEngineer = overrides.engineer || (task ? (task.concern_engineer || task.assignee || task.engineer) : null) || (breakdown ? breakdown.engineer : "Concern Engineer");
@@ -818,17 +770,17 @@ const MonthlyReportView = {
                 </select>
               </div>
 
-              <!-- PHOTO MANAGEMENT SECTION -->
+              <!-- PHOTO MANAGEMENT SECTION (Req 4: Single Image Option in Monthly Report) -->
               <div class="bg-slate-50/80 border border-slate-200 rounded-2xl p-3.5 space-y-2.5">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2">
                     <span class="text-base">📷</span>
-                    <span class="font-bold text-slate-800 text-xs">Slide Photo Attachments (Before &amp; After)</span>
+                    <span class="font-bold text-slate-800 text-xs">Slide Photo Attachment (16:9 Presentation Canvas)</span>
                   </div>
-                  <span class="text-[10px] text-slate-400 font-mono">16:9 Slide Canvas</span>
+                  <span class="text-[10px] text-slate-400 font-mono">16:9 Single Canvas</span>
                 </div>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="modal-photos-slot-container">
+                <div class="w-full" id="modal-photos-slot-container">
                   <!-- Rendered dynamically via renderModalPhotoSlots -->
                 </div>
               </div>
@@ -1325,26 +1277,26 @@ const MonthlyReportView = {
 
     container.innerHTML = `
       <!-- Single Unified Executive Container for Monthly Report (Req 1 & 2: Single box, immediate slide edit visibility) -->
-      <div class="bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-5 shadow-sm space-y-4">
+      <div class="bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 shadow-xs space-y-2.5">
         
         <!-- 1. COMPACT TOP CONTROL BAR (One sleek executive row) -->
-        <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+        <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
           
           <!-- Left: Brand + Title + Month Selector + Stats -->
-          <div class="flex items-center gap-3 flex-wrap">
-            <img src="assets/img/walton_logo.png" alt="WALTON" class="h-8 w-auto object-contain flex-shrink-0 drop-shadow-xs">
-            <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Monthly Report Presentation Hub</h2>
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <img src="assets/img/walton_logo.png" alt="WALTON" class="h-6.5 w-auto object-contain flex-shrink-0 drop-shadow-2xs">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <h2 class="text-sm sm:text-base font-black text-slate-900 tracking-tight">Monthly Report Presentation Hub</h2>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
                 ${month}
               </span>
             </div>
-            <div class="flex items-center gap-2 flex-wrap">
+            <div class="flex items-center gap-1.5 flex-wrap">
               ${HELPERS.renderMonthSelectorUI(months, this.selectedMonth, 'MonthlyReportView.handleMonthSelect')}
-              <span class="px-2.5 py-1 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs font-mono font-bold">
+              <span class="px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-mono font-bold">
                 📑 Total Deck: <strong>${totalPresentationSlides} Slides</strong>
               </span>
-              <span class="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700 text-xs font-mono font-bold">
+              <span class="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-mono font-bold">
                 ⚙️ Task Slides: <strong>${activeSlides.length}</strong>
               </span>
             </div>
@@ -1352,23 +1304,23 @@ const MonthlyReportView = {
 
           <!-- Right: Export & Presentation Buttons -->
           <div class="flex items-center gap-1.5 flex-wrap">
-            <button onclick="MonthlyReportView.previewFullDeck()" class="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-800 border border-slate-300 transition flex items-center gap-1.5 shadow-2xs cursor-pointer">
+            <button onclick="MonthlyReportView.previewFullDeck()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-800 border border-slate-300 transition flex items-center gap-1.5 shadow-2xs cursor-pointer">
               <span>👁️</span> <span>Preview Full Deck</span>
             </button>
-            <button onclick="ExportController.exportPPTX('${month}')" title="100% Native Editable PPTX" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-xs font-black text-white shadow-xs transition flex items-center gap-1 cursor-pointer">
+            <button onclick="ExportController.exportPPTX('${month}')" title="100% Native Editable PPTX" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-xs font-black text-white shadow-xs transition flex items-center gap-1 cursor-pointer">
               <span>📊</span> <span>Download PPTX</span>
             </button>
-            <button onclick="ExportController.exportPDF('${month}')" class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-2xs cursor-pointer">
+            <button onclick="ExportController.exportPDF('${month}')" class="px-2 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-2xs cursor-pointer">
               <span>🖨️</span> <span>PDF</span>
             </button>
-            <button onclick="ExportController.exportHTML('${month}')" class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-2xs cursor-pointer">
+            <button onclick="ExportController.exportHTML('${month}')" class="px-2 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-2xs cursor-pointer">
               <span>🌐</span> <span>HTML</span>
             </button>
           </div>
         </div>
 
         <!-- 2. COMPACT SEARCH, FILTER & SPECIAL DECK SLIDE QUICK-PILLS -->
-        <div class="space-y-2.5 pb-1">
+        <div class="space-y-2 pb-0.5">
           <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
             <!-- Search Box & Slide Counter -->
             <div class="flex items-center gap-2.5 flex-1 max-w-md">

@@ -1678,7 +1678,10 @@ class MonthWorkbookManager {
           name: canonical,
           total_point: 0,
           total_task: 0,
-          wbs_point: 0
+          wbs_point: 0,
+          own_point: 0,
+          supervisor_point: 0,
+          supervised_tasks: 0
         };
       }
       return personnelMap[canonical];
@@ -1688,42 +1691,41 @@ class MonthWorkbookManager {
       const pts = parseFloat(t.points);
       const validPts = (!isNaN(pts) && pts > 0) ? pts : 0;
 
-      // 1. Assignee: 100% Actual Point, +1 Task Count, 75% WBS Point
+      // 1. Assignee: 100% Task Point into Total Point and WBS Base
       const assigneeName = t.assignee || t.engineer;
       let canonicalAssignee = "";
       if (assigneeName && assigneeName.trim()) {
         canonicalAssignee = formatName(assigneeName);
         const assigneeEntry = getOrInit(assigneeName);
         if (assigneeEntry) {
-          assigneeEntry.total_point += validPts;
+          assigneeEntry.own_point += validPts;
           assigneeEntry.total_task += 1;
-          assigneeEntry.wbs_point += Math.round(validPts * 0.75 * 100) / 100;
         }
       }
 
-      // 2. Supervisor: 25% added to Total Point AND WBS Point
-      // If someone is supervisor, 25% of task points is added to Total Point and WBS Point
+      // 2. Supervisor: 25% added to Total Point & WBS Point
+      // "WBS e supervisor er 25% point add hoy. Total point er sathe kew jodi supervisor hoy tahole sei point gulor 25% add hoye jabe."
       const supName = t.supervisor;
       if (supName && supName.trim()) {
         const canonicalSup = formatName(supName);
+        // Exclude Kamrul if HOD, but add to any supervisor engineer (e.g. Sazzad or other supervisors)
         if (!isHod(canonicalSup)) {
           const supEntry = getOrInit(supName);
           if (supEntry) {
             const supPts = Math.round(validPts * 0.25 * 100) / 100;
-            if (canonicalSup !== canonicalAssignee) {
-              supEntry.total_point += supPts;
-              supEntry.supervised_tasks = (supEntry.supervised_tasks || 0) + 1;
-            }
-            supEntry.wbs_point += supPts;
+            supEntry.supervisor_point += supPts;
+            supEntry.supervised_tasks = (supEntry.supervised_tasks || 0) + 1;
           }
         }
       }
     });
 
-    // Normalize precision
+    // Compute Total Point and WBS Point: Total Point = Own + 25% Supervisor Points
     Object.values(personnelMap).forEach(r => {
-      r.total_point = Math.round(r.total_point * 100) / 100;
-      r.wbs_point = Math.round(r.wbs_point * 100) / 100;
+      r.total_point = Math.round((r.own_point + r.supervisor_point) * 100) / 100;
+      r.wbs_point = r.total_point; // WBS Point reflects total point with supervisor 25% evaluation
+      r.supervisor_point = Math.round(r.supervisor_point * 100) / 100;
+      r.own_point = Math.round(r.own_point * 100) / 100;
     });
 
     // Sort by Total Point (Actual Point) descending (Image 1 Ranking)
