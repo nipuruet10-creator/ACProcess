@@ -130,13 +130,17 @@ const SlideLayoutEngine = {
   /**
    * Toggles image fit mode between 'Blur-Fit' (original aspect + blurred background) and 'Fill (Crop)'
    */
-  togglePhotoFit(btn) {
+  /**
+   * Toggles image fit mode between 'Blur-Fit' (original aspect + blurred background) and 'Fill (Crop)'
+   */
+  togglePhotoFit(btn, taskId = null) {
     if (!btn) return;
     const frame = btn.closest('.slide-photo-frame') || btn.closest('.col-span-6') || btn.parentElement.parentElement;
     if (!frame) return;
     const wrapper = frame.querySelector('.photo-fit-wrapper');
     const label = btn.querySelector('.mode-label');
 
+    let newFit = 'cover';
     if (wrapper) {
       if (wrapper.classList.contains('photo-fit-blur')) {
         wrapper.classList.remove('photo-fit-blur');
@@ -155,6 +159,7 @@ const SlideLayoutEngine = {
         }
         if (label) label.textContent = 'Fit (Blur)';
         else btn.innerHTML = '📐 <span class="mode-label">Fit (Blur)</span>';
+        newFit = 'cover';
       } else {
         wrapper.classList.remove('photo-fit-cover');
         wrapper.classList.add('photo-fit-blur');
@@ -172,6 +177,7 @@ const SlideLayoutEngine = {
         }
         if (label) label.textContent = 'Fill (Crop)';
         else btn.innerHTML = '↔ <span class="mode-label">Fill (Crop)</span>';
+        newFit = 'blur';
       }
     } else {
       const img = frame.querySelector('img');
@@ -181,12 +187,54 @@ const SlideLayoutEngine = {
         img.classList.add('object-cover');
         if (label) label.textContent = 'Fit (Blur)';
         else btn.textContent = '📐 Fit (Blur)';
+        newFit = 'cover';
       } else {
         img.classList.remove('object-cover');
         img.classList.add('object-contain');
         if (label) label.textContent = 'Fill (Crop)';
         else btn.textContent = '↔ Fill (Crop)';
+        newFit = 'blur';
       }
+    }
+
+    // Persist newFit mode across reloads, active slides, and multi-device
+    const resolvedTaskId = taskId || (frame.dataset && frame.dataset.taskId);
+    if (resolvedTaskId) {
+      try {
+        localStorage.setItem('walton_photo_fit_' + resolvedTaskId, newFit);
+      } catch (e) {}
+
+      const fitInput = document.getElementById('edit-slide-photo-fit');
+      if (fitInput) fitInput.value = newFit;
+
+      if (typeof MonthlyReportView !== 'undefined') {
+        MonthlyReportView._activeModalPhotoFit = newFit;
+      }
+
+      // Persist to syncEngine and workbookMgr
+      try {
+        if (window.appState && window.appState.syncEngine) {
+          window.appState.syncEngine.saveManualOverride(resolvedTaskId, { photo_fit: newFit });
+        }
+        if (window.appState && window.appState.workbookMgr) {
+          const m = window.appState.workbookMgr.activeMonth || 'SEP-2026';
+          window.appState.workbookMgr.updateTask(m, resolvedTaskId, { photo_fit: newFit });
+        }
+      } catch (e) {}
+
+      // Push to Hostinger overrides API
+      try {
+        const m = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
+        fetch('api/sync_overrides.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            taskId: resolvedTaskId,
+            month: m,
+            overrides: { photo_fit: newFit }
+          })
+        }).catch(() => {});
+      } catch (e) {}
     }
   },
 
@@ -327,6 +375,19 @@ const SlideLayoutEngine = {
     // Month
     const month = (slideData.month || "SEPTEMBER 2026").toUpperCase();
 
+    // Determine photo fit mode (Requirement: persist 'blur' or 'cover')
+    const currentTaskId = slideData.task_id;
+    let savedFit = slideData.photo_fit;
+    if (!savedFit && slideData.overrides && slideData.overrides.photo_fit) {
+      savedFit = slideData.overrides.photo_fit;
+    }
+    if (!savedFit && typeof window !== 'undefined') {
+      try {
+        savedFit = localStorage.getItem('walton_photo_fit_' + currentTaskId);
+      } catch (e) {}
+    }
+    const photoFit = (savedFit === 'cover' || savedFit === 'fill') ? 'cover' : 'blur';
+
     return `
     <div class="walton-task-slide walton-red-executive bg-white relative overflow-hidden rounded-xl shadow-2xl border border-slate-200" 
          style="width: 100%; aspect-ratio: 16/9; font-family: 'Lexend', sans-serif; box-sizing: border-box; padding: 20px 28px 14px 28px; display: flex; flex-direction: column; justify-content: space-between; background: #FFFFFF;">
@@ -341,15 +402,7 @@ const SlideLayoutEngine = {
       <div class="flex items-center justify-between pb-2 border-b border-slate-100 relative z-10 flex-shrink-0" style="min-height: 48px;">
         <!-- Top Left: Red Diamond Emblem + Department Branding -->
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 flex-shrink-0">
-            <svg viewBox="0 0 40 40" fill="none" class="w-full h-full">
-              <path d="M20 2L38 20L20 38L2 20Z" fill="#C5161D"/>
-              <path d="M20 2L38 20L20 20Z" fill="#E11D48"/>
-              <path d="M2 20L20 20L20 38Z" fill="#991B1B"/>
-              <path d="M20 20L38 20L20 38Z" fill="#B91C1C"/>
-              <path d="M20 7L33 20L20 33L7 20Z" fill="#FFFFFF" fill-opacity="0.25"/>
-            </svg>
-          </div>
+          <img src="assets/img/walton_logo.png" alt="WALTON" class="h-8 w-auto object-contain flex-shrink-0 drop-shadow-xs" />
           <div>
             <div style="font-size: 13.5px; font-weight: 800; color: #0F172A; line-height: 1.15; letter-spacing: 0.04em; text-transform: uppercase;">
               PROCESS DEVELOPMENT DEPARTMENT
@@ -527,7 +580,7 @@ const SlideLayoutEngine = {
           
           ${(photoBefore || photoAfter || (slideData.photo && !String(slideData.photo).includes('walton_red_reference_sample.jpg'))) ? `
             <!-- Main Equipment Photo (Requirement 2: Blur-Fit handles both landscape and portrait gracefully) -->
-            ${SlideLayoutEngine.renderPhotoContainerHtml(photoBefore || photoAfter || slideData.photo, 'Process Development Implementation', slideData.task_id, 'after_photo')}
+            ${SlideLayoutEngine.renderPhotoContainerHtml(photoBefore || photoAfter || slideData.photo, 'Process Development Implementation', slideData.task_id, 'after_photo', photoFit)}
           ` : `
             <!-- Modern Walton Process Engineering Placeholder -->
             <div class="w-full h-full flex flex-col items-center justify-center p-6 text-center" 
@@ -554,12 +607,12 @@ const SlideLayoutEngine = {
 
           <!-- Frame Toolbar: Fit/Fill Toggle & Direct Replace Button -->
           <div class="absolute top-2.5 right-2.5 z-30 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition">
-            <button onclick="SlideLayoutEngine.togglePhotoFit(this)" title="Toggle Blur-Fit / Fill-Crop (adjust aspect ratio)" 
-                    class="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[10px] font-mono font-bold border border-white/25 shadow-md flex items-center gap-1 transition">
-              <span>📐</span><span class="mode-label">Fill (Crop)</span>
+            <button onclick="SlideLayoutEngine.togglePhotoFit(this, '${slideData.task_id}')" title="Toggle Blur-Fit / Fill-Crop (adjust aspect ratio)" 
+                    class="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[10px] font-mono font-bold border border-white/25 shadow-md flex items-center gap-1 transition cursor-pointer">
+              <span>${photoFit === 'cover' ? '📐' : '↔'}</span><span class="mode-label">${photoFit === 'cover' ? 'Fit (Blur)' : 'Fill (Crop)'}</span>
             </button>
             <button onclick="document.getElementById('frame-file-input-${slideData.task_id}').click()" title="Upload or Replace Image"
-                    class="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[10px] font-mono font-bold border border-white/25 shadow-md flex items-center gap-1 transition">
+                    class="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[10px] font-mono font-bold border border-white/25 shadow-md flex items-center gap-1 transition cursor-pointer">
               <span>📷</span><span>Replace</span>
             </button>
             <input type="file" id="frame-file-input-${slideData.task_id}" accept="image/*" class="hidden" 
@@ -571,13 +624,13 @@ const SlideLayoutEngine = {
       </div>
 
       <!-- 3. BOTTOM FOOTER BAR (Anchored & protected against content overflow) -->
-      <div class="flex items-center justify-between pt-1.5 border-t border-slate-200 relative z-20 bg-white flex-shrink-0 min-h-[36px]">
+      <div class="flex items-center justify-between pt-1.5 border-t border-slate-200 relative z-20 bg-white flex-shrink-0 min-h-[38px]">
         
         <!-- Left: Process Development Department Only -->
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5 text-slate-800" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
-          <div style="font-size: 11px; font-weight: 800; color: #0F172A; text-transform: uppercase; line-height: 1.1; letter-spacing: 0.04em;">
-            PROCESS DEVELOPMENT DEPARTMENT
+          <div style="font-size: 11px; font-weight: 800; color: #0F172A; text-transform: uppercase; line-height: 1.1; letter-spacing: 0.03em;">
+            PROCESS DEVELOPMENT (RESIDENTIAL AND COMMERCIAL AIR CONDITIONER)
           </div>
         </div>
 
@@ -596,14 +649,14 @@ const SlideLayoutEngine = {
           </div>
         </div>
 
-        <!-- Right: Angled Red Month Badge -->
+        <!-- Right: Angled Red Month Badge (Requirement: ektu boro kore deo) -->
         <div class="flex items-center">
-          <div class="py-1.5 px-4 rounded-l-full text-white text-right" 
-               style="background: #C5161D; min-width: 140px; box-shadow: 0 2px 4px rgba(197,22,29,0.25);">
-            <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;">
+          <div class="py-2 px-6 rounded-l-full text-white text-right" 
+               style="background: #C5161D; min-width: 185px; box-shadow: 0 3px 6px rgba(197,22,29,0.3);">
+            <div style="font-size: 13.5px; font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.15;">
               ${month}
             </div>
-            <div style="font-size: 8px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.9;">
+            <div style="font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.95; line-height: 1.2;">
               MONTHLY REPORT
             </div>
           </div>

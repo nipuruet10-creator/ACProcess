@@ -367,6 +367,7 @@ class SyncEngine {
           if (overrides.investment) s.investment = overrides.investment;
           if (overrides.category) s.category = overrides.category;
           if (overrides.status) s.status = overrides.status;
+          if (overrides.photo_fit) s.photo_fit = overrides.photo_fit;
           s.has_manual_override = true;
           s.manual_override_time = overrides.updated_at || null;
         }

@@ -519,6 +519,32 @@ const MonthlyReportView = {
     `;
   },
 
+  setPhotoFitMode(mode, taskId) {
+    const targetMode = (mode === 'cover' || mode === 'fill') ? 'cover' : 'blur';
+    this._activeModalPhotoFit = targetMode;
+    const input = document.getElementById('edit-slide-photo-fit');
+    if (input) input.value = targetMode;
+
+    const blurBtn = document.getElementById('btn-photo-fit-blur');
+    const coverBtn = document.getElementById('btn-photo-fit-cover');
+    if (blurBtn && coverBtn) {
+      if (targetMode === 'blur') {
+        blurBtn.className = "px-2 py-0.5 rounded text-[10px] font-bold transition cursor-pointer bg-white text-blue-700 shadow-xs";
+        coverBtn.className = "px-2 py-0.5 rounded text-[10px] font-bold transition cursor-pointer text-slate-600 hover:text-slate-900";
+      } else {
+        blurBtn.className = "px-2 py-0.5 rounded text-[10px] font-bold transition cursor-pointer text-slate-600 hover:text-slate-900";
+        coverBtn.className = "px-2 py-0.5 rounded text-[10px] font-bold transition cursor-pointer bg-white text-blue-700 shadow-xs";
+      }
+    }
+
+    try {
+      localStorage.setItem('walton_photo_fit_' + taskId, targetMode);
+    } catch(e) {}
+
+    // Live update in-modal preview
+    this.renderModalLivePreview(taskId);
+  },
+
   handleSlotDrop(event, taskId, slot) {
     if (!event || !event.dataTransfer) return;
     const file = event.dataTransfer.files && event.dataTransfer.files[0];
@@ -596,6 +622,15 @@ const MonthlyReportView = {
     const photoSingle = photoAfter || photoBefore;
     const hasPhoto = Boolean(photoSingle);
 
+    const overrides = (window.appState && window.appState.syncEngine)
+      ? window.appState.syncEngine.getManualOverride(taskId)
+      : null;
+    let savedFit = overrides && overrides.photo_fit;
+    if (!savedFit && typeof window !== 'undefined') {
+      try { savedFit = localStorage.getItem('walton_photo_fit_' + taskId); } catch(e) {}
+    }
+    const isCover = (savedFit === 'cover' || savedFit === 'fill');
+
     const pill = card.querySelector('.photo-status-pill');
     if (pill) {
       pill.className = `text-[10px] font-mono photo-status-pill ${hasPhoto ? 'text-emerald-600 font-bold' : 'text-slate-400'}`;
@@ -606,9 +641,9 @@ const MonthlyReportView = {
     if (previewContainer) {
       if (hasPhoto) {
         previewContainer.innerHTML = `
-          <div class="photo-fit-wrapper photo-fit-blur relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
-            <img src="${photoSingle}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
-            <img src="${photoSingle}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-sm" alt="Slide Photo" />
+          <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
+            <img src="${photoSingle}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" />
+            <img src="${photoSingle}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 max-w-full max-h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" />
             <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
               <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
                 ${photoAfter && photoBefore ? 'Dual Photo' : (photoAfter ? 'After Photo' : 'Before Photo')}
@@ -843,6 +878,13 @@ const MonthlyReportView = {
 
     const currentCategory = overrides.category || (task ? task.category : null) || (currentSlide ? currentSlide.category : null) || (breakdown ? breakdown.ai_category : "Process development");
 
+    let currentPhotoFit = (overrides && overrides.photo_fit) || (task && task.photo_fit) || (currentSlide && currentSlide.photo_fit);
+    if (!currentPhotoFit && typeof window !== 'undefined') {
+      try { currentPhotoFit = localStorage.getItem('walton_photo_fit_' + taskId); } catch (e) {}
+    }
+    if (!currentPhotoFit) currentPhotoFit = 'blur';
+    this._activeModalPhotoFit = currentPhotoFit;
+
     // Requirement: Description and impact auto generate tailored to title
     const generated = this.generateDetailsFromTitle(currentTitle, currentCategory);
 
@@ -943,6 +985,7 @@ const MonthlyReportView = {
             
             <!-- Left: Unified Editorial & Photo Form (5 Columns) - Fits viewport with zero scrolling -->
             <form id="slide-override-form" onsubmit="MonthlyReportView.saveOverrides(event, '${taskId}')" class="xl:col-span-5 flex flex-col justify-between overflow-y-auto space-y-2 pr-1 min-h-0 text-xs">
+              <input type="hidden" id="edit-slide-photo-fit" value="${currentPhotoFit}" />
               
               <!-- Slide Title -->
               <div>
@@ -1006,15 +1049,31 @@ const MonthlyReportView = {
 
               <!-- PHOTO MANAGEMENT SECTION (Single Image Option in Monthly Report with Direct Paste) -->
               <div class="bg-slate-50/90 border border-slate-200 rounded-xl p-2 space-y-1">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between flex-wrap gap-1">
                   <div class="flex items-center gap-1.5">
                     <span class="text-xs">📷</span>
-                    <span class="font-bold text-slate-800 text-[11px]">Slide Photo Attachment (16:9 Single Canvas)</span>
+                    <span class="font-bold text-slate-800 text-[11px]">Slide Photo</span>
                   </div>
-                  <button type="button" onclick="MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')"
-                          class="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9.5px] shadow-2xs flex items-center gap-1 cursor-pointer">
-                    <span>📋</span> <span>Paste (Ctrl+V)</span>
-                  </button>
+                  
+                  <div class="flex items-center gap-1.5">
+                    <!-- Photo Fit Mode Selector (Requirement: Blur vs Crop toggle & save) -->
+                    <div class="flex items-center gap-0.5 bg-slate-200/90 p-0.5 rounded-lg border border-slate-300">
+                      <button type="button" onclick="MonthlyReportView.setPhotoFitMode('blur', '${taskId}')"
+                              id="btn-photo-fit-blur" title="Fit whole photo with blurred ambient sides"
+                              class="px-2 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${currentPhotoFit === 'blur' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}">
+                        📐 Fit (Blur)
+                      </button>
+                      <button type="button" onclick="MonthlyReportView.setPhotoFitMode('cover', '${taskId}')"
+                              id="btn-photo-fit-cover" title="Fill entire 16:9 canvas (crop edges)"
+                              class="px-2 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${currentPhotoFit === 'cover' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}">
+                        ↔ Fill (Crop)
+                      </button>
+                    </div>
+                    <button type="button" onclick="MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')"
+                            class="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9.5px] shadow-2xs flex items-center gap-1 cursor-pointer">
+                      <span>📋</span> <span>Paste (Ctrl+V)</span>
+                    </button>
+                  </div>
                 </div>
                 
                 <div class="w-full" id="modal-photos-slot-container">
@@ -1119,6 +1178,9 @@ const MonthlyReportView = {
     const isCompleted = (category === 'Completed Projects' || category.toLowerCase().includes('completed project'));
     const isProj = Boolean(category && category.toLowerCase().includes('project'));
 
+    const fitEl = document.getElementById('edit-slide-photo-fit');
+    const photoFit = fitEl ? fitEl.value.trim() : (this._activeModalPhotoFit || 'blur');
+
     const slideData = {
       task_id: taskId,
       month: this.selectedMonth,
@@ -1128,6 +1190,7 @@ const MonthlyReportView = {
       impact: impactLines,
       engineer: engineer,
       category: category,
+      photo_fit: photoFit,
       status: isCompleted ? "Completed" : (isProj ? "Ongoing" : "Completed"),
       is_project: isProj,
       photo_before: photoBefore,
@@ -1168,6 +1231,8 @@ const MonthlyReportView = {
     const impactEl = document.getElementById('edit-slide-impact');
     const engineerEl = document.getElementById('edit-slide-engineer');
     const catEl = document.getElementById('edit-slide-category');
+    const fitEl = document.getElementById('edit-slide-photo-fit');
+    const photoFit = fitEl ? fitEl.value.trim() : (this._activeModalPhotoFit || 'blur');
 
     let photoBefore = null;
     let photoAfter = null;
@@ -1192,6 +1257,7 @@ const MonthlyReportView = {
       impact: impactEl ? impactEl.value.trim().split("\n").filter(l => l.trim().length > 0) : [],
       engineer: engineerEl ? engineerEl.value.trim() : "Concern Engineer",
       category: category,
+      photo_fit: photoFit,
       status: isCompleted ? "Completed" : (isProj ? "Ongoing" : "Completed"),
       is_project: isProj,
       photo_before: photoBefore,
@@ -1227,12 +1293,15 @@ const MonthlyReportView = {
     const newDesc = descEl ? descEl.value.trim() : "";
     const newEngineer = engineerEl ? engineerEl.value.trim() : "";
     const newImpact = impactEl ? impactEl.value.trim().split("\n").filter(l => l.trim().length > 0) : [];
+    const fitEl = document.getElementById('edit-slide-photo-fit');
+    const photoFit = fitEl ? fitEl.value.trim() : (this._activeModalPhotoFit || 'blur');
 
     const overrides = {
       slide_title: newTitle,
       description: newDesc,
       impact: newImpact,
       engineer: newEngineer,
+      photo_fit: photoFit,
       ...(newCategory ? { category: newCategory } : {})
     };
 
@@ -1247,7 +1316,8 @@ const MonthlyReportView = {
 
     // 2. Permanently sync changes to underlying workbook task
     const taskPatch = {
-      last_updated: new Date().toISOString()
+      last_updated: new Date().toISOString(),
+      photo_fit: photoFit
     };
     if (newCategory) taskPatch.category = newCategory;
     if (newTitle) taskPatch.task_name = newTitle;
@@ -1268,6 +1338,7 @@ const MonthlyReportView = {
       if (newCategory) FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'category', newCategory);
       if (newTitle) FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'task_name', newTitle);
       if (newDesc) FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'task_details', newDesc);
+      if (photoFit) FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'photo_fit', photoFit);
       if (newEngineer) {
         FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'assignee', newEngineer);
         FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'engineer', newEngineer);
@@ -1285,6 +1356,7 @@ const MonthlyReportView = {
 
     // 5. Direct cache synchronization for instant presentation reload
     try {
+      localStorage.setItem('walton_photo_fit_' + taskId, photoFit);
       const cacheKey = `walton_pd_active_slides_${this.selectedMonth}`;
       const saved = localStorage.getItem(cacheKey);
       if (saved) {
@@ -1294,6 +1366,7 @@ const MonthlyReportView = {
           cachedSlides[idx] = {
             ...cachedSlides[idx],
             ...overrides,
+            photo_fit: photoFit,
             has_manual_override: true,
             manual_override_time: new Date().toISOString()
           };
@@ -1432,7 +1505,7 @@ const MonthlyReportView = {
       }));
     }
 
-    // Dynamic Photo Binding: Always pull 100% current fresh photos from photoManager
+    // Dynamic Photo & Fit Binding: Always pull 100% current fresh photos and fit mode from photoManager/overrides
     if (typeof photoManager !== 'undefined') {
       activeSlides.forEach(s => {
         const p = photoManager.getTaskPhotos(s.task_id, month);
@@ -1440,6 +1513,15 @@ const MonthlyReportView = {
         s.photo_after = p ? (p.after_photo || null) : null;
         s.photo = p ? (p.before_photo || p.after_photo || null) : null;
         s.has_dual_photo = Boolean(s.photo_before && s.photo_after);
+
+        const overrides = (window.appState && window.appState.syncEngine)
+          ? window.appState.syncEngine.getManualOverride(s.task_id)
+          : null;
+        let savedFit = (overrides && overrides.photo_fit) || s.photo_fit;
+        if (!savedFit && typeof window !== 'undefined') {
+          try { savedFit = localStorage.getItem('walton_photo_fit_' + s.task_id); } catch(e) {}
+        }
+        s.photo_fit = (savedFit === 'cover' || savedFit === 'fill') ? 'cover' : 'blur';
       });
     }
 
@@ -1693,6 +1775,7 @@ const MonthlyReportView = {
             const isOverridden = Boolean(s.has_manual_override);
             const photoDisplay = s.photo_after || s.photo_before || s.photo;
             const isSelected = (this._selectedCardTaskId === s.task_id);
+            const isCover = (s.photo_fit === 'cover' || s.photo_fit === 'fill');
 
             return `
               <div id="slide-card-${s.task_id}" 
@@ -1745,9 +1828,9 @@ const MonthlyReportView = {
                   <!-- Photo Preview / Quick Drop Zone (Direct photo paste in monthly report section) -->
                   <div class="slide-card-photo-container mt-2.5">
                     ${hasPhoto ? `
-                      <div class="photo-fit-wrapper photo-fit-blur relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200 shadow-2xs group/img">
-                        <img src="${photoDisplay}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
-                        <img src="${photoDisplay}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-sm" alt="Slide Photo" />
+                      <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200 shadow-2xs group/img">
+                        <img src="${photoDisplay}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" />
+                        <img src="${photoDisplay}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 max-w-full max-h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" />
                         <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
                           <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
                             ${s.photo_after && s.photo_before ? 'Dual Photo' : (s.photo_after ? 'After Photo' : 'Before Photo')}

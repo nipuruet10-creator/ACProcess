@@ -2046,18 +2046,7 @@ class MonthWorkbookManager {
               }
             }
 
-            // If remote task has NO photos, and local user didn't attach a photo recently (last 15s), clear ghost photo!
-            const isRecentLocalPhoto = lt._lastPhotoEditTime && (Date.now() - lt._lastPhotoEditTime < 15000);
-            if (!rt.photo_1 && lt.photo_1 && !isRecentLocalPhoto) {
-              lt.photo_1 = "";
-              photoManager.removePhoto(rt.task_id, 'before_photo');
-              anyChanges = true;
-            }
-            if (!rt.photo_2 && lt.photo_2 && !isRecentLocalPhoto) {
-              lt.photo_2 = "";
-              photoManager.removePhoto(rt.task_id, 'after_photo');
-              anyChanges = true;
-            }
+            // Preserve existing photos: Remote cloud only syncs text/numbers, so never delete local or server photos!
           }
 
           // Check for actual data differences on meaningful user-facing fields

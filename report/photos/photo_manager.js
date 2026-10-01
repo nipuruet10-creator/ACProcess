@@ -83,12 +83,12 @@ class PhotoManager {
       console.warn("[Hostinger Photo Storage] Server photo sync notice:", e);
     }
 
-    // 5. Periodic background sync every 25 seconds for real-time cross-device photo updates
+    // 5. Periodic background sync every 10 seconds for real-time cross-device photo updates
     if (typeof window !== 'undefined' && !this._serverPollTimer) {
       this._serverPollTimer = setInterval(() => {
         const m = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
         this.fetchPhotosFromServer(m);
-      }, 25000);
+      }, 10000);
     }
 
     this.isReady = true;
@@ -119,6 +119,7 @@ class PhotoManager {
             };
             const hadPhoto = Boolean(current.before_photo || current.after_photo || current.photo);
             const hasPhotoNow = Boolean(merged.before_photo || merged.after_photo || merged.photo);
+            const photoChanged = (merged.after_photo !== current.after_photo || merged.before_photo !== current.before_photo || (!hadPhoto && hasPhotoNow));
 
             this.photoMap[tId] = merged;
             if (month && month !== 'ALL') {
@@ -129,14 +130,58 @@ class PhotoManager {
               PhotoIndexedDB.saveTaskPhotos(tId, merged).catch(() => {});
             }
 
-            // Real-time live card update when photo is added on another PC
-            if (!hadPhoto && hasPhotoNow) {
+            // Real-time live card update when photo is added or updated on another PC
+            if (photoChanged) {
               if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
                 MonthlyReportView.updateSlideCardPhoto(tId);
+              }
+              if (typeof MonthlyInputView !== 'undefined' && typeof MonthlyInputView.updateTaskCardPhoto === 'function') {
+                MonthlyInputView.updateTaskCardPhoto(tId);
               }
             }
             updatedCount++;
           }
+
+          // If photos were added or updated on another PC, also refresh active slides cache & views smoothly
+          if (updatedCount > 0) {
+            try {
+              const activeM = month && month !== 'ALL' ? month : 'SEP-2026';
+              const slideKey = `walton_pd_active_slides_${activeM}`;
+              const saved = localStorage.getItem(slideKey);
+              if (saved) {
+                const slides = JSON.parse(saved);
+                if (Array.isArray(slides)) {
+                  let patched = false;
+                  slides.forEach(s => {
+                    const freshP = this.getTaskPhotos(s.task_id, activeM);
+                    if (freshP && (freshP.after_photo || freshP.before_photo)) {
+                      s.photo_after = freshP.after_photo || null;
+                      s.photo_before = freshP.before_photo || null;
+                      s.photo = freshP.after_photo || freshP.before_photo;
+                      patched = true;
+                    }
+                  });
+                  if (patched) {
+                    localStorage.setItem(slideKey, JSON.stringify(slides));
+                  }
+                }
+              }
+            } catch(e) {}
+
+            // Debounced re-render of monthly report if on-screen and modal is not open
+            if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.render === 'function') {
+              const cardsContainer = document.getElementById('monthly-report-cards-grid');
+              if (cardsContainer && !MonthlyReportView._activeModalTaskId && !this._pollRerenderTimer) {
+                this._pollRerenderTimer = setTimeout(() => {
+                  this._pollRerenderTimer = null;
+                  if (!MonthlyReportView._activeModalTaskId) {
+                    MonthlyReportView.render();
+                  }
+                }, 400);
+              }
+            }
+          }
+
           return data.photos;
         }
       }
@@ -539,8 +584,13 @@ class PhotoManager {
     }
 
     // 5. Send to Hostinger Server Storage API for permanent disk storage across all devices
+    let serverUrl = null;
     if (base64Url && (base64Url.startsWith('data:image/') || base64Url.length > 500)) {
-      this.uploadPhotoToServer(taskId, slot, base64Url, m).catch(e => console.warn("[Hostinger Photo Storage] Upload notice:", e));
+      try {
+        serverUrl = await this.uploadPhotoToServer(taskId, slot, base64Url, m);
+      } catch (e) {
+        console.warn("[Hostinger Photo Storage] Upload notice:", e);
+      }
     }
 
     // Targeted DOM update: Never blow away entire DOM via MonthlyReportView.render()!

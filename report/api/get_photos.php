@@ -30,41 +30,47 @@ try {
             $raw = @file_get_contents($indexFile);
             $parsed = json_decode($raw, true);
             if (is_array($parsed)) $catalog = $parsed;
-        } else {
-            // Self-heal: Scan directory if index is missing
-            $photosDir = $baseUploadDir . '/photos/' . $cleanMonth;
-            if (is_dir($photosDir)) {
-                $files = scandir($photosDir);
-                foreach ($files as $f) {
-                    if ($f === '.' || $f === '..') continue;
-                    // Format: {taskId}_{slot}.ext
-                    if (preg_match('/^(.+)_(before_photo|after_photo)\.(jpg|jpeg|png|webp)$/i', $f, $m)) {
-                        $tId = $m[1];
-                        $slot = $m[2];
-                        if (!isset($catalog[$tId])) {
-                            $catalog[$tId] = [
-                                'taskId' => $tId,
-                                'month' => $cleanMonth,
-                                'before_photo' => null,
-                                'after_photo' => null,
-                                'photo_1' => null,
-                                'photo_2' => null
-                            ];
-                        }
-                        $relUrl = 'uploads/photos/' . $cleanMonth . '/' . $f;
-                        $catalog[$tId][$slot] = $relUrl;
-                        if ($slot === 'after_photo') {
-                            $catalog[$tId]['photo_2'] = $relUrl;
-                            $catalog[$tId]['photo'] = $relUrl;
-                        } else {
-                            $catalog[$tId]['photo_1'] = $relUrl;
-                        }
+        }
+
+        // Reconcile with actual physical files on disk so index is never out of sync
+        $photosDir = $baseUploadDir . '/photos/' . $cleanMonth;
+        if (is_dir($photosDir)) {
+            $files = scandir($photosDir);
+            $foundAny = false;
+            foreach ($files as $f) {
+                if ($f === '.' || $f === '..') continue;
+                // Format: {taskId}_{slot}.ext
+                if (preg_match('/^(.+)_(before_photo|after_photo)\.(jpg|jpeg|png|webp)$/i', $f, $m)) {
+                    $tId = $m[1];
+                    $slot = $m[2];
+                    if (!isset($catalog[$tId]) || !is_array($catalog[$tId])) {
+                        $catalog[$tId] = [
+                            'taskId' => $tId,
+                            'month' => $cleanMonth,
+                            'before_photo' => null,
+                            'after_photo' => null,
+                            'photo_1' => null,
+                            'photo_2' => null,
+                            'photo' => null
+                        ];
                     }
+                    $relUrl = 'uploads/photos/' . $cleanMonth . '/' . $f;
+                    $mtime = filemtime($photosDir . '/' . $f);
+                    $urlWithT = $relUrl . '?t=' . ($mtime ?: time());
+
+                    if ($slot === 'after_photo') {
+                        $catalog[$tId]['after_photo'] = $urlWithT;
+                        $catalog[$tId]['photo_2'] = $urlWithT;
+                        $catalog[$tId]['photo'] = $urlWithT;
+                    } else {
+                        $catalog[$tId]['before_photo'] = $urlWithT;
+                        $catalog[$tId]['photo_1'] = $urlWithT;
+                    }
+                    $foundAny = true;
                 }
-                // Save healed index
-                if (!empty($catalog)) {
-                    @file_put_contents($indexFile, json_encode($catalog, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-                }
+            }
+            if ($foundAny) {
+                @file_put_contents($indexFile, json_encode($catalog, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             }
         }
     } else {
@@ -74,6 +80,46 @@ try {
             $raw = @file_get_contents($masterIndex);
             $parsed = json_decode($raw, true);
             if (is_array($parsed)) $catalog = $parsed;
+        }
+
+        // Reconcile with all month folders on disk
+        $photosParentDir = $baseUploadDir . '/photos';
+        if (is_dir($photosParentDir)) {
+            $monthDirs = scandir($photosParentDir);
+            foreach ($monthDirs as $mDir) {
+                if ($mDir === '.' || $mDir === '..' || !is_dir($photosParentDir . '/' . $mDir)) continue;
+                $mFiles = scandir($photosParentDir . '/' . $mDir);
+                foreach ($mFiles as $f) {
+                    if ($f === '.' || $f === '..') continue;
+                    if (preg_match('/^(.+)_(before_photo|after_photo)\.(jpg|jpeg|png|webp)$/i', $f, $m)) {
+                        $tId = $m[1];
+                        $slot = $m[2];
+                        if (!isset($catalog[$tId]) || !is_array($catalog[$tId])) {
+                            $catalog[$tId] = [
+                                'taskId' => $tId,
+                                'month' => $mDir,
+                                'before_photo' => null,
+                                'after_photo' => null,
+                                'photo_1' => null,
+                                'photo_2' => null,
+                                'photo' => null
+                            ];
+                        }
+                        $relUrl = 'uploads/photos/' . $mDir . '/' . $f;
+                        $mtime = filemtime($photosParentDir . '/' . $mDir . '/' . $f);
+                        $urlWithT = $relUrl . '?t=' . ($mtime ?: time());
+
+                        if ($slot === 'after_photo') {
+                            $catalog[$tId]['after_photo'] = $urlWithT;
+                            $catalog[$tId]['photo_2'] = $urlWithT;
+                            $catalog[$tId]['photo'] = $urlWithT;
+                        } else {
+                            $catalog[$tId]['before_photo'] = $urlWithT;
+                            $catalog[$tId]['photo_1'] = $urlWithT;
+                        }
+                    }
+                }
+            }
         }
     }
 

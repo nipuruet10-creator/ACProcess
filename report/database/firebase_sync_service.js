@@ -256,20 +256,12 @@ const FirebaseSyncService = {
                 if (!isRecentBeforeDelete && !isLocalBeforeEmpty && !localMatch?.clear_photos) {
                   photoManager.setTaskPhoto(t.task_id, 'before_photo', t.photo_1, t.photo_1, normMonth);
                 }
-              } else if (t.clear_photos || isLocalBeforeEmpty || (!isRecentBeforeEdit && isRecentBeforeDelete)) {
-                photoManager.removePhoto(t.task_id, 'before_photo', normMonth);
-              } else if (!t.photo_1 && !isRecentBeforeEdit) {
-                photoManager.removePhoto(t.task_id, 'before_photo', normMonth);
               }
 
               if (t.photo_2) {
                 if (!isRecentAfterDelete && !isLocalAfterEmpty && !localMatch?.clear_photos) {
                   photoManager.setTaskPhoto(t.task_id, 'after_photo', t.photo_2, t.photo_2, normMonth);
                 }
-              } else if (t.clear_photos || isLocalAfterEmpty || (!isRecentBeforeEdit && isRecentAfterDelete)) {
-                photoManager.removePhoto(t.task_id, 'after_photo', normMonth);
-              } else if (!t.photo_2 && !isRecentBeforeEdit) {
-                photoManager.removePhoto(t.task_id, 'after_photo', normMonth);
               }
             }
           }
@@ -984,15 +976,15 @@ const FirebaseSyncService = {
       else if (field === 'photo_1' || field === 'photo_2') {
         const val = task[field];
         const slot = (field === 'photo_1') ? 'before_photo' : 'after_photo';
-        if (!val || val === "" || val === "null") {
-          // Another user deleted this photo: remove it cleanly on this PC!
-          if (typeof photoManager !== 'undefined') {
-            photoManager.removePhoto(taskId, slot, month);
-          }
-        } else {
+        if (val && val !== "" && val !== "null") {
           // Another user added/updated this photo: save it into this PC's photoManager!
           if (typeof photoManager !== 'undefined') {
             photoManager.setTaskPhoto(taskId, slot, val, val, month);
+          }
+        } else if (task && task.clear_photos && task._explicitUserPhotoDeleteTime) {
+          // Only if another user explicitly clicked Delete
+          if (typeof photoManager !== 'undefined') {
+            photoManager.removePhoto(taskId, slot, month);
           }
         }
 
