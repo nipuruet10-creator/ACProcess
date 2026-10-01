@@ -2452,7 +2452,9 @@ class PPTXGenerator {
           { name: "Material Waste", change: "Reduced", trend: "down", color: "red" }
         ];
 
-    const quote = task.quote || "Automation for a Smarter Tomorrow";
+    const quote = (task.quote && task.quote !== "Automation for a Smarter Tomorrow")
+      ? task.quote
+      : (category || "Process Development");
     const redPrimary = "C5161D";
     const charcoalDark = "0F172A";
     const textMuted = "64748B";
@@ -2549,54 +2551,54 @@ class PPTXGenerator {
       { text: `● ${status}`, options: { fontSize: 9.5, bold: true, color: "10B981" } }
     ], { x: 4.5, y: 2.48, w: 1.8, h: 0.52, fontFace: font, valign: "middle" });
 
-    // Project Overview Card
+    // Project Overview Card (Requirement 4: Font size increased to fill bottom gap)
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: 0.8, y: 3.15, w: 5.6, h: 1.45,
+      x: 0.8, y: 3.12, w: 5.6, h: 1.5,
       fill: { color: cardBgLight }, line: { color: borderLight }, rectRadius: 0.06
     });
     slide.addShape(pptx.ShapeType.ellipse, {
-      x: 0.95, y: 3.25, w: 0.28, h: 0.28,
+      x: 0.95, y: 3.22, w: 0.28, h: 0.28,
       fill: { color: redPrimary }, line: { color: redPrimary }
     });
-    slide.addText("📄", { x: 0.95, y: 3.25, w: 0.28, h: 0.28, fontSize: 8, color: "FFFFFF", align: "center", valign: "middle" });
+    slide.addText("📄", { x: 0.95, y: 3.22, w: 0.28, h: 0.28, fontSize: 8, color: "FFFFFF", align: "center", valign: "middle" });
     slide.addText("Project Overview", {
-      x: 1.3, y: 3.23, w: 5.0, h: 0.3,
-      fontFace: font, fontSize: 11, bold: true, color: charcoalDark, valign: "middle"
+      x: 1.3, y: 3.20, w: 5.0, h: 0.3,
+      fontFace: font, fontSize: 11.5, bold: true, color: charcoalDark, valign: "middle"
     });
     slide.addText(desc, {
-      x: 0.95, y: 3.6, w: 5.3, h: 0.9,
-      fontFace: font, fontSize: 9, color: "334155", lineSpacing: 13, valign: "top"
+      x: 0.95, y: 3.55, w: 5.3, h: 0.98,
+      fontFace: font, fontSize: 10.5, color: "334155", lineSpacing: 15, valign: "top"
     });
 
-    // Key Impact Card
+    // Key Impact Card (Requirement 4: Font size increased to fill bottom gap)
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: 0.8, y: 4.72, w: 5.6, h: 1.95,
+      x: 0.8, y: 4.70, w: 5.6, h: 1.98,
       fill: { color: "FFFFFF" }, line: { color: borderLight }, rectRadius: 0.06
     });
     slide.addShape(pptx.ShapeType.ellipse, {
-      x: 0.95, y: 4.82, w: 0.28, h: 0.28,
+      x: 0.95, y: 4.80, w: 0.28, h: 0.28,
       fill: { color: redPrimary }, line: { color: redPrimary }
     });
-    slide.addText("🎯", { x: 0.95, y: 4.82, w: 0.28, h: 0.28, fontSize: 8, color: "FFFFFF", align: "center", valign: "middle" });
-    slide.addText("Key Impact", {
-      x: 1.3, y: 4.8, w: 5.0, h: 0.3,
-      fontFace: font, fontSize: 11, bold: true, color: charcoalDark, valign: "middle"
+    slide.addText("🎯", { x: 0.95, y: 4.80, w: 0.28, h: 0.28, fontSize: 8, color: "FFFFFF", align: "center", valign: "middle" });
+    slide.addText("Key Impact & Deliverables", {
+      x: 1.3, y: 4.78, w: 5.0, h: 0.3,
+      fontFace: font, fontSize: 11.5, bold: true, color: charcoalDark, valign: "middle"
     });
 
-    // 4 Checkmark Bullets (Expanded full card width - Mini KPI block removed per Requirement 5)
+    // 4 Checkmark Bullets (Larger font, fills card nicely)
     impacts.slice(0, 4).forEach((imp, idx) => {
-      const bY = 5.22 + idx * 0.35;
+      const bY = 5.18 + idx * 0.36;
       slide.addShape(pptx.ShapeType.roundRect, {
         x: 0.95, y: bY + 0.02, w: 0.22, h: 0.22,
         fill: { color: redPrimary }, line: { color: redPrimary }, rectRadius: 0.03
       });
       slide.addText("✔", {
         x: 0.95, y: bY + 0.02, w: 0.22, h: 0.22,
-        fontFace: font, fontSize: 7.5, bold: true, color: "FFFFFF", align: "center", valign: "middle"
+        fontFace: font, fontSize: 8, bold: true, color: "FFFFFF", align: "center", valign: "middle"
       });
       slide.addText(imp.trim(), {
         x: 1.25, y: bY - 0.02, w: 5.0, h: 0.32,
-        fontFace: font, fontSize: 9.5, bold: true, color: "1E293B", valign: "middle"
+        fontFace: font, fontSize: 10.5, bold: true, color: "1E293B", valign: "middle"
       });
     });
 
@@ -2653,14 +2655,14 @@ class PPTXGenerator {
         fontFace: font, fontSize: 7, bold: true, color: "FFFFFF", align: "center", valign: "middle"
       });
 
-      // Quote banner on After frame (Smaller, transparent red)
+      // Photo bottom-right tag banner on After frame (Requirement: "Process Development photo or erokom kisu ekta nicher tag e bosay dio.")
       slide.addShape(pptx.ShapeType.roundRect, {
-        x: 10.3, y: 6.08, w: 2.2, h: 0.59,
-        fill: { color: redPrimary, transparency: 45 }, line: { color: "FFFFFF", width: 0.8, transparency: 50 }, rectRadius: 0.06
+        x: 10.0, y: 6.08, w: 2.5, h: 0.59,
+        fill: { color: redPrimary, transparency: 35 }, line: { color: "FFFFFF", width: 0.8, transparency: 40 }, rectRadius: 0.06
       });
-      slide.addText(`"${quote}"`, {
-        x: 10.32, y: 6.08, w: 2.16, h: 0.59,
-        fontFace: font, fontSize: 7.5, bold: true, italic: true, color: "FFFFFF", align: "center", valign: "middle"
+      slide.addText(`⚙ ${quote.toUpperCase()}`, {
+        x: 10.02, y: 6.08, w: 2.46, h: 0.59,
+        fontFace: font, fontSize: 8, bold: true, color: "FFFFFF", align: "center", valign: "middle"
       });
     } else {
       slide.addShape(pptx.ShapeType.roundRect, {
@@ -2684,14 +2686,14 @@ class PPTXGenerator {
         this._addEmptyPhotoFrame(slide, pptx, 6.7, 1.05, 5.8, 5.62);
       }
 
-      // Red Quote Banner (Smaller, transparent red)
+      // Red Photo Tag Banner (Requirement: "Process Development photo or erokom kisu ekta nicher tag e bosay dio.")
       slide.addShape(pptx.ShapeType.roundRect, {
-        x: 10.1, y: 6.05, w: 2.4, h: 0.62,
-        fill: { color: redPrimary, transparency: 45 }, line: { color: "FFFFFF", width: 0.8, transparency: 50 }, rectRadius: 0.06
+        x: 9.8, y: 6.05, w: 2.7, h: 0.62,
+        fill: { color: redPrimary, transparency: 35 }, line: { color: "FFFFFF", width: 0.8, transparency: 40 }, rectRadius: 0.06
       });
-      slide.addText(`"${quote}"`, {
-        x: 10.12, y: 6.05, w: 2.36, h: 0.62,
-        fontFace: font, fontSize: 8, bold: true, italic: true, color: "FFFFFF", align: "center", valign: "middle"
+      slide.addText(`⚙ ${quote.toUpperCase()}`, {
+        x: 9.82, y: 6.05, w: 2.66, h: 0.62,
+        fontFace: font, fontSize: 8.5, bold: true, color: "FFFFFF", align: "center", valign: "middle"
       });
     }
 

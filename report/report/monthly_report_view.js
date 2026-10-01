@@ -162,9 +162,96 @@ const MonthlyReportView = {
     this.render();
   },
 
+  applyFiltersLocally() {
+    const q = (this.searchQuery || "").trim().toLowerCase();
+    const engFilter = (this.filterEngineer || "").trim().toLowerCase();
+    const engFirst = engFilter ? engFilter.split(/[\s(]/)[0] : "";
+    const catFilter = (this.filterCategory || "").trim().toLowerCase().replace(/–/g, '-');
+
+    const cards = document.querySelectorAll('.task-slide-card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+      const cardEng = (card.dataset.engineer || "").toLowerCase();
+      const cardCat = (card.dataset.category || "").toLowerCase().replace(/–/g, '-');
+      const isProject = card.dataset.isProject === 'true';
+      const cardStatus = (card.dataset.status || "").toLowerCase();
+      const text = card.textContent.toLowerCase();
+
+      // Check engineer match
+      let engMatch = true;
+      if (engFilter) {
+        const cFirst = cardEng.split(/[\s(]/)[0];
+        engMatch = cardEng.includes(engFilter) || Boolean(cFirst && engFirst && cFirst === engFirst);
+      }
+
+      // Check category match
+      let catMatch = true;
+      if (catFilter) {
+        if (catFilter.includes('complete') && (isProject || cardCat.includes('project'))) {
+          catMatch = cardStatus === 'completed' || cardCat.includes('complete');
+        } else if (catFilter.includes('ongoing') && (isProject || cardCat.includes('project'))) {
+          catMatch = cardStatus !== 'completed' && !cardCat.includes('complete');
+        } else {
+          catMatch = cardCat.includes(catFilter) || cardCat === catFilter;
+        }
+      }
+
+      // Check search query match
+      let searchMatch = !q || text.includes(q);
+
+      if (engMatch && catMatch && searchMatch) {
+        card.style.display = '';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    // Update filter counter
+    const counter = document.getElementById('monthly-report-filtered-counter');
+    if (counter) {
+      counter.textContent = `${visibleCount} slides`;
+    }
+
+    // Update empty state placeholder
+    const emptyState = document.getElementById('monthly-report-no-slides-msg');
+    if (emptyState) {
+      emptyState.style.display = visibleCount === 0 ? '' : 'none';
+    }
+  },
+
   handleEngineerFilter(eng) {
     this.filterEngineer = eng || "";
-    this.render();
+    // Instant DOM button styling update - 0ms lag!
+    const filterContainer = document.getElementById('monthly-report-engineer-filters');
+    if (filterContainer) {
+      filterContainer.querySelectorAll('.engineer-filter-btn').forEach(btn => {
+        const btnEng = btn.dataset.engineer || "";
+        const isSel = (this.filterEngineer.toLowerCase() === btnEng.toLowerCase());
+        const countBadge = btn.querySelector('.engineer-count-badge');
+        if (isSel) {
+          btn.className = "engineer-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 bg-blue-600 text-white border-blue-600 shadow-2xs";
+          if (countBadge) countBadge.className = "engineer-count-badge px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black bg-white/25 text-white";
+        } else {
+          btn.className = "engineer-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border-slate-200";
+          if (countBadge) countBadge.className = "engineer-count-badge px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black bg-blue-50 text-blue-700";
+        }
+      });
+      const allBtn = document.getElementById('monthly-report-all-engineers-btn');
+      if (allBtn) {
+        const isAll = !this.filterEngineer;
+        const countBadge = allBtn.querySelector('.engineer-count-badge');
+        if (isAll) {
+          allBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 bg-slate-900 text-white border-slate-900 shadow-2xs";
+          if (countBadge) countBadge.className = "engineer-count-badge px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black bg-white/20 text-white";
+        } else {
+          allBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200";
+          if (countBadge) countBadge.className = "engineer-count-badge px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black bg-slate-200 text-slate-800";
+        }
+      }
+    }
+    this.applyFiltersLocally();
   },
 
   handleCategoryFilter(cat) {
@@ -178,26 +265,7 @@ const MonthlyReportView = {
 
   handleSearch(query) {
     this.searchQuery = (query || "").trim().toLowerCase();
-    this.filterSlidesLocally();
-  },
-
-  filterSlidesLocally() {
-    const q = this.searchQuery;
-    const cards = document.querySelectorAll('.task-slide-card');
-    let visibleCount = 0;
-    cards.forEach(card => {
-      const text = card.textContent.toLowerCase();
-      if (!q || text.includes(q)) {
-        card.style.display = '';
-        visibleCount++;
-      } else {
-        card.style.display = 'none';
-      }
-    });
-    const counter = document.getElementById('monthly-report-filtered-counter');
-    if (counter) {
-      counter.textContent = q ? `Showing ${visibleCount} of ${cards.length} task slides` : `Showing all ${cards.length} task slides`;
-    }
+    this.applyFiltersLocally();
   },
 
   renderContainer() {
@@ -465,10 +533,7 @@ const MonthlyReportView = {
   updateSlideCardPhoto(taskId) {
     if (!taskId) return;
     const card = document.getElementById(`slide-card-${taskId}`);
-    if (!card) {
-      this.render();
-      return;
-    }
+    if (!card) return;
     const month = this.selectedMonth;
     let photos = null;
     if (typeof photoManager !== 'undefined') {
@@ -481,29 +546,51 @@ const MonthlyReportView = {
 
     const pill = card.querySelector('.photo-status-pill');
     if (pill) {
-      pill.className = `text-[10px] font-mono photo-status-pill ${hasPhoto ? 'text-emerald-600' : 'text-slate-400'}`;
+      pill.className = `text-[10px] font-mono photo-status-pill ${hasPhoto ? 'text-emerald-600 font-bold' : 'text-slate-400'}`;
       pill.textContent = hasPhoto ? '📷 Photo Added' : '📷 No Photo';
     }
 
     const previewContainer = card.querySelector('.slide-card-photo-container');
-    if (previewContainer && hasPhoto) {
-      previewContainer.innerHTML = `
-        <div class="photo-fit-wrapper photo-fit-blur relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
-          <img src="${photoSingle}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
-          <img src="${photoSingle}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-sm" alt="Slide Photo" />
-          <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
-            <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
-              ${photoAfter && photoBefore ? 'Dual Photo' : (photoAfter ? 'After Photo' : 'Before Photo')}
-            </span>
+    if (previewContainer) {
+      if (hasPhoto) {
+        previewContainer.innerHTML = `
+          <div class="photo-fit-wrapper photo-fit-blur relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
+            <img src="${photoSingle}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
+            <img src="${photoSingle}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-sm" alt="Slide Photo" />
+            <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
+              <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
+                ${photoAfter && photoBefore ? 'Dual Photo' : (photoAfter ? 'After Photo' : 'Before Photo')}
+              </span>
+            </div>
+            <div class="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 opacity-90 hover:opacity-100">
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" title="Replace via Clipboard (Ctrl+V)"
+                      class="px-2 py-0.5 rounded bg-black/60 hover:bg-black/80 text-white text-[9px] font-bold backdrop-blur-xs transition">
+                📋 Paste
+              </button>
+            </div>
           </div>
-          <div class="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 opacity-90 hover:opacity-100">
-            <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" title="Replace via Clipboard (Ctrl+V)"
-                    class="px-2 py-0.5 rounded bg-black/60 hover:bg-black/80 text-white text-[9px] font-bold backdrop-blur-xs transition">
-              📋 Paste
-            </button>
+        `;
+      } else {
+        previewContainer.innerHTML = `
+          <div class="w-full aspect-video rounded-xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-3 text-center group-hover:border-blue-400 transition"
+               ondragover="event.preventDefault(); this.classList.add('border-blue-500', 'bg-blue-50/50');"
+               ondragleave="this.classList.remove('border-blue-500', 'bg-blue-50/50');"
+               ondrop="this.classList.remove('border-blue-500', 'bg-blue-50/50'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'after_photo');">
+            <span class="text-2xl mb-1 text-slate-300">📷</span>
+            <span class="text-[11px] font-bold text-slate-500">No Photo Attached</span>
+            <div class="flex items-center gap-1.5 mt-2">
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" title="Paste image from clipboard (Ctrl+V)"
+                      class="px-2 py-0.8 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 transition shadow-2xs">
+                📋 Paste (Ctrl+V)
+              </button>
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.openModal('${taskId}')" title="Upload file in Studio"
+                      class="px-2 py-0.8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition">
+                📁 Browse
+              </button>
+            </div>
           </div>
-        </div>
-      `;
+        `;
+      }
     }
   },
 
@@ -517,6 +604,12 @@ const MonthlyReportView = {
 
   async uploadPhotoFromBlob(blobOrFile, taskId, slot = 'after_photo') {
     if (!blobOrFile || !taskId) return;
+    this._uploadLock = this._uploadLock || {};
+    if (this._uploadLock[taskId]) {
+      console.warn(`[MonthlyReportView] Upload already in progress for task ${taskId}`);
+      return;
+    }
+    this._uploadLock[taskId] = true;
     try {
       let base64Url = "";
       if (typeof blobOrFile === 'string') {
@@ -535,6 +628,7 @@ const MonthlyReportView = {
       if (!base64Url) return;
 
       // 1. Immediately save to local photoManager memory & IndexedDB for instant UI response
+      // (photoManager.setTaskPhoto automatically pushes to Hostinger server storage in background)
       if (typeof photoManager !== 'undefined') {
         if (photoManager.setTaskPhoto) {
           await photoManager.setTaskPhoto(taskId, slot, base64Url, null, this.selectedMonth);
@@ -543,31 +637,23 @@ const MonthlyReportView = {
         }
       }
 
-      // 2. Refresh modal slots & live preview
+      // 2. Refresh modal slots & live preview or card in grid
       if (this._activeModalTaskId === taskId) {
         this.renderModalPhotoSlots(taskId);
         this.renderModalLivePreview(taskId);
-      } else {
-        this.updateSlideCardPhoto(taskId);
       }
-
-      // 3. Upload to Hostinger Permanent Server Storage
-      if (typeof photoManager !== 'undefined' && photoManager.uploadPhotoToServer) {
-        const serverUrl = await photoManager.uploadPhotoToServer(taskId, slot, base64Url, this.selectedMonth);
-        if (serverUrl) {
-          if (this._activeModalTaskId === taskId) {
-            this.renderModalPhotoSlots(taskId);
-            this.renderModalLivePreview(taskId);
-          }
-          this.updateSlideCardPhoto(taskId);
-        }
-      }
+      this.updateSlideCardPhoto(taskId);
 
       if (typeof window.showToast === 'function') {
         window.showToast(`📸 Photo stored permanently on Hostinger server for Task ${taskId}!`, "success");
       }
     } catch (err) {
       console.error("Paste/Upload photo error:", err);
+      if (typeof window.showToast === 'function') {
+        window.showToast("Failed to save photo. Please try again.", "error");
+      }
+    } finally {
+      delete this._uploadLock[taskId];
     }
   },
 
@@ -914,6 +1000,17 @@ const MonthlyReportView = {
     const previewEl = document.getElementById('modal-slide-live-preview');
     if (!previewEl) return;
 
+    // Attach dynamic ResizeObserver so preview recalculates scale instantly on modal resize
+    if (typeof window !== 'undefined' && window.ResizeObserver && !previewEl._mrvResizeObsAttached) {
+      previewEl._mrvResizeObsAttached = true;
+      const ro = new ResizeObserver(() => {
+        if (MonthlyReportView._activeModalTaskId) {
+          MonthlyReportView.renderModalLivePreview(MonthlyReportView._activeModalTaskId);
+        }
+      });
+      ro.observe(previewEl);
+    }
+
     const titleEl = document.getElementById('edit-slide-title');
     const descEl = document.getElementById('edit-slide-desc');
     const impactEl = document.getElementById('edit-slide-impact');
@@ -960,9 +1057,19 @@ const MonthlyReportView = {
     };
 
     if (typeof SlideLayoutEngine !== 'undefined') {
+      const stageW = previewEl.clientWidth || 740;
+      const stageH = previewEl.clientHeight || 450;
+      const refW = 1040;
+      const refH = 585; // 16:9 widescreen presentation reference
+      const scale = Math.min((stageW - 12) / refW, (stageH - 12) / refH, 1);
+      const scaledW = Math.round(refW * scale);
+      const scaledH = Math.round(refH * scale);
+
       previewEl.innerHTML = `
-        <div class="w-full flex items-center justify-center p-0" style="width: 100%; max-width: 100%;">
-          ${SlideLayoutEngine.renderTaskSlide(slideData, 1, 1)}
+        <div class="relative flex items-center justify-center flex-shrink-0" style="width: ${scaledW}px; height: ${scaledH}px;">
+          <div style="width: ${refW}px; height: ${refH}px; transform: scale(${scale}); transform-origin: top left; position: absolute; top: 0; left: 0; box-shadow: 0 20px 45px rgba(0,0,0,0.6); border-radius: 12px; overflow: hidden;">
+            ${SlideLayoutEngine.renderTaskSlide(slideData, 1, 1)}
+          </div>
         </div>
       `;
     } else {
@@ -1468,21 +1575,21 @@ const MonthlyReportView = {
         </div>
 
         <!-- 3. SINGLE DEDICATED ROW FOR ENGINEER NAMES WITH (TASK QTY) -->
-        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-thin text-xs">
+        <div id="monthly-report-engineer-filters" class="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-thin text-xs">
           <span class="text-[10.5px] font-mono font-bold text-slate-400 uppercase tracking-wider flex-shrink-0">Engineers:</span>
-          <button onclick="MonthlyReportView.handleEngineerFilter('')" 
+          <button id="monthly-report-all-engineers-btn" onclick="MonthlyReportView.handleEngineerFilter('')" 
                   class="px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 ${!this.filterEngineer ? 'bg-slate-900 text-white border-slate-900 shadow-2xs' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
             <span>All Engineers</span>
-            <span class="px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black ${!this.filterEngineer ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-800'}">(${activeSlides.length})</span>
+            <span class="engineer-count-badge px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black ${!this.filterEngineer ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-800'}">(${activeSlides.length})</span>
           </button>
           ${uniqueEngineers.map(eng => {
             const isSel = (this.filterEngineer.toLowerCase() === eng.toLowerCase());
             const count = engineerCounts[eng] || 0;
             return `
-              <button onclick="MonthlyReportView.handleEngineerFilter('${HELPERS.escapeHtml(eng)}')" 
-                      class="px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 ${isSel ? 'bg-blue-600 text-white border-blue-600 shadow-2xs' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'}">
+              <button data-engineer="${HELPERS.escapeHtml(eng)}" onclick="MonthlyReportView.handleEngineerFilter('${HELPERS.escapeHtml(eng)}')" 
+                      class="engineer-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 ${isSel ? 'bg-blue-600 text-white border-blue-600 shadow-2xs' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'}">
                 <span>👤 ${HELPERS.escapeHtml(eng)}</span>
-                <span class="px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black ${isSel ? 'bg-white/25 text-white' : 'bg-blue-50 text-blue-700'}">(${count})</span>
+                <span class="engineer-count-badge px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black ${isSel ? 'bg-white/25 text-white' : 'bg-blue-50 text-blue-700'}">(${count})</span>
               </button>
             `;
           }).join('')}
@@ -1495,19 +1602,23 @@ const MonthlyReportView = {
       </div>
 
         <!-- 3. TASK PRESENTATION SLIDES GRID (Starts IMMEDIATELY right at top, Requirement 1) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
-          ${displayedSlides.length === 0 ? `
-            <div class="col-span-full py-12 text-center bg-slate-50 border border-slate-200 rounded-2xl text-slate-400 text-xs font-mono">
-              No active slides match the current filter in ${month}.
-            </div>
-          ` : displayedSlides.map((s, idx) => {
+        <div id="monthly-report-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+          <div id="monthly-report-no-slides-msg" style="${displayedSlides.length === 0 ? '' : 'display: none;'}" class="col-span-full py-12 text-center bg-slate-50 border border-slate-200 rounded-2xl text-slate-400 text-xs font-mono">
+            No active slides match the current filter in ${month}.
+          </div>
+          ${displayedSlides.map((s, idx) => {
             const hasPhoto = Boolean(s.photo_before || s.photo_after || s.photo);
             const isOverridden = Boolean(s.has_manual_override);
             const photoDisplay = s.photo_after || s.photo_before || s.photo;
             const isSelected = (this._selectedCardTaskId === s.task_id);
 
             return `
-              <div id="slide-card-${s.task_id}" data-task-id="${s.task_id}" 
+              <div id="slide-card-${s.task_id}" 
+                   data-task-id="${s.task_id}" 
+                   data-engineer="${HELPERS.escapeHtml(s.engineer || '')}"
+                   data-category="${HELPERS.escapeHtml(s.category || '')}"
+                   data-is-project="${Boolean(s.is_project)}"
+                   data-status="${HELPERS.escapeHtml(s.status || '')}"
                    onclick="MonthlyReportView.selectSlideCard('${s.task_id}')"
                    class="task-slide-card bg-white border ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/15' : (isOverridden ? 'border-amber-400 bg-amber-50/10' : 'border-slate-200')} rounded-2xl p-4 flex flex-col justify-between shadow-2xs hover:border-blue-300 hover:shadow-sm transition space-y-3 cursor-pointer">
                 <div>
@@ -1766,16 +1877,16 @@ if (typeof window !== 'undefined' && !window._mrvPhotoPasteBound) {
     // Scenario B: Monthly Report Section view (Requirement 1: "monthly report er section e")
     const activeTab = (window.appState && window.appState.activeTab) || (typeof App !== 'undefined' ? App.currentTab : '');
     if (activeTab === 'monthly-report' || activeTab === 'monthly-report-view' || activeTab === 'report') {
-      event.preventDefault();
-      const targetTaskId = MonthlyReportView._selectedCardTaskId || MonthlyReportView.getFirstVisibleTaskId();
+      const targetTaskId = MonthlyReportView._selectedCardTaskId;
       if (targetTaskId) {
+        event.preventDefault();
         await MonthlyReportView.uploadPhotoFromBlob(file, targetTaskId, 'after_photo');
         if (typeof window.showToast === 'function') {
           window.showToast(`📋 Photo pasted directly to Task ${targetTaskId}!`, "success");
         }
       } else {
         if (typeof window.showToast === 'function') {
-          window.showToast("Click on a slide card first, then press Ctrl+V to paste!", "info");
+          window.showToast("👆 Please click a slide card first to select it, then press Ctrl+V to paste!", "info");
         }
       }
     }

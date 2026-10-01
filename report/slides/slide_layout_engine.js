@@ -299,7 +299,7 @@ const SlideLayoutEngine = {
       : "Developed and implemented specialized process engineering mechanism. The system was designed, verified, and commissioned for regular active production use.";
 
     const formattedDescriptionHtml = `
-      <div style="font-size: 12.5px; line-height: 1.55; color: #1E293B; font-weight: 500; letter-spacing: -0.005em;">
+      <div style="font-size: 14px; line-height: 1.65; color: #1E293B; font-weight: 500; letter-spacing: -0.005em;">
         ${HELPERS.escapeHtml(cleanDescriptionSentence)}
       </div>
     `;
@@ -313,11 +313,10 @@ const SlideLayoutEngine = {
           { name: "Material Waste", change: "Reduced", trend: "down", color: "red" }
         ];
 
-    // Quote for photo banner
-    const quote = slideData.quote || "Automation for a Smarter Tomorrow";
-    const quoteParts = quote.split(" for ");
-    const quoteL1 = quoteParts.length > 1 ? quoteParts[0] : quote;
-    const quoteL2 = quoteParts.length > 1 ? `for ${quoteParts[1]}` : "";
+    // Photo bottom-right tag (Requirement: "Process Development photo or erokom kisu ekta nicher tag e bosay dio.")
+    const photoTagText = (slideData.quote && slideData.quote !== "Automation for a Smarter Tomorrow")
+      ? slideData.quote
+      : (slideData.category || "Process Development");
 
     // Requirement 4: Image option 2 ta theke ekta thakbe only in monthly report
     const photoBefore = slideData.photo_before || slideData.photo_1 || null;
@@ -376,8 +375,8 @@ const SlideLayoutEngine = {
       <!-- 2. MAIN BODY: 2-COLUMN SPLIT (52% LEFT, 48% RIGHT) -->
       <div class="grid grid-cols-12 gap-5 flex-1 min-h-0 my-2 items-stretch relative z-10 overflow-hidden">
         
-        <!-- LEFT COLUMN: CONTENT, OVERVIEW & IMPACT (6 COLS - Top-down sequential stacking, Requirement 3) -->
-        <div class="col-span-6 flex flex-col justify-start gap-2.5 h-full min-h-0 overflow-hidden">
+        <!-- LEFT COLUMN: CONTENT, OVERVIEW & IMPACT (6 COLS - Spaced to fill full height, Requirement 4) -->
+        <div class="col-span-6 flex flex-col justify-between gap-2 h-full min-h-0">
           
           <!-- Top Pill Badge + Split Title -->
           <div class="flex-shrink-0">
@@ -438,32 +437,32 @@ const SlideLayoutEngine = {
           </div>
 
           <!-- Project Overview Card (Box 1: Clean sentences, top-down stacked) -->
-          <div class="px-4 py-3 rounded-xl border border-slate-200/90 bg-slate-50/80 flex flex-col justify-start">
-            <div class="flex items-center gap-1.5 mb-1.5 flex-shrink-0">
-              <div class="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0">
+          <div class="px-4 py-3.5 rounded-xl border border-slate-200/90 bg-slate-50/80 flex flex-col justify-start">
+            <div class="flex items-center gap-1.5 mb-2 flex-shrink-0">
+              <div class="w-4.5 h-4.5 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0">
                 <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
               </div>
-              <span style="font-size: 11.5px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Project Overview</span>
+              <span style="font-size: 12.5px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Project Overview</span>
             </div>
             ${formattedDescriptionHtml}
           </div>
 
           <!-- Key Impact Card (Box 2: Placed right after Overview, content-adaptive) -->
           ${impacts.length > 0 ? `
-          <div class="px-4 py-3 rounded-xl border border-slate-200 bg-white flex flex-col justify-start gap-1.5 shadow-2xs">
-            <div class="flex items-center gap-1.5 mb-1 flex-shrink-0">
-              <div class="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0 text-[9px] font-bold">
+          <div class="px-4 py-3.5 rounded-xl border border-slate-200 bg-white flex flex-col justify-start gap-2 shadow-2xs">
+            <div class="flex items-center gap-1.5 mb-1.5 flex-shrink-0">
+              <div class="w-4.5 h-4.5 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0 text-[10px] font-bold">
                 ✓
               </div>
-              <span style="font-size: 11.5px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Key Impact &amp; Deliverables</span>
-              <span class="text-[9.5px] font-mono text-slate-400 font-bold ml-auto">${impacts.length} ${impacts.length === 1 ? 'Deliverable' : 'Deliverables'}</span>
+              <span style="font-size: 12.5px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Key Impact &amp; Deliverables</span>
+              <span class="text-[10px] font-mono text-slate-400 font-bold ml-auto">${impacts.length} ${impacts.length === 1 ? 'Deliverable' : 'Deliverables'}</span>
             </div>
 
-            <div class="flex flex-col gap-1.5 py-0.5">
+            <div class="flex flex-col gap-2 py-1">
               ${impacts.map(imp => `
-                <div class="flex items-start gap-2">
-                  <span class="w-4 h-4 rounded bg-red-50 text-red-700 border border-red-200 flex items-center justify-center text-[9.5px] font-bold flex-shrink-0 mt-0.5" style="line-height: 1;">✔</span>
-                  <span style="font-size: 12px; font-weight: 600; color: #1E293B; line-height: 1.45;">${HELPERS.escapeHtml(imp.replace(/^[•\-\*]\s*/, '').trim())}</span>
+                <div class="flex items-start gap-2.5">
+                  <span class="w-4.5 h-4.5 rounded bg-red-50 text-red-700 border border-red-200 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5" style="line-height: 1;">✔</span>
+                  <span style="font-size: 13.5px; font-weight: 600; color: #1E293B; line-height: 1.5;">${HELPERS.escapeHtml(imp.replace(/^[•\-\*]\s*/, '').trim())}</span>
                 </div>
               `).join("")}
             </div>
@@ -515,11 +514,11 @@ const SlideLayoutEngine = {
                 📐 <span class="mode-label">Fill (Crop)</span>
               </button>
             </div>
-            <!-- Smaller, semi-transparent quote badge -->
+            <!-- Photo bottom-right tag badge (Requirement: "Process Development photo or erokom kisu ekta nicher tag e bosay dio.") -->
             <div class="absolute bottom-0 right-0 py-1.5 px-3 text-right text-white z-20" 
-                 style="background: rgba(197, 22, 29, 0.45); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top-left-radius: 10px; border-left: 1px solid rgba(255, 255, 255, 0.3); border-top: 1px solid rgba(255, 255, 255, 0.3); max-width: 170px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-              <div style="font-size: 9.5px; font-weight: 800; font-style: italic; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
-                "${quoteL1}<br/>${quoteL2}"
+                 style="background: rgba(197, 22, 29, 0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top-left-radius: 10px; border-left: 1px solid rgba(255, 255, 255, 0.35); border-top: 1px solid rgba(255, 255, 255, 0.35); max-width: 190px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+              <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+                ⚙️ ${HELPERS.escapeHtml(photoTagText)}
               </div>
             </div>
           </div>
@@ -569,11 +568,11 @@ const SlideLayoutEngine = {
             <span>📂</span><span>Drag & drop image to adjust</span>
           </div>
 
-          <!-- Bottom-Right Smaller, Transparent Red Quote Badge -->
+          <!-- Bottom-Right Tag: Process Development (Requirement: "Process Development photo or erokom kisu ekta nicher tag e bosay dio.") -->
           <div class="absolute bottom-0 right-0 py-1.5 px-3.5 text-right text-white" 
-               style="background: rgba(197, 22, 29, 0.45); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top-left-radius: 12px; border-left: 1px solid rgba(255, 255, 255, 0.3); border-top: 1px solid rgba(255, 255, 255, 0.3); max-width: 220px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
-            <div style="font-size: 10.5px; font-weight: 800; font-style: italic; line-height: 1.25; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
-              "${quoteL1}<br/>${quoteL2}"
+               style="background: rgba(197, 22, 29, 0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top-left-radius: 12px; border-left: 1px solid rgba(255, 255, 255, 0.35); border-top: 1px solid rgba(255, 255, 255, 0.35); max-width: 250px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
+            <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.25; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+              ⚙️ ${HELPERS.escapeHtml(photoTagText)}
             </div>
           </div>
         </div>

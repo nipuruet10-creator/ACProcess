@@ -213,6 +213,17 @@ class PhotoManager {
             }
           }
 
+          // If MonthlyReportView is active, update targeted DOM directly (no full render!)
+          if (typeof MonthlyReportView !== 'undefined') {
+            if (MonthlyReportView._activeModalTaskId === taskId) {
+              if (typeof MonthlyReportView.renderModalPhotoSlots === 'function') MonthlyReportView.renderModalPhotoSlots(taskId);
+              if (typeof MonthlyReportView.renderModalLivePreview === 'function') MonthlyReportView.renderModalLivePreview(taskId);
+            }
+            if (typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
+              MonthlyReportView.updateSlideCardPhoto(taskId);
+            }
+          }
+
           return serverUrl;
         }
       }
@@ -266,11 +277,15 @@ class PhotoManager {
     }
 
     // Explicit deletion check: ONLY clear if explicit user deletion timestamp is newer than last edit
+    // AND neither memory nor server photo cache has an active valid photo
+    const hasActiveMemP1 = Boolean((memMonth && (memMonth.before_photo || memMonth.photo_1)) || (this.photoMap[taskId] && (this.photoMap[taskId].before_photo || this.photoMap[taskId].photo_1)));
+    const hasActiveMemP2 = Boolean((memMonth && (memMonth.after_photo || memMonth.photo_2)) || (this.photoMap[taskId] && (this.photoMap[taskId].after_photo || this.photoMap[taskId].photo_2)));
+
     if (t) {
-      if (t._photoDeleted_before && (!t._lastPhotoEditTime || t._photoDeleted_before > t._lastPhotoEditTime)) {
+      if (t._photoDeleted_before && (!t._lastPhotoEditTime || t._photoDeleted_before > t._lastPhotoEditTime) && !hasActiveMemP1) {
         p1 = null;
       }
-      if (t._photoDeleted_after && (!t._lastPhotoEditTime || t._photoDeleted_after > t._lastPhotoEditTime)) {
+      if (t._photoDeleted_after && (!t._lastPhotoEditTime || t._photoDeleted_after > t._lastPhotoEditTime) && !hasActiveMemP2) {
         p2 = null;
       }
     }
@@ -484,8 +499,15 @@ class PhotoManager {
       this.uploadPhotoToServer(taskId, slot, base64Url, m).catch(e => console.warn("[Hostinger Photo Storage] Upload notice:", e));
     }
 
-    if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
-      MonthlyReportView.render();
+    // Targeted DOM update: Never blow away entire DOM via MonthlyReportView.render()!
+    if (typeof MonthlyReportView !== 'undefined') {
+      if (typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
+        MonthlyReportView.updateSlideCardPhoto(taskId);
+      }
+      if (MonthlyReportView._activeModalTaskId === taskId) {
+        if (typeof MonthlyReportView.renderModalPhotoSlots === 'function') MonthlyReportView.renderModalPhotoSlots(taskId);
+        if (typeof MonthlyReportView.renderModalLivePreview === 'function') MonthlyReportView.renderModalLivePreview(taskId);
+      }
     }
 
     return base64Url;
