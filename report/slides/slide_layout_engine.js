@@ -313,10 +313,10 @@ const SlideLayoutEngine = {
           { name: "Material Waste", change: "Reduced", trend: "down", color: "red" }
         ];
 
-    // Photo bottom-right tag (Requirement: "Process Development photo or erokom kisu ekta nicher tag e bosay dio.")
-    const photoTagText = (slideData.quote && slideData.quote !== "Automation for a Smarter Tomorrow")
+    // Photo header badge on top of photo (Requirement: "lekha ta photo upor diye thakbe. Process development photo, erokom name dio.")
+    const photoLabel = (slideData.quote && slideData.quote !== "Automation for a Smarter Tomorrow")
       ? slideData.quote
-      : (slideData.category || "Process Development");
+      : (slideData.photo_label || "Process Development Photo");
 
     // Requirement 4: Image option 2 ta theke ekta thakbe only in monthly report
     const photoBefore = slideData.photo_before || slideData.photo_1 || null;
@@ -514,13 +514,6 @@ const SlideLayoutEngine = {
                 📐 <span class="mode-label">Fill (Crop)</span>
               </button>
             </div>
-            <!-- Photo bottom-right tag badge (Requirement: "Process Development photo or erokom kisu ekta nicher tag e bosay dio.") -->
-            <div class="absolute bottom-0 right-0 py-1.5 px-3 text-right text-white z-20" 
-                 style="background: rgba(197, 22, 29, 0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top-left-radius: 10px; border-left: 1px solid rgba(255, 255, 255, 0.35); border-top: 1px solid rgba(255, 255, 255, 0.35); max-width: 190px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-              <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
-                ⚙️ ${HELPERS.escapeHtml(photoTagText)}
-              </div>
-            </div>
           </div>
         </div>
         ` : `
@@ -549,6 +542,14 @@ const SlideLayoutEngine = {
             </div>
           `}
 
+          <!-- Top-Left Photo Badge (Requirement: "lekha ta photo upor diye thakbe. Process development photo, erokom name dio.") -->
+          <div class="photo-header-badge absolute top-2.5 left-2.5 z-20 px-3 py-1.5 rounded-lg bg-red-600/95 backdrop-blur-md text-white flex items-center gap-1.5 shadow-md border border-white/25 pointer-events-none">
+            <span class="text-xs">⚙️</span>
+            <span style="font-size: 10.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+              ${HELPERS.escapeHtml(photoLabel.toUpperCase())}
+            </span>
+          </div>
+
           <!-- Frame Toolbar: Fit/Fill Toggle & Direct Replace Button -->
           <div class="absolute top-2.5 right-2.5 z-30 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition">
             <button onclick="SlideLayoutEngine.togglePhotoFit(this)" title="Toggle Blur-Fit / Fill-Crop (adjust aspect ratio)" 
@@ -561,19 +562,6 @@ const SlideLayoutEngine = {
             </button>
             <input type="file" id="frame-file-input-${slideData.task_id}" accept="image/*" class="hidden" 
                    onchange="SlideLayoutEngine.handleFrameFileInput(this, '${slideData.task_id}', 'before_photo')" />
-          </div>
-
-          <!-- Drag Drop Hint Badge -->
-          <div class="absolute top-2.5 left-2.5 z-10 px-2 py-0.5 rounded bg-black/50 backdrop-blur-sm text-white/80 font-mono text-[9px] pointer-events-none flex items-center gap-1">
-            <span>📂</span><span>Drag & drop image to adjust</span>
-          </div>
-
-          <!-- Bottom-Right Tag: Process Development (Requirement: "Process Development photo or erokom kisu ekta nicher tag e bosay dio.") -->
-          <div class="absolute bottom-0 right-0 py-1.5 px-3.5 text-right text-white" 
-               style="background: rgba(197, 22, 29, 0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top-left-radius: 12px; border-left: 1px solid rgba(255, 255, 255, 0.35); border-top: 1px solid rgba(255, 255, 255, 0.35); max-width: 250px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
-            <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.25; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
-              ⚙️ ${HELPERS.escapeHtml(photoTagText)}
-            </div>
           </div>
         </div>
         `}

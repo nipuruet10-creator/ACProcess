@@ -2454,7 +2454,7 @@ class PPTXGenerator {
 
     const quote = (task.quote && task.quote !== "Automation for a Smarter Tomorrow")
       ? task.quote
-      : (category || "Process Development");
+      : (task.photo_label || "Process Development Photo");
     const redPrimary = "C5161D";
     const charcoalDark = "0F172A";
     const textMuted = "64748B";
@@ -2655,15 +2655,6 @@ class PPTXGenerator {
         fontFace: font, fontSize: 7, bold: true, color: "FFFFFF", align: "center", valign: "middle"
       });
 
-      // Photo bottom-right tag banner on After frame (Requirement: "Process Development photo or erokom kisu ekta nicher tag e bosay dio.")
-      slide.addShape(pptx.ShapeType.roundRect, {
-        x: 10.0, y: 6.08, w: 2.5, h: 0.59,
-        fill: { color: redPrimary, transparency: 35 }, line: { color: "FFFFFF", width: 0.8, transparency: 40 }, rectRadius: 0.06
-      });
-      slide.addText(`⚙ ${quote.toUpperCase()}`, {
-        x: 10.02, y: 6.08, w: 2.46, h: 0.59,
-        fontFace: font, fontSize: 8, bold: true, color: "FFFFFF", align: "center", valign: "middle"
-      });
     } else {
       slide.addShape(pptx.ShapeType.roundRect, {
         x: 6.7, y: 1.05, w: 5.8, h: 5.62,
@@ -2686,13 +2677,13 @@ class PPTXGenerator {
         this._addEmptyPhotoFrame(slide, pptx, 6.7, 1.05, 5.8, 5.62);
       }
 
-      // Red Photo Tag Banner (Requirement: "Process Development photo or erokom kisu ekta nicher tag e bosay dio.")
+      // Top-Left Photo Header Badge (Requirement: "lekha ta photo upor diye thakbe. Process development photo, erokom name dio.")
       slide.addShape(pptx.ShapeType.roundRect, {
-        x: 9.8, y: 6.05, w: 2.7, h: 0.62,
-        fill: { color: redPrimary, transparency: 35 }, line: { color: "FFFFFF", width: 0.8, transparency: 40 }, rectRadius: 0.06
+        x: 6.85, y: 1.18, w: 3.2, h: 0.38,
+        fill: { color: redPrimary }, line: { color: redPrimary }, rectRadius: 0.05
       });
       slide.addText(`⚙ ${quote.toUpperCase()}`, {
-        x: 9.82, y: 6.05, w: 2.66, h: 0.62,
+        x: 6.87, y: 1.18, w: 3.16, h: 0.38,
         fontFace: font, fontSize: 8.5, bold: true, color: "FFFFFF", align: "center", valign: "middle"
       });
     }

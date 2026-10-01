@@ -286,11 +286,13 @@ const HTMLReportGenerator = {
       /* Suppress interactive photo frame editing toolbars and hints during print */
       .slide-photo-frame button,
       .slide-photo-frame .opacity-0,
-      .slide-photo-frame .pointer-events-none,
+      .slide-photo-frame .pointer-events-none:not(.photo-header-badge),
       .slide-photo-frame .group-hover\:opacity-100,
-      .slide-photo-frame .absolute.top-2\.5.right-2\.5,
-      .slide-photo-frame .absolute.top-2\.5.left-2\.5 {
+      .slide-photo-frame .absolute.top-2\.5.right-2\.5 {
         display: none !important;
+      }
+      .slide-photo-frame .photo-header-badge {
+        display: flex !important;
       }
     }
   </style>
