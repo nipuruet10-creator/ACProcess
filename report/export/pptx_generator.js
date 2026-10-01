@@ -12,6 +12,77 @@ class PPTXGenerator {
   }
 
   /**
+   * Helper: Pre-converts any photo URL (HTTP, relative, or base64) to a Base64 data URL
+   * Guarantees 100% reliable native embedding in PptxGenJS OpenXML package
+   */
+  async _resolvePhotoBase64(photoUrl) {
+    if (!photoUrl || typeof photoUrl !== 'string') return null;
+    const cleanUrl = photoUrl.trim();
+    if (!cleanUrl) return null;
+    if (cleanUrl.startsWith('data:image/')) return cleanUrl;
+
+    let fetchUrl = cleanUrl;
+    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+      if (typeof window !== 'undefined' && window.location) {
+        const p = window.location.pathname;
+        const origin = window.location.origin;
+        if (p.includes('/report')) {
+          const idx = p.indexOf('/report');
+          fetchUrl = origin + p.substring(0, idx) + '/report/' + (cleanUrl.startsWith('/') ? cleanUrl.slice(1) : cleanUrl);
+        } else {
+          const base = p.endsWith('/') ? p : p + '/';
+          fetchUrl = origin + base + (cleanUrl.startsWith('/') ? cleanUrl.slice(1) : cleanUrl);
+        }
+      } else {
+        fetchUrl = 'https://acprocess.com/report/' + (cleanUrl.startsWith('/') ? cleanUrl.slice(1) : cleanUrl);
+      }
+    }
+
+    try {
+      const resp = await fetch(fetchUrl, { mode: 'cors' });
+      if (resp.ok) {
+        const blob = await resp.blob();
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = () => resolve(fetchUrl);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (e) {
+      // Quiet fallback
+    }
+
+    if (typeof document !== 'undefined') {
+      try {
+        return await new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth || img.width;
+              canvas.height = img.naturalHeight || img.height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+              resolve(dataUrl);
+            } catch(err) {
+              resolve(fetchUrl);
+            }
+          };
+          img.onerror = () => resolve(fetchUrl);
+          img.src = fetchUrl;
+        });
+      } catch (e) {
+        return fetchUrl;
+      }
+    }
+
+    return fetchUrl;
+  }
+
+  /**
    * Generates a complete editable PowerPoint presentation (.pptx)
    * @param {Object} reportData - { month, slides, kpis, savingsData, bomData }
    */
@@ -207,9 +278,30 @@ class PPTXGenerator {
     ongoingProjectSlides.sort((a, b) => getEngRank(a) - getEngRank(b));
 
     const taskSlides = [...sequencedStandardTasks, ...completedProjectSlides, ...ongoingProjectSlides];
+
+    // Pre-resolve all photos from photoManager and convert them to Base64 for 100% reliable PPTX embedding
+    for (const task of taskSlides) {
+      if (typeof window !== 'undefined' && window.photoManager && window.photoManager.getTaskPhotos) {
+        const pmPhotos = window.photoManager.getTaskPhotos(task.task_id, monthName);
+        if (pmPhotos) {
+          if (!task.photo_after && pmPhotos.after_photo) task.photo_after = pmPhotos.after_photo;
+          if (!task.photo_before && pmPhotos.before_photo) task.photo_before = pmPhotos.before_photo;
+          if (!task.photo) task.photo = pmPhotos.after_photo || pmPhotos.before_photo || pmPhotos.photo_1 || pmPhotos.photo_2;
+        }
+      }
+
+      if (task.photo) task.photo = await this._resolvePhotoBase64(task.photo);
+      if (task.photo_1) task.photo_1 = await this._resolvePhotoBase64(task.photo_1);
+      if (task.photo_2) task.photo_2 = await this._resolvePhotoBase64(task.photo_2);
+      if (task.photo_before) task.photo_before = await this._resolvePhotoBase64(task.photo_before);
+      if (task.photo_after) task.photo_after = await this._resolvePhotoBase64(task.photo_after);
+      if (task.before_photo) task.before_photo = await this._resolvePhotoBase64(task.before_photo);
+      if (task.after_photo) task.after_photo = await this._resolvePhotoBase64(task.after_photo);
+    }
+
     const activeTemplate = template || reportData.template || "walton_executive_crimson";
     const isBlue = (activeTemplate === "industrial_innovation_blue" || activeTemplate === "walton_blue_dual");
-    const totalSlideCount = taskSlides.length + 4; // Cover + TOC + Dashboard + Tasks + Top 5 Works (4 + N slides)
+    const totalSlideCount = taskSlides.length + 5; // Cover + TOC + Dashboard + Tasks + Top 5 Works + Thank You Closing Slide
 
     // -------------------------------------------------------------
     // SLIDE 1: COVER PAGE (Crimson or Blue)
@@ -275,7 +367,7 @@ class PPTXGenerator {
     }
 
     // -------------------------------------------------------------
-    // SLIDE N+4 (LAST SLIDE): TOP 5 WORKS & PROJECTS SUMMARY (Image 2)
+    // SLIDE N+4: TOP 5 WORKS & PROJECTS SUMMARY (Image 2)
     // -------------------------------------------------------------
     const slideTopWorks = pptx.addSlide();
     slideTopWorks.background = { color: bgWhite };
@@ -284,6 +376,14 @@ class PPTXGenerator {
     } else {
       this._addExecutiveRedTopWorksSlide(slideTopWorks, pptx, font, monthName, currentSlideNum, totalSlideCount, reportData.topWorksData || reportData);
     }
+    currentSlideNum++;
+
+    // -------------------------------------------------------------
+    // SLIDE N+5 (CLOSING SLIDE): THANK YOU
+    // -------------------------------------------------------------
+    const slideThankYou = pptx.addSlide();
+    slideThankYou.background = { color: "07172B" };
+    this._addThankYouSlide(slideThankYou, pptx, font, monthName);
 
     const fileName = `Walton_AC_Process_Monthly_Report_${monthName.replace(/\s+/g, '_')}.pptx`;
     await pptx.writeFile({ fileName: fileName });
@@ -487,17 +587,17 @@ class PPTXGenerator {
     });
 
     // Top Right subtle identifier
-    slide.addText("WALTON AC PROCESS DEVELOPMENT", {
+    slide.addText("WALTON WAC PROCESS DEVELOPMENT", {
       x: 7.0, y: 0.35, w: 5.5, h: 0.35,
       fontFace: font, fontSize: 9.5, bold: true, color: "94A3B8", align: "right"
     });
 
-    // Center Stage: Walton Logo (Exact 1:1 Aspect Ratio: 1.4 x 1.4 inches centered)
+    // Center Stage: Walton Logo (Exact 1:1 Aspect Ratio: 1.35 x 1.35 inches centered)
     try {
       slide.addImage({
         path: "assets/img/walton_logo.png",
-        x: 5.97, y: 0.85, w: 1.4, h: 1.4,
-        sizing: { type: "contain", w: 1.4, h: 1.4 }
+        x: 5.99, y: 0.95, w: 1.35, h: 1.35,
+        sizing: { type: "contain", w: 1.35, h: 1.35 }
       });
     } catch(err) {
       slide.addShape(pptx.ShapeType.diamond, { x: 6.37, y: 1.1, w: 0.6, h: 0.6, fill: { color: redPrimary }, line: { color: redPrimary } });
@@ -505,33 +605,33 @@ class PPTXGenerator {
     }
 
     slide.addText("—  BETTER PRODUCTS | BRIGHTER FUTURE  —", {
-      x: 0.8, y: 2.38, w: 11.7, h: 0.3,
+      x: 0.8, y: 2.45, w: 11.7, h: 0.3,
       fontFace: font, fontSize: 9.5, bold: true, color: textMuted, align: "center"
     });
 
     // Main Focus Title (Monthly Report name focus)
     slide.addText("MONTHLY REPORT", {
-      x: 0.8, y: 2.78, w: 11.7, h: 0.85,
+      x: 0.8, y: 2.85, w: 11.7, h: 0.85,
       fontFace: font, fontSize: 38, bold: true, color: navyPrimary, align: "center"
     });
 
-    // Department Badge (Process Development Department (AC) - Executive Red focus)
+    // Department Badge (Process Development Department (WAC) - Executive Red focus)
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: 3.66, y: 3.82, w: 6.0, h: 0.52,
+      x: 3.66, y: 3.90, w: 6.0, h: 0.52,
       fill: { color: redPrimary }, line: { color: "990000", width: 1.2 }, rectRadius: 0.26
     });
-    slide.addText("Process Development Department (AC)", {
-      x: 3.66, y: 3.82, w: 6.0, h: 0.52,
+    slide.addText("Process Development Department (WAC)", {
+      x: 3.66, y: 3.90, w: 6.0, h: 0.52,
       fontFace: font, fontSize: 14, bold: true, color: "FFFFFF", align: "center", valign: "middle"
     });
 
     // Month Focus Badge (Month focus thakbe - Executive Red focus)
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: 4.86, y: 4.50, w: 3.6, h: 0.46,
+      x: 4.86, y: 4.58, w: 3.6, h: 0.46,
       fill: { color: "FEF2F2" }, line: { color: "FECACA", width: 1.2 }, rectRadius: 0.1
     });
     slide.addText(`📅  ${monthName.toUpperCase()}`, {
-      x: 4.86, y: 4.50, w: 3.6, h: 0.46,
+      x: 4.86, y: 4.58, w: 3.6, h: 0.46,
       fontFace: font, fontSize: 13.5, bold: true, color: redPrimary, align: "center", valign: "middle"
     });
 
@@ -540,7 +640,7 @@ class PPTXGenerator {
       { text: "Walton Hi-Tech Industries PLC.\n", options: { fontSize: 13, bold: true, color: "0F172A" } },
       { text: "📍 Chandra, Kaliakoir, Gazipur, Bangladesh", options: { fontSize: 10, color: textMuted } }
     ], {
-      x: 0.8, y: 5.18, w: 11.7, h: 0.85,
+      x: 0.8, y: 5.30, w: 11.7, h: 0.85,
       fontFace: font, align: "center"
     });
 
@@ -1331,7 +1431,7 @@ class PPTXGenerator {
         const cat = (task.category || '').toLowerCase();
         let key = 'process';
         if (cat.includes('material') || cat.includes('chemical')) key = 'material';
-        else if (cat.includes('cost')) key = 'cost';
+        else if (cat.includes('cost') || cat.includes('saving')) key = 'cost';
         else if (cat.includes('tool') || cat.includes('part') || cat.includes('die')) key = 'tools';
         else if (cat.includes('bom')) key = 'bom';
         else if (task.is_project === true) key = 'project';
@@ -1356,20 +1456,47 @@ class PPTXGenerator {
 
     const finalPageStr = String(totalSlideCount).padStart(2, '0');
 
-    return [
-      { num: "01", title: "Summary", sub: "Operations & Financial Cost Impact", page: "Page No. 03" },
-      { num: "02", title: "Major Developments", sub: "(Process & Others)", page: formatRange(catPageMap['process']) },
-      { num: "03", title: "Major Developments", sub: "(Materials & Chemical Development)", page: formatRange(catPageMap['material']) },
-      { num: "04", title: "Major Developments", sub: "(Cost Savings)", page: formatRange(catPageMap['cost']) },
-      { num: "05", title: "Major Developments", sub: "(Tools+Parts)", page: formatRange(catPageMap['tools']) },
-      { num: "06", title: "BOM Verification", sub: "Material & Process Confirmations", page: formatRange(catPageMap['bom']) },
-      { num: "07", title: "Ongoing Project & Completed Works", sub: "Shop-Floor Line Automation", page: formatRange(catPageMap['project']) },
-      { num: "08", title: "Top 5 Works & Projects", sub: "Executive Summary & Milestones", page: `Page No. ${finalPageStr}` }
+    const activeSections = [];
+    activeSections.push({
+      title: "Summary",
+      sub: "Operations & Financial Cost Impact",
+      page: "Page No. 03"
+    });
+
+    const potentialCategories = [
+      { key: 'process', title: "Major Developments", sub: "(Process & Others)" },
+      { key: 'material', title: "Major Developments", sub: "(Materials & Chemical Development)" },
+      { key: 'cost', title: "Major Developments", sub: "(Cost Savings)" },
+      { key: 'tools', title: "Major Developments", sub: "(Tools+Parts)" },
+      { key: 'bom', title: "BOM Verification", sub: "Material & Process Confirmations" },
+      { key: 'project', title: "Ongoing Project & Completed Works", sub: "Shop-Floor Line Automation" }
     ];
+
+    potentialCategories.forEach(catDef => {
+      const range = catPageMap[catDef.key];
+      if (range && range.count > 0) {
+        activeSections.push({
+          title: catDef.title,
+          sub: catDef.sub,
+          page: formatRange(range)
+        });
+      }
+    });
+
+    activeSections.push({
+      title: "Top 5 Works & Projects",
+      sub: "Executive Summary & Milestones",
+      page: `Page No. ${finalPageStr}`
+    });
+
+    return activeSections.map((item, idx) => ({
+      ...item,
+      num: String(idx + 1).padStart(2, '0')
+    }));
   }
 
   /**
-   * Photo 3: Table of Contents Builder (8 Category-Wise Sections with Dynamic Pages)
+   * Photo 3: Table of Contents Builder (Category-Wise Sections with Dynamic Pages)
    */
   _buildPhoto3TableOfContents(slide, pptx, font, monthName, tasksOrCount, totalSlideCount, isBlue = false) {
     const navyPrimary = "0B2038";
@@ -1377,7 +1504,7 @@ class PPTXGenerator {
 
     // Top Header Banner or Executive Header
     if (isBlue) {
-      this._addPhoto1TopBanner(slide, pptx, font, "PROCESS DEVELOPMENT DEPARTMENT (AC) • TABLE OF CONTENTS");
+      this._addPhoto1TopBanner(slide, pptx, font, "PROCESS DEVELOPMENT DEPARTMENT (WAC) • TABLE OF CONTENTS");
       slide.addText("TABLE OF CONTENTS", {
         x: 0.8, y: 0.96, w: 11.73, h: 0.35,
         fontFace: font, fontSize: 13, bold: true, color: navyPrimary, letterSpacing: 1.5
@@ -1393,7 +1520,7 @@ class PPTXGenerator {
         fill: { color: primaryAccent }, line: { color: primaryAccent }
       });
       slide.addText([
-        { text: "PROCESS DEVELOPMENT DEPARTMENT (AC)\n", options: { fontSize: 10, bold: true, color: "0F172A" } },
+        { text: "PROCESS DEVELOPMENT DEPARTMENT (WAC)\n", options: { fontSize: 10, bold: true, color: "0F172A" } },
         { text: "INNOVATE  |  IMPROVE  |  DELIVER", options: { fontSize: 7.5, bold: true, color: "64748B" } }
       ], {
         x: 1.25, y: 0.18, w: 5.5, h: 0.45,
@@ -1419,24 +1546,38 @@ class PPTXGenerator {
 
     const tasks = Array.isArray(tasksOrCount) ? tasksOrCount : [];
     const items = this._calculateCategoryPageRanges(tasks, totalSlideCount);
+    const N = items.length;
 
     const startY = isBlue ? 1.48 : 1.18;
-    const cardH = isBlue ? 1.16 : 1.22;
-    const rowGap = isBlue ? 1.30 : 1.34;
+    const cardH = (N <= 4) ? 1.35 : ((N <= 6) ? 1.25 : 1.16);
+    const rowGap = (N <= 4) ? 1.55 : ((N <= 6) ? 1.40 : 1.28);
     const pillFill = isBlue ? "F0F9FF" : "FEF2F2";
     const pillLine = isBlue ? "BAE6FD" : "FECACA";
     const pillColor = isBlue ? "0369A1" : "C5161D";
 
-    // Render 8 items in 2 columns (4 rows)
+    const isOdd = (N % 2 !== 0);
+
     items.forEach((item, idx) => {
-      const isLeft = idx < 4;
-      const colX = isLeft ? 0.80 : 6.78;
-      const rowIdx = isLeft ? idx : (idx - 4);
-      const rowY = startY + rowIdx * rowGap;
+      const isOddLast = isOdd && (idx === N - 1);
+      let colX = 0.80;
+      let cardW = 5.75;
+      let rowY = startY;
+
+      if (isOddLast) {
+        colX = 2.45;
+        cardW = 8.43;
+        const rowIdx = Math.floor(idx / 2);
+        rowY = startY + rowIdx * rowGap;
+      } else {
+        const isLeft = (idx % 2 === 0);
+        colX = isLeft ? 0.80 : 6.78;
+        const rowIdx = Math.floor(idx / 2);
+        rowY = startY + rowIdx * rowGap;
+      }
 
       // Card Container
       slide.addShape(pptx.ShapeType.roundRect, {
-        x: colX, y: rowY, w: 5.75, h: cardH,
+        x: colX, y: rowY, w: cardW, h: cardH,
         fill: { color: "FFFFFF" }, line: { color: "E2E8F0", width: 1.2 }, rectRadius: 0.08
       });
 
@@ -1448,26 +1589,28 @@ class PPTXGenerator {
 
       // Number badge
       slide.addText(item.num, {
-        x: colX + 0.18, y: rowY + 0.15, w: 0.75, h: 0.85,
+        x: colX + 0.18, y: rowY + 0.15, w: 0.75, h: cardH - 0.3,
         fontFace: font, fontSize: 24, bold: true, color: primaryAccent, align: "center", valign: "middle"
       });
 
       // Title & Subtitle
+      const titleW = isOddLast ? 5.8 : 3.25;
       slide.addText([
         { text: `${item.title}\n`, options: { fontSize: 11.5, bold: true, color: "0F172A" } },
         { text: item.sub, options: { fontSize: 9, color: "64748B" } }
       ], {
-        x: colX + 1.0, y: rowY + 0.15, w: 3.25, h: 0.85,
+        x: colX + 1.0, y: rowY + 0.15, w: titleW, h: cardH - 0.3,
         fontFace: font, valign: "middle"
       });
 
       // Page Badge Pill
+      const pillX = colX + cardW - 1.45;
       slide.addShape(pptx.ShapeType.roundRect, {
-        x: colX + 4.30, y: rowY + 0.42, w: 1.32, h: 0.38,
+        x: pillX, y: rowY + (cardH - 0.38) / 2, w: 1.32, h: 0.38,
         fill: { color: pillFill }, line: { color: pillLine, width: 1 }, rectRadius: 0.06
       });
       slide.addText(item.page, {
-        x: colX + 4.30, y: rowY + 0.42, w: 1.32, h: 0.38,
+        x: pillX, y: rowY + (cardH - 0.38) / 2, w: 1.32, h: 0.38,
         fontFace: font, fontSize: 8.5, bold: true, color: pillColor, align: "center", valign: "middle"
       });
     });
@@ -1930,7 +2073,7 @@ class PPTXGenerator {
     const charcoalDark = "0F172A";
     const textMuted = "64748B";
 
-    slide.addText("⚙ PROCESS DEVELOPMENT DEPARTMENT", {
+    slide.addText("⚙ PROCESS DEVELOPMENT (WAC)", {
       x: 0.8, y: 6.9, w: 4.8, h: 0.35,
       fontFace: font, fontSize: 8.5, bold: true, color: charcoalDark
     });
@@ -2006,7 +2149,7 @@ class PPTXGenerator {
     const charcoalDark = "0F172A";
     const textMuted = "64748B";
 
-    slide.addText("⚙ PROCESS DEVELOPMENT DEPARTMENT", {
+    slide.addText("⚙ PROCESS DEVELOPMENT (WAC)", {
       x: 0.8, y: 6.9, w: 4.8, h: 0.35,
       fontFace: font, fontSize: 8.5, bold: true, color: charcoalDark
     });
@@ -2042,17 +2185,17 @@ class PPTXGenerator {
     });
 
     // Top Right Identifier
-    slide.addText("WALTON AC PROCESS DEVELOPMENT", {
+    slide.addText("WALTON WAC PROCESS DEVELOPMENT", {
       x: 6.8, y: 0.35, w: 5.7, h: 0.35,
       fontFace: font, fontSize: 9.5, bold: true, color: "94A3B8", align: "right"
     });
 
-    // Center Stage: Walton Logo (Exact 1:1 Aspect Ratio: 1.4 x 1.4 inches centered)
+    // Center Stage: Walton Logo (Exact 1:1 Aspect Ratio: 1.35 x 1.35 inches centered)
     try {
       slide.addImage({
         path: "assets/img/walton_logo.png",
-        x: 5.97, y: 0.85, w: 1.4, h: 1.4,
-        sizing: { type: "contain", w: 1.4, h: 1.4 }
+        x: 5.99, y: 0.95, w: 1.35, h: 1.35,
+        sizing: { type: "contain", w: 1.35, h: 1.35 }
       });
     } catch(err) {
       slide.addShape(pptx.ShapeType.diamond, { x: 6.2, y: 0.95, w: 0.4, h: 0.4, fill: { color: blueRoyal }, line: { color: blueRoyal } });
@@ -2061,33 +2204,33 @@ class PPTXGenerator {
     }
 
     slide.addText("—  INNOVATION | EFFICIENCY | SUSTAINABILITY  —", {
-      x: 0.8, y: 1.85, w: 11.7, h: 0.3,
+      x: 0.8, y: 2.45, w: 11.7, h: 0.3,
       fontFace: font, fontSize: 9.5, bold: true, color: textMuted, align: "center"
     });
 
     // Main Title: Monthly Report Focus
     slide.addText("MONTHLY REPORT", {
-      x: 0.8, y: 2.3, w: 11.7, h: 0.85,
+      x: 0.8, y: 2.85, w: 11.7, h: 0.85,
       fontFace: font, fontSize: 36, bold: true, color: navyPrimary, align: "center"
     });
 
-    // Subtitle Badge: Process Development Department (AC)
+    // Subtitle Badge: Process Development Department (WAC)
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: 3.8, y: 3.25, w: 5.7, h: 0.52,
+      x: 3.8, y: 3.90, w: 5.7, h: 0.52,
       fill: { color: blueRoyal }, line: { color: cyanAccent, width: 1.5 }, rectRadius: 0.26
     });
-    slide.addText("Process Development Department (AC)", {
-      x: 3.8, y: 3.25, w: 5.7, h: 0.52,
+    slide.addText("Process Development Department (WAC)", {
+      x: 3.8, y: 3.90, w: 5.7, h: 0.52,
       fontFace: font, fontSize: 14, bold: true, color: "FFFFFF", align: "center", valign: "middle"
     });
 
     // Month Focus Badge
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: 4.8, y: 4.0, w: 3.7, h: 0.46,
+      x: 4.8, y: 4.58, w: 3.7, h: 0.46,
       fill: { color: "F8FAFC" }, line: { color: "CBD5E1", width: 1.2 }, rectRadius: 0.1
     });
     slide.addText(`📅  ${monthName.toUpperCase()}`, {
-      x: 4.8, y: 4.0, w: 3.7, h: 0.46,
+      x: 4.8, y: 4.58, w: 3.7, h: 0.46,
       fontFace: font, fontSize: 13.5, bold: true, color: "0284C7", align: "center", valign: "middle"
     });
 
@@ -2096,7 +2239,7 @@ class PPTXGenerator {
       { text: "Walton Hi-Tech Industries PLC.\n", options: { fontSize: 13, bold: true, color: "0F172A" } },
       { text: "📍 Chandra, Kaliakoir, Gazipur, Bangladesh", options: { fontSize: 10, color: textMuted } }
     ], {
-      x: 0.8, y: 4.75, w: 11.7, h: 0.9,
+      x: 0.8, y: 5.30, w: 11.7, h: 0.9,
       fontFace: font, align: "center"
     });
 
@@ -2493,11 +2636,16 @@ class PPTXGenerator {
     const statusLower = (status || "").toLowerCase();
     const isProj = Boolean(task.is_project === true);
     const isCompletedProj = isProj && (statusLower.includes('complete') || catLower.includes('completed'));
+    const isCostSaving = Boolean(task.is_cost_saving || catLower.includes('cost') || catLower.includes('saving') || titleLower.includes('cost saving'));
 
     let badgeText = (task.category || "PROCESS DEVELOPMENT").toUpperCase();
     let badgeFill = redPrimary;
     let badgeW = Math.min(3.8, Math.max(2.4, badgeText.length * 0.11 + 0.5));
-    if (isProj) {
+    if (isCostSaving) {
+      badgeText = "COST SAVING INITIATIVE";
+      badgeFill = "059669";
+      badgeW = 2.8;
+    } else if (isProj) {
       if (isCompletedProj) {
         badgeText = "STRATEGIC PROJECT • COMPLETED";
         badgeFill = "059669";
@@ -2521,7 +2669,7 @@ class PPTXGenerator {
     // Red Left Accent Bar for Title
     slide.addShape(pptx.ShapeType.rect, {
       x: 0.8, y: 1.48, w: 0.06, h: 0.82,
-      fill: { color: redPrimary }
+      fill: { color: isCostSaving ? "059669" : redPrimary }
     });
 
     // Split-Color Title Text Box
@@ -2533,7 +2681,7 @@ class PPTXGenerator {
       fontFace: font, lineSpacing: 22, valign: "top"
     });
 
-    // 3-Column Metadata Box
+    // 2-Column Metadata Box (Status removed - Concern Engineer | Category)
     slide.addShape(pptx.ShapeType.roundRect, {
       x: 0.8, y: 2.45, w: 5.6, h: 0.58,
       fill: { color: cardBgLight }, line: { color: borderLight }, rectRadius: 0.05
@@ -2541,33 +2689,50 @@ class PPTXGenerator {
     slide.addText([
       { text: "CONCERN ENGINEER\n", options: { fontSize: 7.5, bold: true, color: textMuted } },
       { text: engineer, options: { fontSize: 9.5, bold: true, color: charcoalDark } }
-    ], { x: 0.9, y: 2.48, w: 1.8, h: 0.52, fontFace: font, valign: "middle" });
+    ], { x: 0.95, y: 2.48, w: 2.6, h: 0.52, fontFace: font, valign: "middle" });
+    slide.addShape(pptx.ShapeType.line, {
+      x: 3.6, y: 2.52, w: 0, h: 0.44,
+      line: { color: borderLight, width: 1 }
+    });
     slide.addText([
       { text: "CATEGORY\n", options: { fontSize: 7.5, bold: true, color: textMuted } },
       { text: category, options: { fontSize: 9.5, bold: true, color: charcoalDark } }
-    ], { x: 2.7, y: 2.48, w: 1.8, h: 0.52, fontFace: font, valign: "middle" });
-    slide.addText([
-      { text: "STATUS\n", options: { fontSize: 7.5, bold: true, color: textMuted } },
-      { text: `● ${status}`, options: { fontSize: 9.5, bold: true, color: "10B981" } }
-    ], { x: 4.5, y: 2.48, w: 1.8, h: 0.52, fontFace: font, valign: "middle" });
+    ], { x: 3.75, y: 2.48, w: 2.6, h: 0.52, fontFace: font, valign: "middle" });
 
-    // Project Overview Card (Requirement 4: Font size increased to fill bottom gap)
+    // Cost Savings Highlight Box if applicable
+    let overviewY = 3.12;
+    let overviewH = 1.5;
+    if (isCostSaving && (task.cost_saving_highlight || task.savings || task.investment)) {
+      const savingVal = task.cost_saving_highlight || (task.savings ? `৳ ${task.savings}` : task.investment);
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: 0.8, y: 3.10, w: 5.6, h: 0.44,
+        fill: { color: "ECFDF5" }, line: { color: "10B981", width: 1.5 }, rectRadius: 0.06
+      });
+      slide.addText(`💰 COST SAVING IMPACT: ${savingVal}`, {
+        x: 0.95, y: 3.10, w: 5.3, h: 0.44,
+        fontFace: font, fontSize: 10, bold: true, color: "065F46", valign: "middle"
+      });
+      overviewY = 3.60;
+      overviewH = 1.02;
+    }
+
+    // Project Overview Card
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: 0.8, y: 3.12, w: 5.6, h: 1.5,
+      x: 0.8, y: overviewY, w: 5.6, h: overviewH,
       fill: { color: cardBgLight }, line: { color: borderLight }, rectRadius: 0.06
     });
     slide.addShape(pptx.ShapeType.ellipse, {
-      x: 0.95, y: 3.22, w: 0.28, h: 0.28,
-      fill: { color: redPrimary }, line: { color: redPrimary }
+      x: 0.95, y: overviewY + 0.10, w: 0.28, h: 0.28,
+      fill: { color: isCostSaving ? "059669" : redPrimary }, line: { color: isCostSaving ? "059669" : redPrimary }
     });
-    slide.addText("📄", { x: 0.95, y: 3.22, w: 0.28, h: 0.28, fontSize: 8, color: "FFFFFF", align: "center", valign: "middle" });
+    slide.addText("📄", { x: 0.95, y: overviewY + 0.10, w: 0.28, h: 0.28, fontSize: 8, color: "FFFFFF", align: "center", valign: "middle" });
     slide.addText("Project Overview", {
-      x: 1.3, y: 3.20, w: 5.0, h: 0.3,
+      x: 1.3, y: overviewY + 0.08, w: 5.0, h: 0.3,
       fontFace: font, fontSize: 11.5, bold: true, color: charcoalDark, valign: "middle"
     });
     slide.addText(desc, {
-      x: 0.95, y: 3.55, w: 5.3, h: 0.98,
-      fontFace: font, fontSize: 10.5, color: "334155", lineSpacing: 15, valign: "top"
+      x: 0.95, y: overviewY + 0.40, w: 5.3, h: overviewH - 0.45,
+      fontFace: font, fontSize: 10, color: "334155", lineSpacing: 14, valign: "top"
     });
 
     // Key Impact Card (Requirement 4: Font size increased to fill bottom gap)
@@ -2577,7 +2742,7 @@ class PPTXGenerator {
     });
     slide.addShape(pptx.ShapeType.ellipse, {
       x: 0.95, y: 4.80, w: 0.28, h: 0.28,
-      fill: { color: redPrimary }, line: { color: redPrimary }
+      fill: { color: isCostSaving ? "059669" : redPrimary }, line: { color: isCostSaving ? "059669" : redPrimary }
     });
     slide.addText("🎯", { x: 0.95, y: 4.80, w: 0.28, h: 0.28, fontSize: 8, color: "FFFFFF", align: "center", valign: "middle" });
     slide.addText("Key Impact & Deliverables", {
@@ -2590,7 +2755,7 @@ class PPTXGenerator {
       const bY = 5.18 + idx * 0.36;
       slide.addShape(pptx.ShapeType.roundRect, {
         x: 0.95, y: bY + 0.02, w: 0.22, h: 0.22,
-        fill: { color: redPrimary }, line: { color: redPrimary }, rectRadius: 0.03
+        fill: { color: isCostSaving ? "059669" : redPrimary }, line: { color: isCostSaving ? "059669" : redPrimary }, rectRadius: 0.03
       });
       slide.addText("✔", {
         x: 0.95, y: bY + 0.02, w: 0.22, h: 0.22,
@@ -2677,13 +2842,13 @@ class PPTXGenerator {
         this._addEmptyPhotoFrame(slide, pptx, 6.7, 1.05, 5.8, 5.62);
       }
 
-      // Top-Left Photo Header Badge (Requirement: "lekha ta photo upor diye thakbe. Process development photo, erokom name dio.")
+      // Top-Left Photo Header Badge (Requirement: "Photo te Process Development Photo tag diba sobar jonno. slide e jevabe dekassilo sevabe.")
       slide.addShape(pptx.ShapeType.roundRect, {
-        x: 6.85, y: 1.18, w: 3.2, h: 0.38,
-        fill: { color: redPrimary }, line: { color: redPrimary }, rectRadius: 0.05
+        x: 6.85, y: 1.18, w: 3.4, h: 0.38,
+        fill: { color: isCostSaving ? "059669" : redPrimary }, line: { color: isCostSaving ? "059669" : redPrimary }, rectRadius: 0.05
       });
-      slide.addText(`⚙ ${quote.toUpperCase()}`, {
-        x: 6.87, y: 1.18, w: 3.16, h: 0.38,
+      slide.addText("⚙ PROCESS DEVELOPMENT PHOTO", {
+        x: 6.87, y: 1.18, w: 3.36, h: 0.38,
         fontFace: font, fontSize: 8.5, bold: true, color: "FFFFFF", align: "center", valign: "middle"
       });
     }
@@ -2693,7 +2858,7 @@ class PPTXGenerator {
       x: 0.8, y: 6.82, w: 11.7, h: 0.015,
       fill: { color: borderLight }
     });
-    slide.addText("⚙ PROCESS DEVELOPMENT DEPARTMENT\nWALTON HI-TECH INDUSTRIES PLC.", {
+    slide.addText("⚙ PROCESS DEVELOPMENT (WAC)\nWALTON HI-TECH INDUSTRIES PLC.", {
       x: 0.8, y: 6.88, w: 3.5, h: 0.45,
       fontFace: font, fontSize: 7.5, bold: true, color: charcoalDark
     });
@@ -2770,11 +2935,16 @@ class PPTXGenerator {
     const statusLower = ((task.status || task.project_status || "")).toLowerCase();
     const isProj = Boolean(task.is_project === true);
     const isCompletedProj = isProj && (statusLower.includes('complete') || catLower.includes('completed'));
+    const isCostSaving = Boolean(task.is_cost_saving || catLower.includes('cost') || catLower.includes('saving') || titleLower.includes('cost saving'));
 
     let badgeText = category.toUpperCase();
     let badgeFill = bluePrimary;
     let badgeW = 2.8;
-    if (isProj) {
+    if (isCostSaving) {
+      badgeText = "COST SAVING INITIATIVE";
+      badgeFill = "059669";
+      badgeW = 2.8;
+    } else if (isProj) {
       if (isCompletedProj) {
         badgeText = "STRATEGIC PROJECT • COMPLETED";
         badgeFill = "059669";
@@ -2798,7 +2968,7 @@ class PPTXGenerator {
     // Left accent bar for title
     slide.addShape(pptx.ShapeType.rect, {
       x: 0.8, y: 1.5, w: 0.06, h: 0.75,
-      fill: { color: bluePrimary }
+      fill: { color: isCostSaving ? "059669" : bluePrimary }
     });
 
     // Title & Subtitle
@@ -2811,48 +2981,53 @@ class PPTXGenerator {
       fontFace: font, fontSize: 9, color: textMuted
     });
 
-    // 3 Info Chips in a Row (y: 2.38, h: 0.58)
-    // Chip 1: Concern Engineer
+    // 2 Info Chips in a Row (Status removed - Concern Engineer | Category)
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: 0.8, y: 2.38, w: 2.0, h: 0.55,
+      x: 0.8, y: 2.38, w: 3.0, h: 0.55,
       fill: { color: cardBg }, line: { color: borderLight }, rectRadius: 0.08
     });
     slide.addText(`CONCERN ENGINEER\n${engineer}`, {
-      x: 0.85, y: 2.38, w: 1.9, h: 0.55,
+      x: 0.85, y: 2.38, w: 2.9, h: 0.55,
       fontFace: font, fontSize: 7.5, bold: true, color: charcoalDark, valign: "middle"
     });
 
-    // Chip 2: Category
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: 2.9, y: 2.38, w: 2.0, h: 0.55,
+      x: 4.0, y: 2.38, w: 3.0, h: 0.55,
       fill: { color: cardBg }, line: { color: borderLight }, rectRadius: 0.08
     });
     slide.addText(`CATEGORY\n${category}`, {
-      x: 2.95, y: 2.38, w: 1.9, h: 0.55,
+      x: 4.05, y: 2.38, w: 2.9, h: 0.55,
       fontFace: font, fontSize: 7.5, bold: true, color: charcoalDark, valign: "middle"
     });
 
-    // Chip 3: Status
-    slide.addShape(pptx.ShapeType.roundRect, {
-      x: 5.0, y: 2.38, w: 2.0, h: 0.55,
-      fill: { color: cardBg }, line: { color: borderLight }, rectRadius: 0.08
-    });
-    slide.addText("STATUS\nCompleted", {
-      x: 5.05, y: 2.38, w: 1.9, h: 0.55,
-      fontFace: font, fontSize: 7.5, bold: true, color: greenSuccess, valign: "middle"
-    });
+    // Cost Savings Highlight Box if applicable
+    let descY = 3.08;
+    let descH = 1.65;
+    if (isCostSaving && (task.cost_saving_highlight || task.savings || task.investment)) {
+      const savingVal = task.cost_saving_highlight || (task.savings ? `৳ ${task.savings}` : task.investment);
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: 0.8, y: 3.08, w: 6.2, h: 0.44,
+        fill: { color: "ECFDF5" }, line: { color: "10B981", width: 1.2 }, rectRadius: 0.06
+      });
+      slide.addText(`💰 COST SAVING IMPACT: ${savingVal}`, {
+        x: 1.0, y: 3.08, w: 5.8, h: 0.44,
+        fontFace: font, fontSize: 10, bold: true, color: "065F46", valign: "middle"
+      });
+      descY = 3.58;
+      descH = 1.15;
+    }
 
-    // Card 1: Project Description (y: 3.08, h: 1.65)
+    // Card 1: Project Description
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: 0.8, y: 3.08, w: 6.2, h: 1.65,
+      x: 0.8, y: descY, w: 6.2, h: descH,
       fill: { color: cardBg }, line: { color: borderLight }, rectRadius: 0.08
     });
     slide.addText("Project Description", {
-      x: 1.0, y: 3.18, w: 5.8, h: 0.3,
-      fontFace: font, fontSize: 11.5, bold: true, color: bluePrimary
+      x: 1.0, y: descY + 0.08, w: 5.8, h: 0.3,
+      fontFace: font, fontSize: 11.5, bold: true, color: isCostSaving ? "059669" : bluePrimary
     });
     slide.addText(desc, {
-      x: 1.0, y: 3.52, w: 5.8, h: 1.1,
+      x: 1.0, y: descY + 0.38, w: 5.8, h: descH - 0.42,
       fontFace: font, fontSize: 9.5, color: "334155", lineSpacing: 14
     });
 
@@ -2863,7 +3038,7 @@ class PPTXGenerator {
     });
     slide.addText("Key Impact", {
       x: 1.0, y: 4.98, w: 5.8, h: 0.3,
-      fontFace: font, fontSize: 11.5, bold: true, color: bluePrimary
+      fontFace: font, fontSize: 11.5, bold: true, color: isCostSaving ? "059669" : bluePrimary
     });
 
     // Impact Bullets (Expanded full card width - Mini KPI block removed per Requirement 5)
@@ -2951,14 +3126,14 @@ class PPTXGenerator {
         this._addEmptyPhotoFrame(slide, pptx, 7.2, 1.05, 5.3, 5.68);
       }
 
-      // Top Right Navy Badge
-      slide.addShape(pptx.ShapeType.rect, {
-        x: 9.7, y: 1.05, w: 2.8, h: 0.58,
-        fill: { color: navyPrimary }
+      // Top Right Photo Tag Badge
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: 7.35, y: 1.18, w: 3.4, h: 0.38,
+        fill: { color: isCostSaving ? "059669" : bluePrimary }, line: { color: isCostSaving ? "059669" : bluePrimary }, rectRadius: 0.05
       });
-      slide.addText("ENGINEERING SOLUTIONS\nFOR A BETTER TOMORROW", {
-        x: 9.7, y: 1.05, w: 2.8, h: 0.58,
-        fontFace: font, fontSize: 8, bold: true, color: "FFFFFF", align: "center", valign: "middle"
+      slide.addText("⚙ PROCESS DEVELOPMENT PHOTO", {
+        x: 7.37, y: 1.18, w: 3.36, h: 0.38,
+        fontFace: font, fontSize: 8.5, bold: true, color: "FFFFFF", align: "center", valign: "middle"
       });
 
       // Bottom Overlaid Bar
@@ -2977,9 +3152,9 @@ class PPTXGenerator {
       x: 0.8, y: 6.9, w: 11.7, h: 0,
       line: { color: borderLight, width: 1 }
     });
-    slide.addText("WALTON HI-TECH INDUSTRIES PLC.", {
-      x: 0.8, y: 6.98, w: 3.5, h: 0.35,
-      fontFace: font, fontSize: 8.5, bold: true, color: charcoalDark
+    slide.addText("⚙ PROCESS DEVELOPMENT (WAC)\nWALTON HI-TECH INDUSTRIES PLC.", {
+      x: 0.8, y: 6.95, w: 3.5, h: 0.42,
+      fontFace: font, fontSize: 7.5, bold: true, color: charcoalDark
     });
     slide.addText("💡 Continuous Improvement      👥 Stronger Together      🍃 Greener Tomorrow", {
       x: 4.2, y: 6.98, w: 5.0, h: 0.35,

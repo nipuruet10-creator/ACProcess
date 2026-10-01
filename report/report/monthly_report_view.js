@@ -1725,9 +1725,6 @@ const MonthlyReportView = {
             <button onclick="ExportController.exportPDF('${month}')" class="px-2 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-2xs cursor-pointer">
               <span>🖨️</span> <span>PDF</span>
             </button>
-            <button onclick="ExportController.exportHTML('${month}')" class="px-2 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-2xs cursor-pointer">
-              <span>🌐</span> <span>HTML</span>
-            </button>
           </div>
         </div>
 

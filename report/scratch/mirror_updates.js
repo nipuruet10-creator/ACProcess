@@ -20,6 +20,11 @@ const files = [
   'slides/slide_layout_engine.js',
   'export/pptx_generator.js',
   'export/html_generator.js',
+  'projects/projects_view.js',
+  'dashboard/cost_savings_view.js',
+  'export/export_controller.js',
+  'report/builder_view.js',
+  'management/mgmt_report_view.js',
   'tasks/month_workbook_manager.js',
   'tasks/sync_engine.js',
   'app.js'

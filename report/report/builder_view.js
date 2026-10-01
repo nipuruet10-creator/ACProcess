@@ -190,12 +190,8 @@ const ReportBuilderView = {
                 <span>🖨</span> <span>PDF</span>
               </button>
 
-              <button onclick="ReportBuilderView.exportHTML()" title="Standalone Interactive HTML" class="px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-600 border border-slate-200 transition flex items-center gap-1 shadow-sm">
-                <span>🌐</span> <span>HTML</span>
-              </button>
-
-              <button onclick="ReportBuilderView.generateMonthlyReport()" title="Generate all formats & record history" class="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-red-600 text-xs font-black text-white shadow-xl shadow-red-200/50 transition flex items-center gap-1.5">
-                🚀 Generate All
+              <button onclick="ReportBuilderView.generateMonthlyReport()" title="Generate PPT & PDF formats & record history" class="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-red-600 text-xs font-black text-white shadow-xl shadow-red-200/50 transition flex items-center gap-1.5">
+                🚀 Generate PPT + PDF
               </button>
             </div>
           </div>

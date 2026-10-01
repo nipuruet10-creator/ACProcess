@@ -1021,7 +1021,7 @@ const ManagementReportView = {
             <button onclick="ManagementReportView.closeModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition">&times;</button>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 my-6">
             <!-- 1. PPTX -->
             <div class="bg-white border border-slate-200 hover:border-red-300 rounded-2xl p-4 flex flex-col justify-between transition shadow-sm hover:shadow-md">
               <div>
@@ -1033,20 +1033,6 @@ const ManagementReportView = {
               </div>
               <button onclick="ManagementReportView.exportPPTX()" class="mt-4 w-full py-2 px-3 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-bold text-white shadow transition">
                 Download .pptx
-              </button>
-            </div>
-
-            <!-- 2. Standalone HTML -->
-            <div class="bg-white border border-slate-200 hover:border-sky-300 rounded-2xl p-4 flex flex-col justify-between transition shadow-sm hover:shadow-md">
-              <div>
-                <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center text-xl mb-2.5">
-                  🌐
-                </div>
-                <h4 class="text-sm font-black text-slate-800">Standalone HTML</h4>
-                <p class="text-xs text-slate-400 mt-1">Self-contained portable interactive deck.</p>
-              </div>
-              <button onclick="ManagementReportView.openStandaloneDeck()" class="mt-4 w-full py-2 px-3 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-sky-600 border border-slate-200 shadow-sm transition">
-                Download .html
               </button>
             </div>
 

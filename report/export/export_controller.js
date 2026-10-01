@@ -150,6 +150,18 @@ const ExportController = {
       }
     });
 
+    // Resolve full photos from photoManager across all active slides
+    activeSlides.forEach(s => {
+      if (typeof window !== 'undefined' && window.photoManager && window.photoManager.getTaskPhotos) {
+        const pmPhotos = window.photoManager.getTaskPhotos(s.task_id, selectedMonth);
+        if (pmPhotos) {
+          if (!s.photo_after && pmPhotos.after_photo) s.photo_after = pmPhotos.after_photo;
+          if (!s.photo_before && pmPhotos.before_photo) s.photo_before = pmPhotos.before_photo;
+          if (!s.photo) s.photo = pmPhotos.after_photo || pmPhotos.before_photo || pmPhotos.photo_1 || pmPhotos.photo_2;
+        }
+      }
+    });
+
     // 1. Resolve Top Works Data from TopWorksManager
     let topWorksData = null;
     if (typeof TopWorksManager !== 'undefined') {
@@ -479,122 +491,47 @@ const ExportController = {
             </div>
           </div>
 
-          <!-- Format Cards Grid (4 Formats) -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-3">
+          <!-- Format Cards Grid (Only PPT and PDF - Requirement 7) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 my-4">
             
             <!-- 1. PowerPoint (.pptx) -->
-            <div class="bg-white border border-slate-200 hover:border-red-300 rounded-2xl p-5 flex flex-col justify-between transition group shadow-sm hover:shadow-md">
+            <div class="bg-white border-2 border-red-200 hover:border-red-400 rounded-2xl p-6 flex flex-col justify-between transition group shadow-sm hover:shadow-md">
               <div>
                 <div class="w-12 h-12 rounded-xl bg-red-50 text-red-600 border border-red-200 flex items-center justify-center text-2xl mb-3 group-hover:scale-105 transition">
                   📊
                 </div>
-                <h3 class="text-sm font-black text-slate-800">PowerPoint (.pptx)</h3>
-                <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                  100% native editable OpenXML slides formatted with your selected design pattern.
+                <h3 class="text-base font-black text-slate-800">PowerPoint Presentation (.pptx)</h3>
+                <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  100% native editable OpenXML slides formatted with your selected design pattern. All photos embedded in full quality.
                 </p>
-                <div class="mt-3 flex items-center gap-1.5 text-[10px] font-mono text-emerald-600 font-bold">
-                  <span>✔</span> <span>Editable in MS PowerPoint</span>
+                <div class="mt-3 flex items-center gap-1.5 text-[11px] font-mono text-emerald-600 font-bold">
+                  <span>✔</span> <span>100% Editable in MS PowerPoint</span>
                 </div>
               </div>
-              <button id="btn-export-pptx" onclick="ExportController.handleDownloadPPTX('${selectedMonth}')" class="mt-5 w-full py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-black text-white shadow-lg shadow-red-200/40 transition flex items-center justify-center gap-2">
+              <button id="btn-export-pptx" onclick="ExportController.handleDownloadPPTX('${selectedMonth}')" class="mt-6 w-full py-3 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-black text-white shadow-lg shadow-red-200/50 transition flex items-center justify-center gap-2 cursor-pointer">
                 <span>Download .pptx</span>
               </button>
             </div>
 
-            <!-- 2. Standalone Presentation (.html) -->
-            <div class="bg-white border border-slate-200 hover:border-sky-300 rounded-2xl p-5 flex flex-col justify-between transition group shadow-sm hover:shadow-md">
-              <div>
-                <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center text-2xl mb-3 group-hover:scale-105 transition">
-                  🌐
-                </div>
-                <h3 class="text-sm font-black text-slate-800">Standalone HTML</h3>
-                <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                  Single portable offline presentation file. Fullscreen stage, keyboard navigation.
-                </p>
-                <div class="mt-3 flex items-center gap-1.5 text-[10px] font-mono text-sky-600 font-bold">
-                  <span>✔</span> <span>Works in any web browser</span>
-                </div>
-              </div>
-              <button id="btn-export-html" onclick="ExportController.handleDownloadHTML('${selectedMonth}')" class="mt-5 w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-50 text-xs font-black text-sky-600 border border-slate-200 transition flex items-center justify-center gap-2 shadow-sm">
-                <span>Download .html</span>
-              </button>
-            </div>
-
-            <!-- 3. Vector PDF (.pdf) -->
-            <div class="bg-white border border-slate-200 hover:border-amber-300 rounded-2xl p-5 flex flex-col justify-between transition group shadow-sm hover:shadow-md">
+            <!-- 2. Vector PDF (.pdf) -->
+            <div class="bg-white border-2 border-amber-200 hover:border-amber-400 rounded-2xl p-6 flex flex-col justify-between transition group shadow-sm hover:shadow-md">
               <div>
                 <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center text-2xl mb-3 group-hover:scale-105 transition">
                   📄
                 </div>
-                <h3 class="text-sm font-black text-slate-800">Vector PDF</h3>
-                <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                  High-resolution vector PDF export. Crisp 16:9 landscape layout for executive distribution.
+                <h3 class="text-base font-black text-slate-800">Vector PDF Document (.pdf)</h3>
+                <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  High-resolution vector PDF export. Crisp 16:9 widescreen layout optimized for executive meetings and printing.
                 </p>
-                <div class="mt-3 flex items-center gap-1.5 text-[10px] font-mono text-amber-600 font-bold">
-                  <span>✔</span> <span>Crisp vector format</span>
+                <div class="mt-3 flex items-center gap-1.5 text-[11px] font-mono text-amber-600 font-bold">
+                  <span>✔</span> <span>Crisp High-Res Vector Format</span>
                 </div>
               </div>
-              <button id="btn-export-pdf" onclick="ExportController.handleDownloadPDF('${selectedMonth}')" class="mt-5 w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-50 text-xs font-black text-amber-600 border border-slate-200 transition flex items-center justify-center gap-2 shadow-sm">
+              <button id="btn-export-pdf" onclick="ExportController.handleDownloadPDF('${selectedMonth}')" class="mt-6 w-full py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-black text-white shadow-lg shadow-amber-200/50 transition flex items-center justify-center gap-2 cursor-pointer">
                 <span>Download PDF</span>
               </button>
             </div>
 
-            <!-- 4. Online Report -->
-            <div class="bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 flex flex-col justify-between transition group shadow-sm hover:shadow-md">
-              <div>
-                <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center text-2xl mb-3 group-hover:scale-105 transition">
-                  ⚡
-                </div>
-                <div class="flex items-center gap-1.5">
-                  <h3 class="text-sm font-black text-slate-800">Online Report</h3>
-                  <span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-indigo-100 text-indigo-700 font-mono">LIVE WEB</span>
-                </div>
-                <p class="text-xs text-slate-400 mt-1.5 leading-relaxed">
-                  Interactive online report with slide navigation, fullscreen mode, and shareable URL.
-                </p>
-                <div class="mt-3 flex items-center gap-1.5 text-[10px] font-mono text-indigo-600 font-bold">
-                  <span>✔</span> <span>Zero install &bull; Shareable link</span>
-                </div>
-              </div>
-              <button onclick="ExportController.openOnlineReport('${selectedMonth}')" class="mt-5 w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-black text-white shadow-md shadow-indigo-200/40 transition flex items-center justify-center gap-2">
-                <span>Open Online Report ↗</span>
-              </button>
-            </div>
-
-          </div>
-
-          <!-- ONLINE REPORT READY BANNER -->
-          <div class="mt-1 mb-4 p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white border border-indigo-500/30 shadow-lg">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div class="flex items-center gap-2.5">
-                <span class="flex h-3 w-3 relative">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                </span>
-                <div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-black tracking-wider uppercase font-mono text-emerald-400">ONLINE REPORT READY</span>
-                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Shareable URL</span>
-                  </div>
-                  <div class="text-[11px] text-slate-300 mt-0.5">Direct interactive link matching your active design pattern:</div>
-                </div>
-              </div>
-              <div class="flex items-center gap-2 w-full sm:w-auto">
-                <button onclick="ExportController.openOnlineReport('${selectedMonth}', true)" class="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold transition flex items-center justify-center gap-1.5 backdrop-blur-sm" title="View interactive presentation directly">
-                  <span>⛶</span> <span>View Fullscreen</span>
-                </button>
-                <button onclick="ExportController.copyOnlineReportUrl('${selectedMonth}')" class="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold transition flex items-center justify-center gap-1.5 backdrop-blur-sm">
-                  <span>📋</span> <span>Copy Link</span>
-                </button>
-                <button onclick="ExportController.openOnlineReport('${selectedMonth}')" class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black shadow-md shadow-indigo-500/30 transition flex items-center justify-center gap-1.5">
-                  <span>Open Online Report ↗</span>
-                </button>
-              </div>
-            </div>
-            <div class="mt-3 flex items-center gap-2 bg-black/40 border border-indigo-500/20 rounded-xl px-3 py-2">
-              <span class="text-xs text-indigo-400 font-mono select-none">🔗</span>
-              <input id="online-report-url-input" type="text" readonly value="${this.getOnlineReportUrl(selectedMonth, this.selectedTemplate)}" class="bg-transparent text-xs font-mono text-slate-200 focus:outline-none w-full truncate cursor-pointer select-all" onclick="this.select()">
-            </div>
           </div>
 
           <!-- Bottom Master Action Bar -->
@@ -605,12 +542,12 @@ const ExportController = {
               <span>Format: <strong id="modal-active-format-label" class="text-slate-700">${this.selectedTemplate === 'industrial_innovation_blue' ? 'Industrial Blue (Pattern 2)' : 'Executive Crimson (Pattern 1)'}</strong></span>
             </div>
             <div class="flex items-center gap-3 w-full sm:w-auto">
-              <button onclick="ExportController.closeExportModal()" class="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold shadow-sm">
+              <button onclick="ExportController.closeExportModal()" class="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold shadow-sm cursor-pointer">
                 Close
               </button>
-              <button id="btn-export-all" onclick="ExportController.handleDownloadAll('${selectedMonth}')" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-600 text-white font-black shadow-xl shadow-red-200/50 transition flex items-center justify-center gap-2">
+              <button id="btn-export-all" onclick="ExportController.handleDownloadAll('${selectedMonth}')" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-500 hover:to-rose-600 text-white font-black shadow-xl shadow-red-200/50 transition flex items-center justify-center gap-2 cursor-pointer">
                 <span>🚀</span>
-                <span>Download All Formats</span>
+                <span>Download Both (PPT + PDF)</span>
               </button>
             </div>
           </div>
@@ -666,15 +603,14 @@ const ExportController = {
 
   async handleDownloadAll(selectedMonth) {
     const btn = document.getElementById('btn-export-all');
-    if (btn) btn.innerHTML = '<span>⌛</span> <span>Generating All Formats...</span>';
+    if (btn) btn.innerHTML = '<span>⌛</span> <span>Generating PPT & PDF...</span>';
     try {
       await this.exportPPTX(selectedMonth, this.selectedTemplate);
-      await this.exportHTML(selectedMonth, this.selectedTemplate);
       await this.exportPDF(selectedMonth, this.selectedTemplate);
-      if (btn) btn.innerHTML = '<span>✔</span> <span>All Formats Generated!</span>';
+      if (btn) btn.innerHTML = '<span>✔</span> <span>PPT & PDF Generated!</span>';
     } catch (e) {
-      alert("Bulk export failed: " + e.message);
-      if (btn) btn.innerHTML = '<span>🚀</span> <span>Download All Formats</span>';
+      alert("Export failed: " + e.message);
+      if (btn) btn.innerHTML = '<span>🚀</span> <span>Download Both (PPT + PDF)</span>';
     }
   },
 

@@ -83,15 +83,71 @@ class PhotoManager {
       console.warn("[Hostinger Photo Storage] Server photo sync notice:", e);
     }
 
-    // 5. Periodic background sync every 10 seconds for real-time cross-device photo updates
+    // 5. Auto-upload any local IndexedDB photos (e.g. Pear's photos) to server permanently
+    try {
+      await this.reconcileLocalPhotosToServer();
+    } catch (e) {
+      console.warn("[Hostinger Photo Storage] Local reconciliation notice:", e);
+    }
+
+    // 6. Periodic background sync every 10 seconds for real-time cross-device photo updates
     if (typeof window !== 'undefined' && !this._serverPollTimer) {
+      let pollCount = 0;
       this._serverPollTimer = setInterval(() => {
+        pollCount++;
         const m = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
         this.fetchPhotosFromServer(m);
+        // Every 30 seconds, auto-reconcile any pending local photos
+        if (pollCount % 3 === 0) {
+          this.reconcileLocalPhotosToServer();
+        }
       }, 10000);
     }
 
     this.isReady = true;
+  }
+
+  /**
+   * Helper: Resolves robust API URL avoiding 404s even if accessed without trailing slash
+   */
+  _getApiUrl(endpoint) {
+    if (!endpoint) return '';
+    if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) return endpoint;
+    const clean = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    if (typeof window !== 'undefined' && window.location) {
+      const p = window.location.pathname;
+      if (p.includes('/report')) {
+        const idx = p.indexOf('/report');
+        return window.location.origin + p.substring(0, idx) + '/report/' + clean;
+      }
+      const base = window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname + '/';
+      return window.location.origin + base + clean;
+    }
+    return 'https://acprocess.com/report/' + clean;
+  }
+
+  /**
+   * Auto-heals cross-PC photo sync: If any photo exists locally as Base64 data (e.g. uploaded on Pear's PC),
+   * pushes it automatically to Hostinger disk and server catalog so all other PCs receive it!
+   */
+  async reconcileLocalPhotosToServer() {
+    if (!this.photoMap) return;
+    const currentMonth = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
+    for (const [tId, pData] of Object.entries(this.photoMap)) {
+      if (!pData || tId.includes('_')) continue;
+      if (pData.after_photo && pData.after_photo.startsWith('data:image/')) {
+        console.log(`[Hostinger Photo Sync] Reconciling local photo for ${tId} (after_photo)...`);
+        try {
+          await this.uploadPhotoToServer(tId, 'after_photo', pData.after_photo, currentMonth);
+        } catch(e) {}
+      }
+      if (pData.before_photo && pData.before_photo.startsWith('data:image/')) {
+        console.log(`[Hostinger Photo Sync] Reconciling local photo for ${tId} (before_photo)...`);
+        try {
+          await this.uploadPhotoToServer(tId, 'before_photo', pData.before_photo, currentMonth);
+        } catch(e) {}
+      }
+    }
   }
 
   /**
@@ -100,7 +156,7 @@ class PhotoManager {
   async fetchPhotosFromServer(month = 'SEP-2026') {
     try {
       const q = month ? `?month=${encodeURIComponent(month)}` : '';
-      const resp = await fetch(`api/get_photos.php${q}`, { cache: 'no-store' });
+      const resp = await fetch(this._getApiUrl(`api/get_photos.php${q}`), { cache: 'no-store' });
       if (resp.ok) {
         const data = await resp.json();
         if (data && data.success && data.photos) {
@@ -203,7 +259,7 @@ class PhotoManager {
     if (!m) m = 'SEP-2026';
 
     try {
-      const resp = await fetch('api/save_photo.php', {
+      const resp = await fetch(this._getApiUrl('api/save_photo.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -801,7 +857,7 @@ class PhotoManager {
 
     // 7. Delete from Hostinger server permanent disk storage
     try {
-      fetch('api/delete_photo.php', {
+      fetch(this._getApiUrl('api/delete_photo.php'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

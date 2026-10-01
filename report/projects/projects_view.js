@@ -210,6 +210,220 @@ const ProjectsView = {
     }
   },
 
+  _stagedPhotos: {},
+
+  getProjectPhoto(taskId) {
+    if (this._stagedPhotos[taskId]) {
+      return this._stagedPhotos[taskId];
+    }
+    if (typeof photoManager !== 'undefined' && photoManager.getTaskPhotos) {
+      const p = photoManager.getTaskPhotos(taskId, this.selectedMonth);
+      if (p) {
+        const found = p.after_photo || p.photo_1 || p.photo_2 || p.before_photo;
+        if (found) return found;
+      }
+    }
+    const proj = this.getProject(taskId);
+    if (proj && (proj.photo_1 || proj.photo || proj.before_photo || proj.after_photo)) {
+      return proj.photo_1 || proj.photo || proj.before_photo || proj.after_photo;
+    }
+    return null;
+  },
+
+  async uploadPhotoFromBlob(blobOrFile, taskId) {
+    if (!blobOrFile || !taskId) return;
+    try {
+      let base64Url = "";
+      if (typeof blobOrFile === 'string') {
+        base64Url = blobOrFile;
+      } else if (typeof PhotoStorageProvider !== 'undefined' && PhotoStorageProvider.compressImageFile) {
+        base64Url = await PhotoStorageProvider.compressImageFile(blobOrFile);
+      } else {
+        base64Url = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => resolve("");
+          reader.readAsDataURL(blobOrFile);
+        });
+      }
+
+      if (!base64Url) return;
+
+      this._stagedPhotos[taskId] = base64Url;
+
+      if (typeof photoManager !== 'undefined') {
+        if (photoManager.setTaskPhoto) {
+          await photoManager.setTaskPhoto(taskId, 'before_photo', base64Url, null, this.selectedMonth);
+          await photoManager.setTaskPhoto(taskId, 'photo_1', base64Url, null, this.selectedMonth);
+        } else if (photoManager.savePhoto) {
+          await photoManager.savePhoto(taskId, 'before_photo', base64Url, this.selectedMonth);
+        }
+      }
+
+      this.renderModalPhotoSlot(taskId);
+
+      if (typeof window.showToast === 'function') {
+        window.showToast("📷 Project photo attached successfully!", "success");
+      }
+    } catch (err) {
+      console.error("Project photo upload error:", err);
+      if (typeof window.showToast === 'function') {
+        window.showToast("Failed to upload photo. Please try again.", "error");
+      }
+    }
+  },
+
+  handleModalPhotoDrop(event, taskId) {
+    if (!event || !event.dataTransfer) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const file = event.dataTransfer.files && event.dataTransfer.files[0];
+    if (file && (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name || ''))) {
+      this.uploadPhotoFromBlob(file, taskId);
+    }
+  },
+
+  async uploadModalPhoto(event, taskId) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    await this.uploadPhotoFromBlob(file, taskId);
+  },
+
+  async pasteFromClipboard(taskId) {
+    if (!taskId) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          for (const type of item.types) {
+            if (type.startsWith('image/')) {
+              const blob = await item.getType(type);
+              await this.uploadPhotoFromBlob(blob, taskId);
+              return;
+            }
+          }
+        }
+      }
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = (await navigator.clipboard.readText() || '').trim();
+        if (text.startsWith('data:image/') || /^https?:\/\/.*\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(text)) {
+          await this.uploadPhotoFromBlob(text, taskId);
+          return;
+        }
+      }
+      if (typeof window.showToast === 'function') {
+        window.showToast("No image in clipboard! Copy a photo first (Ctrl+C).", "warning");
+      }
+    } catch (err) {
+      if (typeof window.showToast === 'function') {
+        window.showToast("Press Ctrl+V on your keyboard to paste the photo.", "info");
+      }
+    }
+  },
+
+  async deleteModalPhoto(taskId) {
+    delete this._stagedPhotos[taskId];
+    if (typeof photoManager !== 'undefined' && photoManager.removePhoto) {
+      try {
+        await photoManager.removePhoto(taskId, 'before_photo', this.selectedMonth);
+        await photoManager.removePhoto(taskId, 'photo_1', this.selectedMonth);
+      } catch (e) {}
+    }
+    this.renderModalPhotoSlot(taskId);
+    if (typeof window.showToast === 'function') {
+      window.showToast("Project photo removed.", "info");
+    }
+  },
+
+  renderModalPhotoSlot(taskId) {
+    const container = document.getElementById('proj-photo-slot-container');
+    if (!container) return;
+    const photo = this.getProjectPhoto(taskId);
+
+    container.innerHTML = `
+      <div id="proj-slot-photo" class="bg-white border ${photo ? 'border-slate-200' : 'border-dashed border-sky-300 hover:border-sky-500 bg-sky-50/20'} rounded-2xl p-3 flex flex-col justify-between shadow-2xs transition group"
+           ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-sky-500');"
+           ondragleave="this.classList.remove('ring-2', 'ring-sky-500');"
+           ondrop="ProjectsView.handleModalPhotoDrop(event, '${taskId}')">
+        
+        <div class="relative w-full h-36 rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
+          ${photo ? `
+            <div class="relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
+              <img src="${photo}" alt="" class="absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
+              <img src="${photo}" class="relative z-10 max-w-full max-h-full object-contain drop-shadow-md" alt="Project Photo" />
+            </div>
+            <div class="absolute inset-0 z-20 bg-black/45 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
+              <button type="button" onclick="event.stopPropagation(); ProjectsView.pasteFromClipboard('${taskId}')" class="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-bold shadow transition cursor-pointer">
+                📋 Paste Ctrl+V
+              </button>
+              <label for="proj-photo-file-input" onclick="event.stopPropagation()" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-bold cursor-pointer shadow transition">
+                🔄 Replace
+              </label>
+              <button type="button" onclick="event.stopPropagation(); ProjectsView.deleteModalPhoto('${taskId}')" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold shadow transition cursor-pointer">
+                🗑 Delete
+              </button>
+            </div>
+          ` : `
+            <div class="cursor-pointer flex flex-col items-center justify-center p-3 text-center w-full h-full hover:bg-sky-50/40 transition"
+                 onclick="ProjectsView.pasteFromClipboard('${taskId}')">
+              <span class="text-3xl text-sky-500 mb-1 group-hover:scale-110 transition">📋</span>
+              <span class="text-xs font-bold text-slate-800">Paste Photo (Ctrl+V)</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Click to paste image from clipboard, or drag & drop</span>
+              <div class="mt-2 flex items-center gap-2" onclick="event.stopPropagation()">
+                <label for="proj-photo-file-input" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[10px] font-bold cursor-pointer shadow-xs transition">
+                  📁 Browse File
+                </label>
+              </div>
+            </div>
+          `}
+          <input type="file" id="proj-photo-file-input" accept="image/*" class="hidden" onchange="ProjectsView.uploadModalPhoto(event, '${taskId}')" />
+        </div>
+
+        <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
+          <span class="text-slate-400 font-mono">16:9 Project Presentation Frame</span>
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="event.stopPropagation(); ProjectsView.pasteFromClipboard('${taskId}')" 
+                    class="px-2 py-0.5 rounded bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold transition flex items-center gap-1 cursor-pointer">
+              <span>📋</span> <span>Paste (Ctrl+V)</span>
+            </button>
+            <label for="proj-photo-file-input" onclick="event.stopPropagation()" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition">
+              ${photo ? '🔄 Replace' : '📁 Upload'}
+            </label>
+            ${photo ? `
+              <button type="button" onclick="event.stopPropagation(); ProjectsView.deleteModalPhoto('${taskId}')" class="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition cursor-pointer">
+                🗑 Remove
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  previewPhoto(photoUrl, title) {
+    if (!photoUrl) return;
+    let prevModal = document.getElementById('project-photo-preview-modal');
+    if (!prevModal) {
+      prevModal = document.createElement('div');
+      prevModal.id = 'project-photo-preview-modal';
+      document.body.appendChild(prevModal);
+    }
+    prevModal.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md" onclick="document.getElementById('project-photo-preview-modal').innerHTML = ''">
+        <div class="relative max-w-4xl max-h-[90vh] bg-slate-900 border border-slate-700 rounded-3xl p-4 shadow-2xl flex flex-col items-center" onclick="event.stopPropagation()">
+          <div class="w-full flex items-center justify-between pb-3 border-b border-slate-800">
+            <h4 class="text-sm font-bold text-white truncate">${HELPERS.escapeHtml(title || 'Project Photo Preview')}</h4>
+            <button onclick="document.getElementById('project-photo-preview-modal').innerHTML = ''" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm flex items-center justify-center">&times;</button>
+          </div>
+          <div class="my-3 max-h-[75vh] overflow-hidden rounded-2xl flex items-center justify-center bg-black">
+            <img src="${photoUrl}" alt="Project Photo" class="max-h-[75vh] w-auto object-contain rounded-xl" />
+          </div>
+          <div class="text-[11px] text-slate-400 font-mono">Process Development Strategic Project Photo</div>
+        </div>
+      </div>
+    `;
+  },
+
   openNewProjectModal() {
     let modal = document.getElementById('project-entry-modal-container');
     if (!modal) {
@@ -218,16 +432,15 @@ const ProjectsView = {
       document.body.appendChild(modal);
     }
 
-    const supervisors = (typeof MasterDataManager !== 'undefined') ? MasterDataManager.getSupervisors() : [];
     const engineers = (typeof MasterDataManager !== 'undefined') ? MasterDataManager.getEngineers() : [];
-    const defaultSup = supervisors[0] ? supervisors[0].display : "Kamrul (44819)";
     const defaultEng = engineers[0] ? engineers[0].display : "Sazzad (50463)";
+    const tempTaskId = `PROJ-2026-${Date.now().toString().slice(-4)}`;
 
     modal.innerHTML = `
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-        <div class="relative w-full max-w-2xl bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-8 text-slate-800 flex flex-col font-sans">
+        <div class="relative w-full max-w-3xl bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-8 text-slate-800 flex flex-col font-sans max-h-[92vh] overflow-y-auto">
           
-          <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center text-xl shadow-sm">
                 🚀
@@ -241,19 +454,33 @@ const ProjectsView = {
           </div>
 
           <form id="project-entry-form" onsubmit="ProjectsView.saveProjectEntry(event)" class="mt-5 space-y-4 text-xs">
-            <input type="hidden" id="proj-edit-task-id" value="" />
+            <input type="hidden" id="proj-edit-task-id" value="${tempTaskId}" />
+            <input type="hidden" id="proj-is-new" value="true" />
+            
+            <!-- Project Name -->
             <div>
               <label class="block font-bold text-slate-700 mb-1">Project Name <span class="text-red-500">*</span></label>
               <input type="text" id="proj-name" required placeholder="e.g. CNC Turret Punch Machine Automation & Setup"
                      class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-sky-500 focus:bg-white shadow-sm" />
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Category, Project Status, Deadline -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label class="block font-bold text-slate-700 mb-1">Project Category / Type</label>
-                <select id="proj-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-sky-500">
+                <select id="proj-category" onchange="document.getElementById('proj-status').value = this.value === 'Completed Projects' ? 'Completed' : 'Ongoing'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-sky-500">
                   <option value="Ongoing Projects" selected>New / Ongoing Project (In Progress)</option>
                   <option value="Completed Projects">Completed Project</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Project Status <span class="text-red-500">*</span></label>
+                <select id="proj-status" onchange="document.getElementById('proj-category').value = this.value === 'Completed' ? 'Completed Projects' : 'Ongoing Projects'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-sky-500">
+                  <option value="Ongoing" selected>⏳ Ongoing</option>
+                  <option value="Completed">✅ Completed</option>
+                  <option value="Under Trial">🔬 Under Trial</option>
+                  <option value="Planning">📝 Planning</option>
                 </select>
               </div>
 
@@ -264,6 +491,28 @@ const ProjectsView = {
               </div>
             </div>
 
+            <!-- Concern Engineer -->
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Assignee / Concern Engineer <span class="text-red-500">*</span></label>
+              <select id="proj-assignee" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-sky-500">
+                ${engineers.map(e => `<option value="${e.display}" ${e.display === defaultEng ? 'selected' : ''}>${e.display}</option>`).join('')}
+              </select>
+            </div>
+
+            <!-- Photo Upload Dropzone (Same as Monthly Tasks) -->
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Project Photo (Drag &amp; Drop, Browse or Paste Ctrl+V)</label>
+              <div id="proj-photo-slot-container"></div>
+            </div>
+
+            <!-- Project Overview / Description Box -->
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Project Overview / Description <span class="text-red-500">*</span></label>
+              <textarea id="proj-overview" rows="3" required placeholder="Provide an executive overview of the automation project, engineering objectives, methodology, and scope..."
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-sky-500 resize-none shadow-xs"></textarea>
+            </div>
+
+            <!-- Milestone Details / Action Steps -->
             <div>
               <div class="flex items-center justify-between mb-1">
                 <label class="block font-bold text-slate-700">Milestone Details / Action Steps</label>
@@ -273,38 +522,6 @@ const ProjectsView = {
               </div>
               <textarea id="proj-details" rows="3" placeholder="1. Technical study & punch matrix 2. Fabrication trial 3. Safety inspection..."
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 focus:outline-none focus:border-sky-500 resize-none"></textarea>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label class="block font-bold text-slate-700 mb-1">Supervisor</label>
-                <select id="proj-supervisor" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-sky-500">
-                  ${supervisors.map(s => `<option value="${s.display}" ${s.display === defaultSup ? 'selected' : ''}>${s.display}</option>`).join('')}
-                </select>
-              </div>
-
-              <div>
-                <label class="block font-bold text-slate-700 mb-1">Assignee</label>
-                <select id="proj-assignee" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-sky-500">
-                  ${engineers.map(e => `<option value="${e.display}" ${e.display === defaultEng ? 'selected' : ''}>${e.display}</option>`).join('')}
-                </select>
-              </div>
-
-              <div>
-                <div class="flex items-center justify-between mb-1">
-                  <label class="block font-bold text-slate-700">Task Point</label>
-                  ${(typeof MonthlyInputView !== 'undefined' && !MonthlyInputView.isHodPointUnlocked()) ? '<span class="text-[9px] font-mono text-amber-600 font-bold">🔒 HOD Locked</span>' : ''}
-                </div>
-                ${(typeof MonthlyInputView !== 'undefined' && !MonthlyInputView.isHodPointUnlocked()) ? `
-                  <input type="number" id="proj-points" placeholder="—" readonly
-                         onclick="MonthlyInputView.openHodPointUnlockModal()"
-                         title="Point entry is restricted to HOD (ID: 44819). Click to unlock."
-                         class="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-500 font-mono font-bold cursor-pointer" />
-                ` : `
-                  <input type="number" id="proj-points" placeholder="—" step="5" min="0" max="200"
-                         class="w-full bg-white border border-emerald-400 hover:border-emerald-600 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono font-bold focus:outline-none" />
-                `}
-              </div>
             </div>
 
             <div class="flex items-center justify-between pt-4 border-t border-slate-100">
@@ -321,6 +538,8 @@ const ProjectsView = {
         </div>
       </div>
     `;
+
+    setTimeout(() => this.renderModalPhotoSlot(tempTaskId), 10);
   },
 
   openEditProjectModal(taskId) {
@@ -337,18 +556,16 @@ const ProjectsView = {
       document.body.appendChild(modal);
     }
 
-    const supervisors = (typeof MasterDataManager !== 'undefined') ? MasterDataManager.getSupervisors() : [];
     const engineers = (typeof MasterDataManager !== 'undefined') ? MasterDataManager.getEngineers() : [];
     const isCompleted = (task.status === 'Completed' || task.category === 'Completed Projects' || task.project_status === 'Completed');
-
-    const currentSup = task.supervisor || (supervisors[0] ? supervisors[0].display : "Kamrul (44819)");
     const currentEng = task.assignee || task.engineer || (engineers[0] ? engineers[0].display : "Sazzad (50463)");
+    const currentStatus = task.project_status || (isCompleted ? 'Completed' : 'Ongoing');
 
     modal.innerHTML = `
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-        <div class="relative w-full max-w-2xl bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-8 text-slate-800 flex flex-col font-sans">
+        <div class="relative w-full max-w-3xl bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-8 text-slate-800 flex flex-col font-sans max-h-[92vh] overflow-y-auto">
           
-          <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center text-xl shadow-sm">
                 ✏️
@@ -363,19 +580,32 @@ const ProjectsView = {
 
           <form id="project-entry-form" onsubmit="ProjectsView.saveProjectEntry(event)" class="mt-5 space-y-4 text-xs">
             <input type="hidden" id="proj-edit-task-id" value="${task.task_id}" />
+            <input type="hidden" id="proj-is-new" value="false" />
 
+            <!-- Project Name -->
             <div>
               <label class="block font-bold text-slate-700 mb-1">Project Name <span class="text-red-500">*</span></label>
               <input type="text" id="proj-name" required value="${HELPERS.escapeHtml(task.task_name || '')}" placeholder="e.g. CNC Turret Punch Machine Automation & Setup"
                      class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-amber-500 focus:bg-white shadow-sm" />
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Category, Project Status, Deadline -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label class="block font-bold text-slate-700 mb-1">Project Category / Type</label>
-                <select id="proj-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-amber-500">
+                <select id="proj-category" onchange="document.getElementById('proj-status').value = this.value === 'Completed Projects' ? 'Completed' : 'Ongoing'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-amber-500">
                   <option value="Ongoing Projects" ${!isCompleted ? 'selected' : ''}>New / Ongoing Project (In Progress)</option>
                   <option value="Completed Projects" ${isCompleted ? 'selected' : ''}>Completed Project</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Project Status <span class="text-red-500">*</span></label>
+                <select id="proj-status" onchange="document.getElementById('proj-category').value = this.value === 'Completed' ? 'Completed Projects' : 'Ongoing Projects'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-amber-500">
+                  <option value="Ongoing" ${currentStatus === 'Ongoing' ? 'selected' : ''}>⏳ Ongoing</option>
+                  <option value="Completed" ${currentStatus === 'Completed' ? 'selected' : ''}>✅ Completed</option>
+                  <option value="Under Trial" ${currentStatus === 'Under Trial' ? 'selected' : ''}>🔬 Under Trial</option>
+                  <option value="Planning" ${currentStatus === 'Planning' ? 'selected' : ''}>📝 Planning</option>
                 </select>
               </div>
 
@@ -386,6 +616,28 @@ const ProjectsView = {
               </div>
             </div>
 
+            <!-- Concern Engineer -->
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Assignee / Concern Engineer <span class="text-red-500">*</span></label>
+              <select id="proj-assignee" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-amber-500">
+                ${engineers.map(e => `<option value="${e.display}" ${e.display === currentEng || e.name === currentEng ? 'selected' : ''}>${e.display}</option>`).join('')}
+              </select>
+            </div>
+
+            <!-- Photo Upload Dropzone (Same as Monthly Tasks) -->
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Project Photo (Drag &amp; Drop, Browse or Paste Ctrl+V)</label>
+              <div id="proj-photo-slot-container"></div>
+            </div>
+
+            <!-- Project Overview / Description Box -->
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Project Overview / Description <span class="text-red-500">*</span></label>
+              <textarea id="proj-overview" rows="3" required placeholder="Provide an executive overview of the automation project, engineering objectives, methodology, and scope..."
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-amber-500 resize-none shadow-xs">${HELPERS.escapeHtml(task.overview || task.description || '')}</textarea>
+            </div>
+
+            <!-- Milestone Details / Action Steps -->
             <div>
               <div class="flex items-center justify-between mb-1">
                 <label class="block font-bold text-slate-700">Milestone Details / Action Steps</label>
@@ -395,38 +647,6 @@ const ProjectsView = {
               </div>
               <textarea id="proj-details" rows="3" placeholder="1. Technical study & punch matrix 2. Fabrication trial 3. Safety inspection..."
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 focus:outline-none focus:border-amber-500 resize-none">${HELPERS.escapeHtml(task.task_details || '')}</textarea>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label class="block font-bold text-slate-700 mb-1">Supervisor</label>
-                <select id="proj-supervisor" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-amber-500">
-                  ${supervisors.map(s => `<option value="${s.display}" ${s.display === currentSup || s.name === currentSup ? 'selected' : ''}>${s.display}</option>`).join('')}
-                </select>
-              </div>
-
-              <div>
-                <label class="block font-bold text-slate-700 mb-1">Assignee</label>
-                <select id="proj-assignee" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-amber-500">
-                  ${engineers.map(e => `<option value="${e.display}" ${e.display === currentEng || e.name === currentEng ? 'selected' : ''}>${e.display}</option>`).join('')}
-                </select>
-              </div>
-
-              <div>
-                <div class="flex items-center justify-between mb-1">
-                  <label class="block font-bold text-slate-700">Task Point</label>
-                  ${(typeof MonthlyInputView !== 'undefined' && !MonthlyInputView.isHodPointUnlocked()) ? '<span class="text-[9px] font-mono text-amber-600 font-bold">🔒 HOD Locked</span>' : ''}
-                </div>
-                ${(typeof MonthlyInputView !== 'undefined' && !MonthlyInputView.isHodPointUnlocked()) ? `
-                  <input type="number" id="proj-points" value="${(task.points !== undefined && task.points !== null) ? task.points : ''}" placeholder="—" readonly
-                         onclick="MonthlyInputView.openHodPointUnlockModal()"
-                         title="Point entry is restricted to HOD (ID: 44819). Click to unlock."
-                         class="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-500 font-mono font-bold cursor-pointer" />
-                ` : `
-                  <input type="number" id="proj-points" value="${(task.points !== undefined && task.points !== null) ? task.points : ''}" placeholder="—" step="5" min="0" max="200"
-                         class="w-full bg-white border border-emerald-400 hover:border-emerald-600 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono font-bold focus:outline-none" />
-                `}
-              </div>
             </div>
 
             <div class="flex items-center justify-between pt-4 border-t border-slate-100">
@@ -443,6 +663,8 @@ const ProjectsView = {
         </div>
       </div>
     `;
+
+    setTimeout(() => this.renderModalPhotoSlot(task.task_id), 10);
   },
 
   closeModal() {
@@ -456,52 +678,60 @@ const ProjectsView = {
     if (!name) return;
 
     const editTaskIdElem = document.getElementById('proj-edit-task-id');
-    const editTaskId = editTaskIdElem ? editTaskIdElem.value.trim() : '';
+    const isNewElem = document.getElementById('proj-is-new');
+    const isNew = isNewElem ? (isNewElem.value === 'true') : false;
+    const targetTaskId = editTaskIdElem ? editTaskIdElem.value.trim() : `PROJ-2026-${Date.now().toString().slice(-4)}`;
 
     const category = document.getElementById('proj-category').value;
+    const projectStatus = document.getElementById('proj-status').value;
     const deadline = document.getElementById('proj-deadline').value.trim();
-    const details = document.getElementById('proj-details').value.trim();
-    const supervisor = document.getElementById('proj-supervisor').value;
     const assignee = document.getElementById('proj-assignee').value;
-    const pointsInput = document.getElementById('proj-points');
-    const points = pointsInput ? pointsInput.value : '';
+    const overview = document.getElementById('proj-overview').value.trim();
+    const details = document.getElementById('proj-details').value.trim();
 
-    const isCompleted = (category === 'Completed Projects');
-    const parsedPts = (points !== "" && points !== undefined && points !== null && !isNaN(parseFloat(points))) ? parseFloat(points) : "";
+    const isCompleted = (projectStatus === 'Completed' || category === 'Completed Projects');
+    const photoUrl = this.getProjectPhoto(targetTaskId) || "";
 
     const list = this.getProjects();
 
-    if (editTaskId) {
+    if (!isNew) {
       // UPDATE EXISTING PROJECT IN PERMANENT STORE
-      const existing = list.find(p => p.task_id === editTaskId);
+      const existing = list.find(p => p.task_id === targetTaskId);
       if (existing) {
         existing.task_name = name;
         existing.category = category;
+        existing.status = isCompleted ? "Completed" : projectStatus;
+        existing.project_status = projectStatus;
         existing.deadline = deadline;
+        existing.overview = overview;
+        existing.description = overview;
         existing.task_details = details;
-        existing.supervisor = supervisor;
         existing.assignee = assignee;
         existing.engineer = assignee;
-        existing.points = parsedPts;
-        existing.status = isCompleted ? "Completed" : "Ongoing";
-        existing.project_status = existing.status;
+        if (photoUrl) {
+          existing.photo_1 = photoUrl;
+          existing.photo = photoUrl;
+          existing.before_photo = photoUrl;
+        }
         existing.last_updated = new Date().toISOString();
       }
       this.saveProjects(list);
 
       // Sync into workbook
       if (window.appState && window.appState.workbookMgr) {
-        window.appState.workbookMgr.updateTask(this.selectedMonth, editTaskId, {
+        window.appState.workbookMgr.updateTask(this.selectedMonth, targetTaskId, {
           task_name: name,
           category: category,
           deadline: deadline,
+          overview: overview,
+          description: overview,
           task_details: details,
-          supervisor: supervisor,
           assignee: assignee,
           engineer: assignee,
-          points: parsedPts,
-          status: isCompleted ? "Completed" : "Ongoing",
-          project_status: isCompleted ? "Completed" : "Ongoing",
+          status: isCompleted ? "Completed" : projectStatus,
+          project_status: projectStatus,
+          photo_1: photoUrl,
+          before_photo: photoUrl,
           is_project: true,
           last_updated: new Date().toISOString()
         });
@@ -513,19 +743,21 @@ const ProjectsView = {
       }
     } else {
       // ADD NEW STRATEGIC PROJECT IN PERMANENT STORE
-      const newId = `PROJ-2026-${Date.now().toString().slice(-4)}`;
       const newProj = {
-        task_id: newId,
+        task_id: targetTaskId,
         task_name: name,
         category: category,
-        status: isCompleted ? "Completed" : "Ongoing",
-        project_status: isCompleted ? "Completed" : "Ongoing",
+        status: isCompleted ? "Completed" : projectStatus,
+        project_status: projectStatus,
         deadline: deadline,
+        overview: overview,
+        description: overview,
         task_details: details,
-        supervisor: supervisor,
         assignee: assignee,
         engineer: assignee,
-        points: parsedPts,
+        photo_1: photoUrl,
+        photo: photoUrl,
+        before_photo: photoUrl,
         is_project: true,
         created_at: new Date().toISOString(),
         last_updated: new Date().toISOString()
@@ -540,15 +772,20 @@ const ProjectsView = {
           assignee,
           name,
           "YES",
-          details,
+          details || overview,
           category,
-          parsedPts,
-          supervisor,
+          "",
+          "",
           {
-            task_id: newId,
+            task_id: targetTaskId,
             is_project: true,
-            project_status: isCompleted ? "Completed" : "Ongoing",
+            project_status: projectStatus,
+            status: isCompleted ? "Completed" : projectStatus,
             deadline: deadline,
+            overview: overview,
+            description: overview,
+            photo_1: photoUrl,
+            before_photo: photoUrl,
             last_updated: new Date().toISOString()
           }
         );
@@ -556,7 +793,7 @@ const ProjectsView = {
 
       this.closeModal();
       if (typeof window.showToast === 'function') {
-        window.showToast(`🚀 Added strategic project: ${name} (Permanently preserved)`, "success");
+        window.showToast(`🚀 Added strategic project: ${name}`, "success");
       }
     }
 
@@ -577,13 +814,9 @@ const ProjectsView = {
 
     const month = this.selectedMonth;
     const months = workbookMgr.getAllMonths();
-    const allTasks = workbookMgr.getTasksForMonth(month);
 
     // Load permanently preserved strategic projects
     const projectTasks = this.getProjects();
-
-    // Strategic projects remain in dedicated Projects view and are never injected into the monthly workbook on render
-
 
     const ongoingProjects = projectTasks.filter(t => {
       const status = (t.status || t.project_status || '').toLowerCase();
@@ -598,6 +831,19 @@ const ProjectsView = {
     });
 
     const prevMonth = workbookMgr.getPreviousMonth(month);
+
+    const renderStatusBadge = (p) => {
+      const st = p.project_status || p.status || 'Ongoing';
+      if (st === 'Completed') {
+        return `<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>✅</span> <span>Completed</span></span>`;
+      } else if (st === 'Under Trial') {
+        return `<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>🔬</span> <span>Under Trial</span></span>`;
+      } else if (st === 'Planning') {
+        return `<span class="px-2.5 py-1 rounded-full bg-purple-100 text-purple-900 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>📝</span> <span>Planning</span></span>`;
+      } else {
+        return `<span class="px-2.5 py-1 rounded-full bg-sky-100 text-sky-800 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>⏳</span> <span>Ongoing</span></span>`;
+      }
+    };
 
     container.innerHTML = `
       <div class="space-y-6 font-sans">
@@ -630,7 +876,7 @@ const ProjectsView = {
                 </button>
               ` : ''}
 
-              <button onclick="ProjectsView.openNewProjectModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-500 hover:to-blue-600 text-white font-black text-xs shadow-md shadow-sky-200/50 transition flex items-center gap-1.5">
+              <button onclick="ProjectsView.openNewProjectModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-500 hover:to-blue-600 text-white font-black text-xs shadow-md shadow-sky-200/50 transition flex items-center gap-1.5 cursor-pointer">
                 <span>\u2795</span> <span>New Project Task</span>
               </button>
             </div>
@@ -728,47 +974,56 @@ const ProjectsView = {
                   <thead class="bg-sky-50 text-slate-800 font-bold border-b border-slate-200">
                     <tr>
                       <th class="py-3 px-3 w-12 text-center border-r border-slate-200">SL</th>
-                      <th class="py-3 px-4 border-r border-slate-200 w-64">Project Name</th>
-                      <th class="py-3 px-4 border-r border-slate-200">Milestone Details</th>
-                      <th class="py-3 px-3 border-r border-slate-200 w-36">Timeline / Target</th>
-                      <th class="py-3 px-3 border-r border-slate-200 w-36">Supervisor</th>
+                      <th class="py-3 px-3 w-20 text-center border-r border-slate-200">Photo</th>
+                      <th class="py-3 px-4 border-r border-slate-200 w-60">Project Name</th>
+                      <th class="py-3 px-4 border-r border-slate-200">Project Overview &amp; Milestones</th>
+                      <th class="py-3 px-3 border-r border-slate-200 w-36">Timeline</th>
                       <th class="py-3 px-3 border-r border-slate-200 w-36">Assignee</th>
-                      <th class="py-3 px-3 text-center border-r border-slate-200 w-20">Pts</th>
-                      <th class="py-3 px-3 text-center border-r border-slate-200 w-28">Status</th>
+                      <th class="py-3 px-3 text-center border-r border-slate-200 w-32">Project Status</th>
                       <th class="py-3 px-3 text-center w-24">Actions</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-100 bg-white">
-                    ${ongoingProjects.map((p, idx) => `
-                      <tr class="hover:bg-slate-50/80 transition">
-                        <td class="py-3 px-3 text-center font-mono font-bold text-slate-500 border-r border-slate-100">${idx + 1}</td>
-                        <td class="py-3 px-4 font-black text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.task_name)}</td>
-                        <td class="py-3 px-4 text-slate-600 border-r border-slate-100">${HELPERS.escapeHtml(p.task_details || '\u2014')}</td>
-                        <td class="py-3 px-3 font-mono text-slate-600 border-r border-slate-100">${HELPERS.escapeHtml(p.deadline || '4-5 Months')}</td>
-                        <td class="py-3 px-3 font-medium text-slate-700 border-r border-slate-100">${HELPERS.escapeHtml(p.supervisor || 'Kamrul (44819)')}</td>
-                        <td class="py-3 px-3 font-bold text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.assignee || p.engineer || '\u2014')}</td>
-                        <td class="py-3 px-3 text-center font-mono font-black text-sky-700 border-r border-slate-100">${(p.points !== "" && p.points !== undefined && p.points !== null) ? p.points : '\u2014'}</td>
-                        <td class="py-3 px-3 text-center border-r border-slate-100">
-                          <button onclick="ProjectsView.toggleProjectStatus('${p.task_id}')" title="Click to mark as Completed"
-                                  class="px-2.5 py-1 rounded-full bg-sky-100 hover:bg-emerald-100 text-sky-800 hover:text-emerald-800 font-bold text-[11px] transition inline-flex items-center gap-1">
-                            <span>\u23F3</span> <span>Ongoing</span>
-                          </button>
-                        </td>
-                        <td class="py-3 px-3 text-center">
-                          <div class="flex items-center justify-center gap-1.5">
-                            <button onclick="ProjectsView.openEditProjectModal('${p.task_id}')" title="Edit Project Details" class="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition">
-                              ✏️
-                            </button>
-                            <button onclick="ProjectsView.toggleProjectStatus('${p.task_id}')" title="Mark Completed" class="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 transition">
-                              ✅
-                            </button>
-                            <button onclick="ProjectsView.deleteProject('${p.task_id}')" title="Delete Project" class="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition">
-                              🗑️
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    `).join('')}
+                    ${ongoingProjects.map((p, idx) => {
+                      const photoUrl = this.getProjectPhoto(p.task_id);
+                      const desc = p.overview || p.description || p.task_details || '\u2014';
+                      return `
+                        <tr class="hover:bg-slate-50/80 transition">
+                          <td class="py-3 px-3 text-center font-mono font-bold text-slate-500 border-r border-slate-100">${idx + 1}</td>
+                          <td class="py-3 px-2 text-center border-r border-slate-100">
+                            ${photoUrl ? `
+                              <img src="${photoUrl}" alt="Photo" class="w-14 h-9 object-cover rounded-lg border border-slate-200 shadow-2xs mx-auto cursor-pointer hover:scale-105 transition" onclick="ProjectsView.previewPhoto('${photoUrl}', '${HELPERS.escapeHtml(p.task_name)}')" />
+                            ` : `
+                              <div class="w-14 h-9 rounded-lg bg-slate-100 border border-dashed border-slate-200 flex items-center justify-center text-[10px] text-slate-400 mx-auto">
+                                📷 No Img
+                              </div>
+                            `}
+                          </td>
+                          <td class="py-3 px-4 font-black text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.task_name)}</td>
+                          <td class="py-3 px-4 text-slate-600 border-r border-slate-100">
+                            <div class="line-clamp-2">${HELPERS.escapeHtml(desc)}</div>
+                          </td>
+                          <td class="py-3 px-3 font-mono text-slate-600 border-r border-slate-100">${HELPERS.escapeHtml(p.deadline || '4-5 Months')}</td>
+                          <td class="py-3 px-3 font-bold text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.assignee || p.engineer || '\u2014')}</td>
+                          <td class="py-3 px-3 text-center border-r border-slate-100">
+                            ${renderStatusBadge(p)}
+                          </td>
+                          <td class="py-3 px-3 text-center">
+                            <div class="flex items-center justify-center gap-1.5">
+                              <button onclick="ProjectsView.openEditProjectModal('${p.task_id}')" title="Edit Project Details" class="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition">
+                                ✏️
+                              </button>
+                              <button onclick="ProjectsView.toggleProjectStatus('${p.task_id}')" title="Mark Completed" class="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600 transition">
+                                ✅
+                              </button>
+                              <button onclick="ProjectsView.deleteProject('${p.task_id}')" title="Delete Project" class="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition">
+                                🗑️
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
                   </tbody>
                 </table>
               </div>
@@ -793,7 +1048,7 @@ const ProjectsView = {
 
             ${completedProjects.length === 0 ? `
               <div class="py-12 text-center text-slate-400 font-mono text-xs border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-                No completed projects recorded for ${month}. When an ongoing project finishes, click "Ongoing" to mark it completed.
+                No completed projects recorded for ${month}. When an ongoing project finishes, change its status to Completed.
               </div>
             ` : `
               <div class="overflow-x-auto rounded-2xl border border-slate-200">
@@ -801,45 +1056,56 @@ const ProjectsView = {
                   <thead class="bg-emerald-50 text-slate-800 font-bold border-b border-slate-200">
                     <tr>
                       <th class="py-3 px-3 w-12 text-center border-r border-slate-200">SL</th>
-                      <th class="py-3 px-4 border-r border-slate-200 w-64">Project Name</th>
-                      <th class="py-3 px-4 border-r border-slate-200">Milestone Summary</th>
-                      <th class="py-3 px-3 border-r border-slate-200 w-36">Supervisor</th>
+                      <th class="py-3 px-3 w-20 text-center border-r border-slate-200">Photo</th>
+                      <th class="py-3 px-4 border-r border-slate-200 w-60">Project Name</th>
+                      <th class="py-3 px-4 border-r border-slate-200">Project Overview &amp; Outcomes</th>
+                      <th class="py-3 px-3 border-r border-slate-200 w-36">Timeline</th>
                       <th class="py-3 px-3 border-r border-slate-200 w-36">Assignee</th>
-                      <th class="py-3 px-3 text-center border-r border-slate-200 w-20">Pts</th>
-                      <th class="py-3 px-3 text-center border-r border-slate-200 w-28">Status</th>
+                      <th class="py-3 px-3 text-center border-r border-slate-200 w-32">Project Status</th>
                       <th class="py-3 px-3 text-center w-24">Actions</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-100 bg-white">
-                    ${completedProjects.map((p, idx) => `
-                      <tr class="hover:bg-slate-50/80 transition">
-                        <td class="py-3 px-3 text-center font-mono font-bold text-slate-500 border-r border-slate-100">${idx + 1}</td>
-                        <td class="py-3 px-4 font-black text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.task_name)}</td>
-                        <td class="py-3 px-4 text-slate-600 border-r border-slate-100">${HELPERS.escapeHtml(p.task_details || '\u2014')}</td>
-                        <td class="py-3 px-3 font-medium text-slate-700 border-r border-slate-100">${HELPERS.escapeHtml(p.supervisor || 'Kamrul (44819)')}</td>
-                        <td class="py-3 px-3 font-bold text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.assignee || p.engineer || '\u2014')}</td>
-                        <td class="py-3 px-3 text-center font-mono font-black text-emerald-700 border-r border-slate-100">${(p.points !== "" && p.points !== undefined && p.points !== null) ? p.points : '\u2014'}</td>
-                        <td class="py-3 px-3 text-center border-r border-slate-100">
-                          <button onclick="ProjectsView.toggleProjectStatus('${p.task_id}')" title="Click to reopen as Ongoing"
-                                  class="px-2.5 py-1 rounded-full bg-emerald-100 hover:bg-sky-100 text-emerald-800 hover:text-sky-800 font-bold text-[11px] transition inline-flex items-center gap-1">
-                            <span>\u2705</span> <span>Completed</span>
-                          </button>
-                        </td>
-                        <td class="py-3 px-3 text-center">
-                          <div class="flex items-center justify-center gap-1.5">
-                            <button onclick="ProjectsView.openEditProjectModal('${p.task_id}')" title="Edit Project Details" class="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition">
-                              ✏️
-                            </button>
-                            <button onclick="ProjectsView.toggleProjectStatus('${p.task_id}')" title="Reopen as Ongoing" class="p-1.5 rounded-lg hover:bg-sky-50 text-sky-600 transition">
-                              🔄
-                            </button>
-                            <button onclick="ProjectsView.deleteProject('${p.task_id}')" title="Delete Project" class="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition">
-                              🗑️
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    `).join('')}
+                    ${completedProjects.map((p, idx) => {
+                      const photoUrl = this.getProjectPhoto(p.task_id);
+                      const desc = p.overview || p.description || p.task_details || '\u2014';
+                      return `
+                        <tr class="hover:bg-slate-50/80 transition">
+                          <td class="py-3 px-3 text-center font-mono font-bold text-slate-500 border-r border-slate-100">${idx + 1}</td>
+                          <td class="py-3 px-2 text-center border-r border-slate-100">
+                            ${photoUrl ? `
+                              <img src="${photoUrl}" alt="Photo" class="w-14 h-9 object-cover rounded-lg border border-slate-200 shadow-2xs mx-auto cursor-pointer hover:scale-105 transition" onclick="ProjectsView.previewPhoto('${photoUrl}', '${HELPERS.escapeHtml(p.task_name)}')" />
+                            ` : `
+                              <div class="w-14 h-9 rounded-lg bg-slate-100 border border-dashed border-slate-200 flex items-center justify-center text-[10px] text-slate-400 mx-auto">
+                                📷 No Img
+                              </div>
+                            `}
+                          </td>
+                          <td class="py-3 px-4 font-black text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.task_name)}</td>
+                          <td class="py-3 px-4 text-slate-600 border-r border-slate-100">
+                            <div class="line-clamp-2">${HELPERS.escapeHtml(desc)}</div>
+                          </td>
+                          <td class="py-3 px-3 font-mono text-slate-600 border-r border-slate-100">${HELPERS.escapeHtml(p.deadline || 'Completed')}</td>
+                          <td class="py-3 px-3 font-bold text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.assignee || p.engineer || '\u2014')}</td>
+                          <td class="py-3 px-3 text-center border-r border-slate-100">
+                            ${renderStatusBadge(p)}
+                          </td>
+                          <td class="py-3 px-3 text-center">
+                            <div class="flex items-center justify-center gap-1.5">
+                              <button onclick="ProjectsView.openEditProjectModal('${p.task_id}')" title="Edit Project Details" class="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition">
+                                ✏️
+                              </button>
+                              <button onclick="ProjectsView.toggleProjectStatus('${p.task_id}')" title="Reopen as Ongoing" class="p-1.5 rounded-lg hover:bg-sky-50 text-sky-600 transition">
+                                🔄
+                              </button>
+                              <button onclick="ProjectsView.deleteProject('${p.task_id}')" title="Delete Project" class="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition">
+                                🗑️
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
                   </tbody>
                 </table>
               </div>

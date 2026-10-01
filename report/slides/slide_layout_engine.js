@@ -388,9 +388,13 @@ const SlideLayoutEngine = {
     }
     const photoFit = (savedFit === 'cover' || savedFit === 'fill') ? 'cover' : 'blur';
 
+    // Cost Saving Detection & Formatting
+    const isCostSaving = Boolean(slideData.is_cost_saving || catLower.includes('cost') || catLower.includes('saving') || titleLower.includes('cost saving'));
+    const costSavingVal = slideData.cost_saving_highlight || (slideData.cost_saving_amount ? `৳ ${Number(slideData.cost_saving_amount).toLocaleString()} / Month` : (slideData.savings ? `৳ ${slideData.savings}` : ''));
+
     return `
-    <div class="walton-task-slide walton-red-executive bg-white relative overflow-hidden rounded-xl shadow-2xl border border-slate-200" 
-         style="width: 100%; aspect-ratio: 16/9; font-family: 'Lexend', sans-serif; box-sizing: border-box; padding: 20px 28px 14px 28px; display: flex; flex-direction: column; justify-content: space-between; background: #FFFFFF;">
+    <div class="walton-task-slide walton-red-executive bg-white relative overflow-hidden rounded-xl shadow-2xl ${isCostSaving ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/20' : 'border border-slate-200'}" 
+         style="width: 100%; aspect-ratio: 16/9; font-family: 'Lexend', sans-serif; box-sizing: border-box; padding: 20px 28px 14px 28px; display: flex; flex-direction: column; justify-content: space-between; background: #FFFFFF; ${isCostSaving ? 'box-shadow: 0 10px 30px -5px rgba(16, 185, 129, 0.25);' : ''}">
       
       <!-- TOP BACKGROUND GEOMETRY (Subtle header accent lines) -->
       <svg class="absolute top-0 left-1/3 w-1/2 h-16 opacity-30 pointer-events-none" viewBox="0 0 500 60" fill="none">
@@ -418,10 +422,10 @@ const SlideLayoutEngine = {
           <div style="font-size: 9.5px; font-weight: 700; color: #64748B; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1;">
             SMALL CHANGES
           </div>
-          <div style="font-size: 17px; font-weight: 900; color: #C5161D; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1.15;">
-            BIG IMPACT
+          <div style="font-size: 17px; font-weight: 900; color: ${isCostSaving ? '#059669' : '#C5161D'}; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1.15;">
+            ${isCostSaving ? 'COST SAVINGS' : 'BIG IMPACT'}
           </div>
-          <div style="height: 2px; width: 68px; background: #C5161D; margin-left: auto; margin-top: 2px; border-radius: 2px;"></div>
+          <div style="height: 2px; width: 68px; background: ${isCostSaving ? '#059669' : '#C5161D'}; margin-left: auto; margin-top: 2px; border-radius: 2px;"></div>
         </div>
       </div>
 
@@ -435,13 +439,13 @@ const SlideLayoutEngine = {
           <div class="flex-shrink-0">
             <!-- Pill Badge (Project Type / Category) -->
             <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-white font-bold text-xs uppercase tracking-wider mb-1" 
-                 style="background: ${isProj ? (isCompletedProj ? 'linear-gradient(135deg, #059669 0%, #047857 100%)' : 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)') : 'linear-gradient(135deg, #C5161D 0%, #B91C1C 100%)'}; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
-              <span>${isProj ? (isCompletedProj ? '🏆 STRATEGIC PROJECT • COMPLETED' : '🚀 STRATEGIC PROJECT • ONGOING') : (slideData.category ? HELPERS.escapeHtml(slideData.category.toUpperCase()) : (slideData.project_type ? HELPERS.escapeHtml(slideData.project_type.toUpperCase()) : 'PROCESS IMPROVEMENT PROJECT'))}</span>
+                 style="background: ${isCostSaving ? 'linear-gradient(135deg, #059669 0%, #047857 100%)' : (isProj ? (isCompletedProj ? 'linear-gradient(135deg, #059669 0%, #047857 100%)' : 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)') : 'linear-gradient(135deg, #C5161D 0%, #B91C1C 100%)')}; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+              <span>${isCostSaving ? '💰 COST SAVING INITIATIVE • PROCESS OPTIMIZATION' : (isProj ? (isCompletedProj ? '🏆 STRATEGIC PROJECT • COMPLETED' : '🚀 STRATEGIC PROJECT • ONGOING') : (slideData.category ? HELPERS.escapeHtml(slideData.category.toUpperCase()) : (slideData.project_type ? HELPERS.escapeHtml(slideData.project_type.toUpperCase()) : 'PROCESS IMPROVEMENT PROJECT')))}</span>
             </div>
 
-            <!-- Split Title with Red Left Accent Bar -->
+            <!-- Split Title with Red/Emerald Left Accent Bar -->
             <div class="flex items-stretch gap-2.5 my-1">
-              <div style="width: 4px; background: #C5161D; border-radius: 4px; flex-shrink: 0;"></div>
+              <div style="width: 4px; background: ${isCostSaving ? '#059669' : '#C5161D'}; border-radius: 4px; flex-shrink: 0;"></div>
               <div>
                 <h1 style="font-size: ${titleFontSize}; font-weight: 800; color: #0F172A; line-height: 1.2; margin: 0; letter-spacing: -0.01em;">
                   ${this.formatTitleWithAccent(fullRawTitle)}
@@ -450,49 +454,55 @@ const SlideLayoutEngine = {
             </div>
           </div>
 
-          <!-- 3-Column Metadata Bar -->
-          <div class="grid grid-cols-3 gap-2 py-1.5 px-3 rounded-xl border border-slate-200 bg-slate-50/90 flex-shrink-0">
+          <!-- 2-Column Metadata Bar (Status option removed) -->
+          <div class="grid grid-cols-2 gap-3 py-1.5 px-4 rounded-xl border border-slate-200 bg-slate-50/90 flex-shrink-0">
             <!-- Concern Engineer -->
-            <div class="flex items-center gap-2">
-              <div class="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <svg class="w-3.5 h-3.5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+            <div class="flex items-center gap-2.5">
+              <div class="w-6 h-6 rounded-full ${isCostSaving ? 'bg-emerald-100' : 'bg-red-100'} flex items-center justify-center flex-shrink-0">
+                <svg class="w-3.5 h-3.5 ${isCostSaving ? 'text-emerald-600' : 'text-red-600'}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
               </div>
               <div class="overflow-hidden">
                 <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.04em;">Concern Engineer</div>
-                <div style="font-size: 11.5px; font-weight: 800; color: #0F172A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${engineer}</div>
+                <div style="font-size: 12px; font-weight: 800; color: #0F172A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${engineer}</div>
               </div>
             </div>
 
             <!-- Category -->
-            <div class="flex items-center gap-2 border-l border-slate-200 pl-2">
-              <div class="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <svg class="w-3.5 h-3.5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+            <div class="flex items-center gap-2.5 border-l border-slate-200 pl-3">
+              <div class="w-6 h-6 rounded-full ${isCostSaving ? 'bg-emerald-100' : 'bg-red-100'} flex items-center justify-center flex-shrink-0">
+                <svg class="w-3.5 h-3.5 ${isCostSaving ? 'text-emerald-600' : 'text-red-600'}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
               </div>
               <div class="overflow-hidden">
                 <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.04em;">Category</div>
-                <div style="font-size: 11.5px; font-weight: 800; color: #0F172A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${category}</div>
-              </div>
-            </div>
-
-            <!-- Status -->
-            <div class="flex items-center gap-2 border-l border-slate-200 pl-2">
-              <div class="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <svg class="w-3.5 h-3.5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
-              </div>
-              <div>
-                <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.04em;">Status</div>
-                <div class="flex items-center gap-1.5" style="font-size: 11.5px; font-weight: 800; color: #0F172A;">
-                  <span style="display:inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10B981;"></span>
-                  <span>${status}</span>
-                </div>
+                <div style="font-size: 12px; font-weight: 800; color: #0F172A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${category}</div>
               </div>
             </div>
           </div>
 
+          <!-- Highlighted Cost Saving Impact Box -->
+          ${(isCostSaving && costSavingVal) ? `
+          <div class="px-4 py-2 rounded-xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 flex items-center justify-between shadow-xs flex-shrink-0">
+            <div class="flex items-center gap-2.5">
+              <div class="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-black shadow-xs">
+                ৳
+              </div>
+              <div>
+                <div style="font-size: 8.5px; font-weight: 800; color: #065F46; text-transform: uppercase; letter-spacing: 0.08em;">Financial Cost Saving Impact</div>
+                <div style="font-size: 13.5px; font-weight: 900; color: #047857; font-family: monospace;">
+                  ${HELPERS.escapeHtml(costSavingVal)}
+                </div>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-extrabold text-[9px] uppercase tracking-wider">
+              Cost Optimization
+            </span>
+          </div>
+          ` : ''}
+
           <!-- Project Overview Card (Box 1: Clean sentences, fills vertical space) -->
           <div class="px-4 py-3 rounded-xl border border-slate-200/90 bg-slate-50/80 flex flex-col justify-center flex-1 min-h-0">
             <div class="flex items-center gap-1.5 mb-1.5 flex-shrink-0">
-              <div class="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0">
+              <div class="w-4 h-4 rounded-full ${isCostSaving ? 'bg-emerald-600' : 'bg-red-600'} text-white flex items-center justify-center flex-shrink-0">
                 <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
               </div>
               <span style="font-size: 12px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Project Overview</span>
@@ -598,10 +608,10 @@ const SlideLayoutEngine = {
           `}
 
           <!-- Top-Left Photo Badge (Requirement: "lekha ta photo upor diye thakbe. Process development photo, erokom name dio.") -->
-          <div class="photo-header-badge absolute top-2.5 left-2.5 z-20 px-3 py-1.5 rounded-lg bg-red-600/95 backdrop-blur-md text-white flex items-center gap-1.5 shadow-md border border-white/25 pointer-events-none">
-            <span class="text-xs">⚙️</span>
+          <div class="photo-header-badge absolute top-2.5 left-2.5 z-20 px-3 py-1.5 rounded-lg ${isCostSaving ? 'bg-emerald-600/95' : 'bg-red-600/95'} backdrop-blur-md text-white flex items-center gap-1.5 shadow-md border border-white/25 pointer-events-none">
+            <span class="text-xs">${isCostSaving ? '💰' : '⚙️'}</span>
             <span style="font-size: 10.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
-              ${HELPERS.escapeHtml(photoLabel.toUpperCase())}
+              PROCESS DEVELOPMENT PHOTO
             </span>
           </div>
 
@@ -629,8 +639,8 @@ const SlideLayoutEngine = {
         <!-- Left: Process Development Department Only -->
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5 text-slate-800" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
-          <div style="font-size: 11px; font-weight: 800; color: #0F172A; text-transform: uppercase; line-height: 1.1; letter-spacing: 0.03em;">
-            PROCESS DEVELOPMENT (RESIDENTIAL AND COMMERCIAL AIR CONDITIONER)
+          <div style="font-size: 11.5px; font-weight: 800; color: #0F172A; text-transform: uppercase; line-height: 1.1; letter-spacing: 0.03em;">
+            PROCESS DEVELOPMENT (WAC)
           </div>
         </div>
 
@@ -1606,18 +1616,18 @@ const SlideLayoutEngine = {
     const monthUpper = (month || "SEPTEMBER 2026").toUpperCase();
     return `
     <div class="walton-executive-cover bg-white relative overflow-hidden rounded-xl shadow-2xl border border-slate-200" 
-         style="width: 100%; aspect-ratio: 16/9; font-family: 'Lexend', sans-serif; box-sizing: border-box; padding: 36px 52px; display: flex; flex-direction: column; justify-content: space-between; position: relative; background: #FFFFFF;">
+         style="width: 100%; aspect-ratio: 16/9; font-family: 'Lexend', sans-serif; box-sizing: border-box; padding: 28px 52px 20px 52px; display: flex; flex-direction: column; justify-content: space-between; position: relative; background: #FFFFFF;">
       
       <!-- TOP CRIMSON ACCENT BORDER -->
       <div style="position: absolute; top: 0; left: 0; right: 0; height: 5px; background: #C5161D; z-index: 20;"></div>
 
       <!-- TOP RIGHT SUBTLE LOGO ACCENT -->
       <div class="text-right z-10">
-        <span class="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">WALTON AC PROCESS DEVELOPMENT</span>
+        <span class="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">WALTON WAC PROCESS DEVELOPMENT</span>
       </div>
 
       <!-- CENTER STAGE (EXECUTIVE RED COVER) -->
-      <div class="flex-1 flex flex-col items-center justify-center text-center z-10 py-2">
+      <div class="flex-1 flex flex-col items-center justify-center text-center z-10 py-1">
         <!-- Walton Logo & Slogan (Accurate 1:1 Aspect Ratio) -->
         <div class="flex flex-col items-center justify-center mb-1">
           <img src="assets/img/walton_logo.png" alt="WALTON" style="width: 76px; height: 76px; object-fit: contain;" class="drop-shadow-sm mb-1"
@@ -1635,28 +1645,28 @@ const SlideLayoutEngine = {
         </div>
 
         <!-- Main Title: MONTHLY REPORT -->
-        <h1 style="font-size: 42px; font-weight: 900; color: #0B2038; letter-spacing: -0.01em; margin: 12px 0 6px 0; text-transform: uppercase; line-height: 1.1;">
+        <h1 style="font-size: 42px; font-weight: 900; color: #0B2038; letter-spacing: -0.01em; margin: 8px 0 6px 0; text-transform: uppercase; line-height: 1.1;">
           MONTHLY REPORT
         </h1>
 
         <!-- Department Badge (Executive Crimson) -->
-        <div class="inline-flex items-center justify-center px-7 py-2 rounded-full font-black text-sm tracking-wider uppercase text-white shadow-md my-2"
+        <div class="inline-flex items-center justify-center px-7 py-2 rounded-full font-black text-sm tracking-wider uppercase text-white shadow-md my-1.5"
              style="background: linear-gradient(135deg, #C5161D 0%, #991B1B 100%); border: 1px solid rgba(255, 255, 255, 0.4);">
-          <span>Process Development Department (AC)</span>
+          <span>Process Development Department (WAC)</span>
           <span class="ml-2.5 w-1.5 h-3.5 bg-white/80 inline-block transform skew-x-[-20deg]"></span>
         </div>
 
         <!-- Corporate Entity & Location -->
-        <div style="font-size: 16px; font-weight: 800; color: #0F172A; margin-top: 8px;">
+        <div style="font-size: 15px; font-weight: 800; color: #0F172A; margin-top: 6px;">
           Walton Hi-Tech Industries PLC.
         </div>
-        <div class="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 mt-1">
+        <div class="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 mt-0.5">
           <svg class="w-3.5 h-3.5 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
           <span>Chandra, Kaliakoir, Gazipur, Bangladesh</span>
         </div>
 
         <!-- Month Pill - Prominent Executive Red Focus -->
-        <div class="mt-3">
+        <div class="mt-2.5">
           <span class="px-5 py-1.5 rounded-full bg-red-50 border border-red-200 text-xs font-mono font-extrabold text-[#C5161D] shadow-sm tracking-wider">
             📅 ${monthUpper}
           </span>
@@ -1664,7 +1674,7 @@ const SlideLayoutEngine = {
       </div>
 
       <!-- BOTTOM FACTORY SKYLINE & DUAL FLOWING WAVES (EXECUTIVE CRIMSON & NAVY) -->
-      <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 160px; pointer-events: none; overflow: hidden; z-index: 1;">
+      <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 140px; pointer-events: none; overflow: hidden; z-index: 1;">
         <svg viewBox="0 0 1200 240" preserveAspectRatio="none" style="width: 100%; height: 100%;">
           <!-- Industrial Plant & City Silhouette -->
           <g fill="#CBD5E1" opacity="0.6">
@@ -2010,53 +2020,95 @@ const SlideLayoutEngine = {
   /**
    * Helper: Calculate dynamic page numbers for Photo 3 Table of Contents
    */
+  /**
+   * Helper: Calculate dynamic page numbers for Photo 3 Table of Contents (Active Categories Only)
+   */
   calculateCategoryPageRanges(tasksOrCount = [], totalSlideCount = null) {
+    const taskSlides = Array.isArray(tasksOrCount) ? tasksOrCount : [];
     let currentSlide = 4;
-    const catPageMap = {};
+    const catBuckets = [];
+    const catMap = {};
 
-    if (Array.isArray(tasksOrCount)) {
-      tasksOrCount.forEach(task => {
-        const cat = (task.category || '').toLowerCase();
-        let key = 'process';
-        if (cat.includes('material') || cat.includes('chemical')) key = 'material';
-        else if (cat.includes('cost')) key = 'cost';
-        else if (cat.includes('tool') || cat.includes('part') || cat.includes('die') || cat.includes('jig') || cat.includes('fixture')) key = 'tools';
-        else if (cat.includes('bom')) key = 'bom';
-        else if (task.is_project || cat.includes('project')) key = 'project';
-        else key = 'process';
-
-        if (!catPageMap[key]) {
-          catPageMap[key] = { start: currentSlide, end: currentSlide, count: 1 };
-        } else {
-          catPageMap[key].end = currentSlide;
-          catPageMap[key].count++;
-        }
-        currentSlide++;
-      });
-    }
-
-    const formatRange = (range) => {
-      if (!range) return "Page No. —";
-      const s = String(range.start).padStart(2, '0');
-      const e = String(range.end).padStart(2, '0');
-      return s === e ? `Page No. ${s}` : `Page No. ${s}–${e}`;
+    const getCatInfo = (catName, task) => {
+      const c = (catName || '').toLowerCase();
+      const t = (task.slide_title || task.task_name || '').toLowerCase();
+      if (task.is_cost_saving || c.includes('cost') || t.includes('cost saving')) {
+        return { key: 'cost', title: 'Major Developments', sub: '(Cost Savings)' };
+      }
+      if (task.is_project || c.includes('project') || t.includes('project')) {
+        return { key: 'project', title: 'Ongoing & Completed Projects', sub: 'Shop-Floor Line Automation' };
+      }
+      if (c.includes('process') || t.includes('process')) {
+        return { key: 'process', title: 'Major Developments', sub: '(Process & Others)' };
+      }
+      if (c.includes('tool') || c.includes('jig') || c.includes('die') || c.includes('fixture') || t.includes('tool') || t.includes('die')) {
+        return { key: 'tools', title: 'Major Developments', sub: '(Tools & Fixtures)' };
+      }
+      if (c.includes('material') || c.includes('chemical') || c.includes('part') || c.includes('component')) {
+        return { key: 'material', title: 'Major Developments', sub: '(Materials & Components)' };
+      }
+      if (c.includes('bom') || t.includes('bom')) {
+        return { key: 'bom', title: 'BOM Verification', sub: 'Material & Process Confirmations' };
+      }
+      if (c.includes('manpower') || t.includes('manpower') || c.includes('line balancing')) {
+        return { key: 'manpower', title: 'Line Balancing & Manpower', sub: 'Productivity Optimization' };
+      }
+      return { key: 'other', title: 'Special Engineering Works', sub: '(Process Implementation)' };
     };
 
-    const finalSlideNum = typeof totalSlideCount === 'number' && totalSlideCount > 0 
-      ? totalSlideCount 
-      : (Array.isArray(tasksOrCount) ? (tasksOrCount.length + 4) : (typeof tasksOrCount === 'number' ? tasksOrCount + 4 : 15));
-    const finalPageStr = String(finalSlideNum).padStart(2, '0');
+    taskSlides.forEach(task => {
+      const info = getCatInfo(task.category, task);
+      if (!catMap[info.key]) {
+        catMap[info.key] = {
+          key: info.key,
+          title: info.title,
+          sub: info.sub,
+          start: currentSlide,
+          end: currentSlide,
+          count: 1
+        };
+        catBuckets.push(catMap[info.key]);
+      } else {
+        catMap[info.key].end = currentSlide;
+        catMap[info.key].count++;
+      }
+      currentSlide++;
+    });
 
-    return [
-      { num: "01", title: "Summary", sub: "Operations & Financial Cost Impact", page: "Page No. 03" },
-      { num: "02", title: "Major Developments", sub: "(Process & Others)", page: formatRange(catPageMap['process']) },
-      { num: "03", title: "Major Developments", sub: "(Materials & Chemical Development)", page: formatRange(catPageMap['material']) },
-      { num: "04", title: "Major Developments", sub: "(Cost Savings)", page: formatRange(catPageMap['cost']) },
-      { num: "05", title: "Major Developments", sub: "(Tools+Parts)", page: formatRange(catPageMap['tools']) },
-      { num: "06", title: "BOM Verification", sub: "Material & Process Confirmations", page: formatRange(catPageMap['bom']) },
-      { num: "07", title: "Ongoing Project & Completed Works", sub: "Shop-Floor Line Automation", page: formatRange(catPageMap['project']) },
-      { num: "08", title: "Top 5 Works & Projects", sub: "Executive Summary & Milestones", page: `Page No. ${finalPageStr}` }
+    const formatRange = (s, e) => {
+      const sStr = String(s).padStart(2, '0');
+      const eStr = String(e).padStart(2, '0');
+      return s === e ? `Page No. ${sStr}` : `Page No. ${sStr}–${eStr}`;
+    };
+
+    const items = [
+      {
+        title: "Summary",
+        sub: "Operations & Financial Cost Impact",
+        page: "Page No. 03"
+      }
     ];
+
+    catBuckets.forEach(b => {
+      items.push({
+        title: b.title,
+        sub: b.sub,
+        page: formatRange(b.start, b.end)
+      });
+    });
+
+    const top5Page = currentSlide;
+    items.push({
+      title: "Top 5 Works & Projects",
+      sub: "Executive Summary & Milestones",
+      page: `Page No. ${String(top5Page).padStart(2, '0')}`
+    });
+
+    items.forEach((item, idx) => {
+      item.num = String(idx + 1).padStart(2, '0');
+    });
+
+    return items;
   },
 
   /**
@@ -2078,7 +2130,7 @@ const SlideLayoutEngine = {
             <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 12l10 10 10-10L12 2zm0 3.5L18.5 12 12 18.5 5.5 12 12 5.5z"/></svg>
           </div>
           <div>
-            <div style="font-size: 13.5px; font-weight: 900; color: #0F172A;">PROCESS DEVELOPMENT DEPARTMENT (AC)</div>
+            <div style="font-size: 13.5px; font-weight: 900; color: #0F172A;">PROCESS DEVELOPMENT DEPARTMENT (WAC)</div>
             <div style="font-size: 8.5px; font-weight: 700; color: #64748B; letter-spacing: 0.18em;">INNOVATE &bull; IMPROVE &bull; DELIVER</div>
           </div>
         </div>
@@ -2096,28 +2148,38 @@ const SlideLayoutEngine = {
         <div style="width: 100%; height: 3px; background: ${primaryAccent}; margin-top: 4px; border-radius: 2px;"></div>
       </div>
 
-      <!-- 8 CATEGORY-WISE SECTIONS (PHOTO 3 REPLICA: 2 COLS X 4 ROWS) -->
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; flex: 1; min-height: 0; margin: 4px 0; align-content: space-between;">
-        ${items.map(item => `
-          <div style="background: #FFFFFF; border: 1.5px solid #E2E8F0; border-radius: 10px; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.03); position: relative; overflow: hidden;">
-            <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 4px; background: ${primaryAccent}; border-radius: 4px 0 0 4px;"></div>
-            <div style="display: flex; align-items: center; gap: 14px; padding-left: 6px;">
-              <span style="font-size: 24px; font-weight: 900; color: ${primaryAccent}; font-family: 'JetBrains Mono', monospace; line-height: 1; min-width: 36px; text-align: center;">${item.num}</span>
-              <div>
-                <div style="font-size: 13px; font-weight: 800; color: #0F172A; line-height: 1.2;">${item.title}</div>
-                <div style="font-size: 10.5px; font-weight: 600; color: #64748B; line-height: 1.2; margin-top: 2px;">${item.sub}</div>
+      <!-- CATEGORY-WISE SECTIONS (DYNAMIC BALANCED GRID) -->
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 24px; flex: 1; min-height: 0; margin: 6px 0; align-content: center;">
+        ${items.map((item, idx) => {
+          const isLastOdd = (idx === items.length - 1 && items.length % 2 === 1);
+          return `
+            <div style="background: #FFFFFF; border: 1.5px solid #E2E8F0; border-radius: 10px; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.03); position: relative; overflow: hidden; ${isLastOdd ? 'grid-column: span 2; max-width: 70%; justify-self: center; width: 100%;' : ''}">
+              <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 4px; background: ${primaryAccent}; border-radius: 4px 0 0 4px;"></div>
+              <div style="display: flex; align-items: center; gap: 14px; padding-left: 6px;">
+                <span style="font-size: 24px; font-weight: 900; color: ${primaryAccent}; font-family: 'JetBrains Mono', monospace; line-height: 1; min-width: 36px; text-align: center;">${item.num}</span>
+                <div>
+                  <div style="font-size: 13.5px; font-weight: 800; color: #0F172A; line-height: 1.2;">${item.title}</div>
+                  <div style="font-size: 10.5px; font-weight: 600; color: #64748B; line-height: 1.2; margin-top: 2px;">${item.sub}</div>
+                </div>
               </div>
+              <span style="background: #FEF2F2; border: 1px solid #FECACA; color: #C5161D; font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; padding: 4px 12px; border-radius: 9999px; white-space: nowrap;">
+                ${item.page}
+              </span>
             </div>
-            <span style="background: #FEF2F2; border: 1px solid #FECACA; color: #C5161D; font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; padding: 3.5px 10px; border-radius: 9999px; white-space: nowrap;">
-              ${item.page}
-            </span>
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
       </div>
 
       <!-- FOOTER -->
       <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold flex-shrink-0">
-        <div class="text-slate-800 font-bold uppercase tracking-wider">⚙ PROCESS DEVELOPMENT DEPARTMENT</div>
+        <div class="text-slate-800 font-bold uppercase tracking-wider">⚙ PROCESS DEVELOPMENT (WAC)</div>
+        <div class="flex items-center gap-4 text-slate-500">
+          <span>🏆 Continuous Improvement</span>
+          <span>&bull;</span>
+          <span>💡 A Smarter Tomorrow</span>
+        </div>
+        <div class="text-red-600 font-mono font-bold">${monthUpper}</div>
+      </div>
         <div class="flex items-center gap-4 text-slate-500">
           <span>🏆 Continuous Improvement</span>
           <span>&bull;</span>
@@ -2725,7 +2787,7 @@ const SlideLayoutEngine = {
           <img src="assets/img/walton_logo.png" alt="WALTON" class="h-8 w-auto object-contain flex-shrink-0 drop-shadow-xs" />
           <div>
             <div style="font-size: 13.5px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.05em;">WALTON Hi-Tech Industries PLC</div>
-            <div style="font-size: 8.5px; font-weight: 700; color: #94A3B8; letter-spacing: 0.12em;">PROCESS DEVELOPMENT (RESIDENTIAL AND COMMERCIAL AIR CONDITIONER)</div>
+            <div style="font-size: 9px; font-weight: 700; color: #94A3B8; letter-spacing: 0.12em;">PROCESS DEVELOPMENT (WAC)</div>
           </div>
         </div>
         <div class="px-3.5 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-mono font-bold text-white">
@@ -2799,7 +2861,7 @@ const SlideLayoutEngine = {
         <div class="flex items-center gap-3">
           <img src="assets/img/walton_logo.png" alt="WALTON" class="h-8 w-auto object-contain flex-shrink-0 drop-shadow-xs" />
           <div>
-            <div style="font-size: 11px; font-weight: 900; color: #0F172A; letter-spacing: -0.01em;">PROCESS DEVELOPMENT (RESIDENTIAL AND COMMERCIAL AIR CONDITIONER)</div>
+            <div style="font-size: 11.5px; font-weight: 900; color: #0F172A; letter-spacing: -0.01em;">PROCESS DEVELOPMENT (WAC)</div>
             <div style="font-size: 8.5px; font-weight: 700; color: #64748B; letter-spacing: 0.18em;">INNOVATE &bull; IMPROVE &bull; DELIVER</div>
           </div>
         </div>
@@ -2892,7 +2954,7 @@ const SlideLayoutEngine = {
       <!-- FOOTER -->
       <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[10.5px] font-semibold text-slate-400 flex-shrink-0">
         <div class="flex items-center gap-2">
-          <span class="font-bold text-[#0F172A]">⚙ PROCESS DEVELOPMENT (RESIDENTIAL AND COMMERCIAL AIR CONDITIONER)</span>
+          <span class="font-bold text-[#0F172A]">⚙ PROCESS DEVELOPMENT (WAC)</span>
         </div>
         <div class="flex items-center gap-4">
           <span>🏆 Continuous Improvement</span>

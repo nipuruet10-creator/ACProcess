@@ -528,9 +528,6 @@ const FinalEditorView = {
               <button onclick="ExportController.exportPDF('${month}')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-sm">
                 <span>🖨️</span> <span>PDF</span>
               </button>
-              <button onclick="ExportController.exportHTML('${month}')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 border border-slate-200 transition flex items-center gap-1 shadow-sm">
-                <span>🌐</span> <span>HTML</span>
-              </button>
             </div>
           </div>
 

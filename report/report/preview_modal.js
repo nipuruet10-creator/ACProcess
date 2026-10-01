@@ -272,9 +272,6 @@ const SlidePreviewModal = {
               <button onclick="ExportController.exportPDF('${this.currentMonth}')" title="Vector Print & Save as PDF" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 flex items-center gap-1">
                 <span>🖨</span> <span>PDF</span>
               </button>
-              <button onclick="ExportController.exportHTML('${this.currentMonth}')" title="Download Standalone HTML Presentation" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 flex items-center gap-1">
-                <span>🌐</span> <span>HTML</span>
-              </button>
 
               <button onclick="SlidePreviewModal.close()" class="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-semibold">
                 Close
