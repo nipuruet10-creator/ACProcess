@@ -518,50 +518,56 @@ const MonthlyReportView = {
   async uploadPhotoFromBlob(blobOrFile, taskId, slot = 'after_photo') {
     if (!blobOrFile || !taskId) return;
     try {
+      let base64Url = "";
       if (typeof blobOrFile === 'string') {
-        const base64Url = blobOrFile;
-        if (typeof photoManager !== 'undefined') {
-          if (photoManager.savePhoto) {
-            await photoManager.savePhoto(taskId, slot, base64Url, this.selectedMonth);
-          } else if (photoManager.setTaskPhoto) {
-            await photoManager.setTaskPhoto(taskId, slot, base64Url, null, this.selectedMonth);
-          }
-        }
-        if (this._activeModalTaskId === taskId) {
-          this.renderModalPhotoSlots(taskId);
-          this.renderModalLivePreview(taskId);
-        } else {
-          this.updateSlideCardPhoto(taskId);
-        }
-        if (typeof window.showToast === 'function') {
-          window.showToast(`📋 Photo attached successfully to Task ${taskId}!`, "success");
-        }
-        return;
+        base64Url = blobOrFile;
+      } else if (typeof PhotoStorageProvider !== 'undefined' && PhotoStorageProvider.compressImageFile) {
+        base64Url = await PhotoStorageProvider.compressImageFile(blobOrFile);
+      } else {
+        base64Url = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => resolve("");
+          reader.readAsDataURL(blobOrFile);
+        });
       }
 
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64Url = e.target.result;
-        if (typeof photoManager !== 'undefined') {
-          if (photoManager.savePhoto) {
-            await photoManager.savePhoto(taskId, slot, base64Url, this.selectedMonth);
-          } else if (photoManager.setTaskPhoto) {
-            await photoManager.setTaskPhoto(taskId, slot, base64Url, null, this.selectedMonth);
-          }
+      if (!base64Url) return;
+
+      // 1. Immediately save to local photoManager memory & IndexedDB for instant UI response
+      if (typeof photoManager !== 'undefined') {
+        if (photoManager.setTaskPhoto) {
+          await photoManager.setTaskPhoto(taskId, slot, base64Url, null, this.selectedMonth);
+        } else if (photoManager.savePhoto) {
+          await photoManager.savePhoto(taskId, slot, base64Url, this.selectedMonth);
         }
-        if (this._activeModalTaskId === taskId) {
-          this.renderModalPhotoSlots(taskId);
-          this.renderModalLivePreview(taskId);
-        } else {
+      }
+
+      // 2. Refresh modal slots & live preview
+      if (this._activeModalTaskId === taskId) {
+        this.renderModalPhotoSlots(taskId);
+        this.renderModalLivePreview(taskId);
+      } else {
+        this.updateSlideCardPhoto(taskId);
+      }
+
+      // 3. Upload to Hostinger Permanent Server Storage
+      if (typeof photoManager !== 'undefined' && photoManager.uploadPhotoToServer) {
+        const serverUrl = await photoManager.uploadPhotoToServer(taskId, slot, base64Url, this.selectedMonth);
+        if (serverUrl) {
+          if (this._activeModalTaskId === taskId) {
+            this.renderModalPhotoSlots(taskId);
+            this.renderModalLivePreview(taskId);
+          }
           this.updateSlideCardPhoto(taskId);
         }
-        if (typeof window.showToast === 'function') {
-          window.showToast(`📋 Photo attached successfully to Task ${taskId}!`, "success");
-        }
-      };
-      reader.readAsDataURL(blobOrFile);
+      }
+
+      if (typeof window.showToast === 'function') {
+        window.showToast(`📸 Photo stored permanently on Hostinger server for Task ${taskId}!`, "success");
+      }
     } catch (err) {
-      console.error("Paste photo error:", err);
+      console.error("Paste/Upload photo error:", err);
     }
   },
 
@@ -1108,6 +1114,19 @@ const MonthlyReportView = {
     } catch (e) {
       console.warn("Could not patch local active slides cache:", e);
     }
+
+    // 6. Push overrides to Hostinger Server Storage API for permanent cross-device sync
+    try {
+      fetch('api/sync_overrides.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId: taskId,
+          month: this.selectedMonth,
+          overrides: overrides
+        })
+      }).catch(err => console.warn("[Hostinger Overrides Sync] Notice:", err));
+    } catch(e) {}
 
     this.closeModal();
     this.render();

@@ -132,12 +132,20 @@ const HELPERS = {
    * Both options are always visible and clickable so selecting Archive never hides Running Month
    */
   renderMonthSelectorUI(months, selectedMonth, onselectJsMethodName, onAddMonthJsMethodName = null) {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthIdx = now.getMonth(); // 9 = October
+    const currentDay = now.getDate();
+
+    // Check if August 2026 archive has expired (retained until October 10th, 2026)
+    const isAugExpired = (currentYear > 2026 || (currentYear === 2026 && currentMonthIdx > 9) || (currentYear === 2026 && currentMonthIdx === 9 && currentDay > 10));
+
     const runningMonth = "SEP-2026";
-    const archiveMonth = "AUG-2026";
+    const archiveMonth = isAugExpired ? null : "AUG-2026";
     const current = selectedMonth || runningMonth;
 
     const isRunningActive = (current === runningMonth);
-    const isArchiveActive = (current === archiveMonth);
+    const isArchiveActive = archiveMonth ? (current === archiveMonth) : false;
 
     return `
       <div class="flex items-center gap-2 flex-wrap">
@@ -149,13 +157,15 @@ const HELPERS = {
           ${isRunningActive ? '<span class="px-1.5 py-0.2 rounded text-[9px] bg-white/20 uppercase tracking-wider font-bold">Active</span>' : ''}
         </button>
 
-        <!-- Archive Month (Strictly 1 Month: AUG-2026) -->
+        ${archiveMonth ? `
+        <!-- Archive Month (Retained until October 10th) -->
         <button type="button" onclick="${onselectJsMethodName}('${archiveMonth}')" 
-                title="Historical Archive Month: ${archiveMonth}"
+                title="Historical Archive Month: ${archiveMonth} (Accessible until October 10)"
                 class="px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition flex items-center gap-1.5 cursor-pointer ${isArchiveActive ? 'bg-amber-500 text-white shadow-sm border border-amber-600' : 'bg-white hover:bg-amber-50 text-slate-700 hover:text-amber-800 border border-slate-300 shadow-xs'}">
           <span>📦</span> <span>Archive: <strong>${archiveMonth}</strong></span>
           ${isArchiveActive ? '<span class="px-1.5 py-0.2 rounded text-[9px] bg-black/20 uppercase tracking-wider font-bold">Historical</span>' : ''}
         </button>
+        ` : ''}
 
         ${onAddMonthJsMethodName ? `
         <!-- Optional Add Month Quick Action -->

@@ -48,6 +48,15 @@ const App = {
       await db.init();
     }
 
+    // Initialize & Synchronize Photo Manager with Hostinger Server Storage
+    if (typeof photoManager !== 'undefined' && photoManager.init) {
+      try {
+        await photoManager.init();
+      } catch (err) {
+        console.warn("PhotoManager init notice:", err);
+      }
+    }
+
     // Instantiate Central State
     const workbookMgr = new MonthWorkbookManager();
     const breakdownSheet = new AIBreakdownSheet();

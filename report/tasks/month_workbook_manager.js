@@ -1186,29 +1186,62 @@ class MonthWorkbookManager {
     }
   }
 
-  enforceTwoMonthRetention(activeMonth = null) {
-    const running = this.normalizeMonth(activeMonth || this.activeMonth || "SEP-2026");
-    const prev = this.calculatePreviousMonthCode(running);
-
+  isMonthExpired(monthCode) {
+    const norm = this.normalizeMonth(monthCode);
+    const parts = norm.split('-');
+    if (parts.length !== 2) return false;
+    const mStr = parts[0];
+    const yVal = parseInt(parts[1], 10);
     const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-    const getScore = (mCode) => {
-      const p = String(mCode || "").toUpperCase().split("-");
-      if (p.length === 2) {
-        const idx = monthNames.indexOf(p[0]);
-        const yr = parseInt(p[1], 10);
-        if (idx !== -1 && !isNaN(yr)) return yr * 12 + idx;
-      }
-      return -1;
-    };
+    const mIdx = monthNames.indexOf(mStr);
+    if (mIdx === -1 || isNaN(yVal)) return false;
 
-    const minScore = prev ? getScore(prev) : getScore(running);
+    // Purge Jan 2026 - Jul 2026 permanently
+    if (yVal === 2026 && mIdx < 7) {
+      return true;
+    }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthIdx = now.getMonth(); // 9 = October
+    const currentDay = now.getDate();
+
+    // Specific rule for August 2026:
+    // In October 2026, AUG-2026 tasks remain until October 10th.
+    // Starting October 11th, AUG-2026 is expired and removed from the active system.
+    if (norm === "AUG-2026") {
+      if (currentYear > 2026) return true;
+      if (currentYear === 2026) {
+        if (currentMonthIdx > 9) return true; // November or later
+        if (currentMonthIdx === 9) {
+          // October 2026: expired if day is 11 or later
+          return currentDay > 10;
+        }
+        return false; // September 2026 or earlier
+      }
+      return false;
+    }
+
+    // General rolling 2-month rule with 10-day grace period:
+    const monthScore = yVal * 12 + mIdx;
+    const currentScore = currentYear * 12 + currentMonthIdx;
+    const diff = currentScore - monthScore;
+
+    if (diff <= 1) return false; // Current month or previous month is always retained
+    if (diff === 2) {
+      // 2 months ago is kept until day 10 of current month
+      return currentDay > 10;
+    }
+    return true; // 3 or more months ago is expired
+  }
+
+  enforceTwoMonthRetention(activeMonth = null) {
     let purgedAny = false;
 
-    // Purge older months from workbooks (strictly no Jan 2026 through Jul 2026)
+    // Purge expired months from workbooks
     Object.keys(this.workbooks).forEach(k => {
       const norm = this.normalizeMonth(k);
-      const score = getScore(norm);
-      if (score < minScore || ["JAN-2026", "FEB-2026", "MAR-2026", "APR-2026", "MAY-2026", "JUN-2026", "JUL-2026"].includes(norm)) {
+      if (this.isMonthExpired(norm)) {
         delete this.workbooks[k];
         delete this.workbooks[norm];
         purgedAny = true;
@@ -1223,6 +1256,10 @@ class MonthWorkbookManager {
         "walton_pd_tasks_APR-2026", "walton_pd_tasks_MAY-2026", "walton_pd_tasks_JUN-2026",
         "walton_pd_tasks_JUL-2026"
       ];
+      if (this.isMonthExpired("AUG-2026")) {
+        obsoleteKeys.push("walton_pd_tasks_AUG-2026");
+        obsoleteKeys.push("walton_pd_active_slides_AUG-2026");
+      }
       obsoleteKeys.forEach(key => localStorage.removeItem(key));
     } catch (e) {}
 
@@ -1232,33 +1269,23 @@ class MonthWorkbookManager {
   }
 
   getAllMonths() {
-    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-    const getScore = (mCode) => {
-      const p = String(mCode || "").toUpperCase().split("-");
-      if (p.length === 2) {
-        const idx = monthNames.indexOf(p[0]);
-        const yr = parseInt(p[1], 10);
-        if (idx !== -1 && !isNaN(yr)) return yr * 12 + idx;
+    const list = [];
+    if (!this.isMonthExpired("AUG-2026") && this.workbooks["AUG-2026"]) {
+      list.push("AUG-2026");
+    }
+    if (this.workbooks["SEP-2026"]) {
+      list.push("SEP-2026");
+    }
+    if (this.workbooks["OCT-2026"]) {
+      list.push("OCT-2026");
+    }
+    Object.keys(this.workbooks).forEach(k => {
+      const norm = this.normalizeMonth(k);
+      if (!this.isMonthExpired(norm) && !list.includes(norm)) {
+        list.push(norm);
       }
-      return -1;
-    };
-
-    const running = this.normalizeMonth(this.activeMonth || "SEP-2026");
-    const prev = this.calculatePreviousMonthCode(running);
-    const baseRetained = [prev, running].filter(Boolean);
-
-    // Also include any future months created by user
-    const existing = Object.keys(this.workbooks).map(k => this.normalizeMonth(k));
-    const minScore = prev ? getScore(prev) : getScore(running);
-
-    const validMonths = Array.from(new Set([...baseRetained, ...existing])).filter(m => {
-      if (!/^[A-Z]{3}-\d{4}$/.test(m)) return false;
-      if (["JAN-2026", "FEB-2026", "MAR-2026", "APR-2026", "MAY-2026", "JUN-2026", "JUL-2026"].includes(m)) return false;
-      return getScore(m) >= minScore;
     });
-
-    validMonths.sort((a, b) => getScore(a) - getScore(b));
-    return validMonths;
+    return list.length > 0 ? list : ["AUG-2026", "SEP-2026"];
   }
 
   createMonth(monthCode) {

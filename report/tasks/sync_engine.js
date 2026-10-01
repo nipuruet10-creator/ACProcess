@@ -33,17 +33,53 @@ class SyncEngine {
     }
   }
 
-  setManualOverride(taskId, overrides = {}) {
+  setManualOverride(taskId, overrides = {}, month = null) {
     this.manualOverrides[taskId] = {
       ...(this.manualOverrides[taskId] || {}),
       ...overrides,
       updated_at: new Date().toISOString()
     };
     this.saveManualOverrides();
+
+    // Sync overrides to Hostinger Server Storage
+    const m = month || (this.workbookMgr ? this.workbookMgr.activeMonth : 'SEP-2026');
+    try {
+      fetch('api/sync_overrides.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId: taskId,
+          month: m,
+          overrides: overrides
+        })
+      }).catch(() => {});
+    } catch (e) {}
   }
 
-  saveManualOverride(taskId, overrides = {}) {
-    return this.setManualOverride(taskId, overrides);
+  saveManualOverride(taskId, overrides = {}, month = null) {
+    return this.setManualOverride(taskId, overrides, month);
+  }
+
+  async fetchServerOverrides(month = 'SEP-2026') {
+    try {
+      const resp = await fetch(`api/sync_overrides.php?month=${encodeURIComponent(month)}`, { cache: 'no-store' });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && data.success && data.overrides) {
+          for (const [tId, oData] of Object.entries(data.overrides)) {
+            if (oData && typeof oData === 'object') {
+              this.manualOverrides[tId] = {
+                ...(this.manualOverrides[tId] || {}),
+                ...oData
+              };
+            }
+          }
+          this.saveManualOverrides();
+          return data.overrides;
+        }
+      }
+    } catch (e) {}
+    return null;
   }
 
   removeManualOverride(taskId) {
@@ -66,6 +102,11 @@ class SyncEngine {
   async syncMonth(month = "SEP-2026", forceAiRegenerate = false) {
     const normalizedMonth = this.workbookMgr ? this.workbookMgr.normalizeMonth(month) : month.toUpperCase();
     const startTime = Date.now();
+
+    // Ingest latest cloud overrides from Hostinger
+    try {
+      await this.fetchServerOverrides(normalizedMonth);
+    } catch(e) {}
 
     // Step 1: Ingest Month-Wise Input Sheet
     const rawTasks = this.workbookMgr ? this.workbookMgr.getTasksForMonth(normalizedMonth) : [];

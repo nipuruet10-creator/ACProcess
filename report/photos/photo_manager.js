@@ -74,7 +74,152 @@ class PhotoManager {
       console.warn("Could not read photos from IndexedDB:", e);
     }
 
+    // 4. Fetch all photos from Hostinger permanent server storage for active months
+    try {
+      await this.fetchPhotosFromServer('SEP-2026');
+      await this.fetchPhotosFromServer('AUG-2026');
+      await this.fetchPhotosFromServer('ALL');
+    } catch (e) {
+      console.warn("[Hostinger Photo Storage] Server photo sync notice:", e);
+    }
+
+    // 5. Periodic background sync every 25 seconds for real-time cross-device photo updates
+    if (typeof window !== 'undefined' && !this._serverPollTimer) {
+      this._serverPollTimer = setInterval(() => {
+        const m = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
+        this.fetchPhotosFromServer(m);
+      }, 25000);
+    }
+
     this.isReady = true;
+  }
+
+  /**
+   * Fetches server-stored photos from Hostinger API and merges into memory & IndexedDB
+   */
+  async fetchPhotosFromServer(month = 'SEP-2026') {
+    try {
+      const q = month ? `?month=${encodeURIComponent(month)}` : '';
+      const resp = await fetch(`api/get_photos.php${q}`, { cache: 'no-store' });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && data.success && data.photos) {
+          let updatedCount = 0;
+          for (const [tId, pData] of Object.entries(data.photos)) {
+            if (!pData) continue;
+            const current = this.photoMap[tId] || {};
+            const merged = {
+              ...current,
+              before_photo: pData.before_photo || current.before_photo || null,
+              after_photo: pData.after_photo || current.after_photo || null,
+              photo_1: pData.photo_1 || pData.before_photo || current.photo_1 || null,
+              photo_2: pData.photo_2 || pData.after_photo || current.photo_2 || null,
+              photo: pData.after_photo || pData.photo || current.photo || null
+            };
+            this.photoMap[tId] = merged;
+            if (month && month !== 'ALL') {
+              const monthKey = `${month}_${tId}`;
+              this.photoMap[monthKey] = { ...(this.photoMap[monthKey] || {}), ...merged };
+            }
+            if (typeof PhotoIndexedDB !== 'undefined') {
+              PhotoIndexedDB.saveTaskPhotos(tId, merged).catch(() => {});
+            }
+            updatedCount++;
+          }
+          return data.photos;
+        }
+      }
+    } catch (err) {
+      // Quiet fail if offline
+    }
+    return null;
+  }
+
+  /**
+   * Uploads photo to Hostinger Server Storage API for permanent disk persistence across all devices
+   */
+  async uploadPhotoToServer(taskId, slot, base64Url, month = null) {
+    if (!taskId || !base64Url) return null;
+    let m = month;
+    if (!m && typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+      m = window.appState.workbookMgr.activeMonth;
+    }
+    if (!m) m = 'SEP-2026';
+
+    try {
+      const resp = await fetch('api/save_photo.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId: taskId,
+          month: m,
+          slot: slot,
+          image: base64Url
+        })
+      });
+
+      if (resp.ok) {
+        const result = await resp.json();
+        if (result && result.success && result.url) {
+          console.log(`[Hostinger Photo Storage] Upload success for ${taskId}: ${result.url}`);
+          const serverUrl = result.url;
+          const isBefore = (slot === 'before_photo' || slot === 'photo_1');
+          const isAfter = (slot === 'after_photo' || slot === 'photo_2');
+
+          if (!this.photoMap[taskId]) {
+            this.photoMap[taskId] = { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
+          }
+          if (isBefore) {
+            this.photoMap[taskId].before_photo = serverUrl;
+            this.photoMap[taskId].photo_1 = serverUrl;
+          }
+          if (isAfter) {
+            this.photoMap[taskId].after_photo = serverUrl;
+            this.photoMap[taskId].photo_2 = serverUrl;
+            this.photoMap[taskId].photo = serverUrl;
+          }
+
+          const monthKey = `${m}_${taskId}`;
+          if (!this.photoMap[monthKey]) {
+            this.photoMap[monthKey] = { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
+          }
+          if (isBefore) {
+            this.photoMap[monthKey].before_photo = serverUrl;
+            this.photoMap[monthKey].photo_1 = serverUrl;
+          }
+          if (isAfter) {
+            this.photoMap[monthKey].after_photo = serverUrl;
+            this.photoMap[monthKey].photo_2 = serverUrl;
+            this.photoMap[monthKey].photo = serverUrl;
+          }
+
+          // Persist clean server URL to IndexedDB
+          if (typeof PhotoIndexedDB !== 'undefined') {
+            PhotoIndexedDB.saveTaskPhotos(taskId, this.photoMap[taskId]).catch(() => {});
+            PhotoIndexedDB.saveTaskPhotos(monthKey, this.photoMap[monthKey]).catch(() => {});
+          }
+
+          // Update active slides in SyncEngine so presentation slides use server URL
+          if (typeof window !== 'undefined' && window.appState && window.appState.syncEngine) {
+            const slides = window.appState.syncEngine.getActiveSlides(m);
+            const target = slides.find(s => s && s.task_id === taskId);
+            if (target) {
+              if (isBefore) target.photo_before = serverUrl;
+              if (isAfter) target.photo_after = serverUrl;
+              target.photo = target.photo_after || target.photo_before;
+              try {
+                localStorage.setItem(`walton_pd_active_slides_${m}`, JSON.stringify(slides));
+              } catch(e) {}
+            }
+          }
+
+          return serverUrl;
+        }
+      }
+    } catch (e) {
+      console.warn("[Hostinger Photo Storage] Server upload error:", e);
+    }
+    return null;
   }
 
   getTaskPhotos(taskId, month = null) {
@@ -334,6 +479,11 @@ class PhotoManager {
       console.warn("Photo sync notice:", syncErr);
     }
 
+    // 5. Send to Hostinger Server Storage API for permanent disk storage across all devices
+    if (base64Url && (base64Url.startsWith('data:image/') || base64Url.length > 500)) {
+      this.uploadPhotoToServer(taskId, slot, base64Url, m).catch(e => console.warn("[Hostinger Photo Storage] Upload notice:", e));
+    }
+
     if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
       MonthlyReportView.render();
     }
@@ -531,6 +681,19 @@ class PhotoManager {
     } catch (e) {
       console.warn("Cloud photo broadcast removal notice:", e);
     }
+
+    // 7. Delete from Hostinger server permanent disk storage
+    try {
+      fetch('api/delete_photo.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId: taskId,
+          month: activeM,
+          slot: isBefore ? 'before_photo' : 'after_photo'
+        })
+      }).catch(err => console.warn("[Hostinger Photo Storage] Server delete notice:", err));
+    } catch (e) {}
 
     if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
       MonthlyReportView.render();
