@@ -1460,11 +1460,43 @@ const MonthlyReportView = {
     this.previewFullDeck(2);
   },
 
+  previewTop5Slide() {
+    if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.deckHtmlList && SlidePreviewModal.deckHtmlList.length >= 2) {
+      this.previewFullDeck(SlidePreviewModal.deckHtmlList.length - 2);
+    } else {
+      const month = this.selectedMonth;
+      const allTasks = window.appState && window.appState.workbookMgr ? window.appState.workbookMgr.getTasksForMonth(month) : [];
+      let activeSlides = window.appState && window.appState.syncEngine
+        ? window.appState.syncEngine.getActiveSlides(month)
+        : [];
+      if (allTasks && allTasks.length > 0) {
+        activeSlides = activeSlides.filter(s => s && s.task_id && allTasks.some(t => t.task_id === s.task_id));
+      }
+      this.previewFullDeck(activeSlides.length + 3);
+    }
+  },
+
   previewClosingSlide() {
     if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.deckHtmlList && SlidePreviewModal.deckHtmlList.length > 0) {
       this.previewFullDeck(SlidePreviewModal.deckHtmlList.length - 1);
     } else {
-      this.previewFullDeck(999);
+      const month = this.selectedMonth;
+      const allTasks = window.appState && window.appState.workbookMgr ? window.appState.workbookMgr.getTasksForMonth(month) : [];
+      let activeSlides = window.appState && window.appState.syncEngine
+        ? window.appState.syncEngine.getActiveSlides(month)
+        : [];
+      if (allTasks && allTasks.length > 0) {
+        activeSlides = activeSlides.filter(s => s && s.task_id && allTasks.some(t => t.task_id === s.task_id));
+      }
+      this.previewFullDeck(activeSlides.length + 4);
+    }
+  },
+
+  openTop5Modal(month = this.selectedMonth) {
+    if (typeof FinalEditorView !== 'undefined' && FinalEditorView.openTop5Modal) {
+      FinalEditorView.openTop5Modal(month);
+    } else {
+      App.switchTab('top5-summary');
     }
   },
 
@@ -1652,8 +1684,8 @@ const MonthlyReportView = {
     }))).filter(Boolean);
     uniqueEngineers.sort((a, b) => (engineerCounts[b] || 0) - (engineerCounts[a] || 0));
 
-    // Total sequence slide count calculation
-    const totalPresentationSlides = activeSlides.length + 4; // Cover + Executive Dashboard + Tasks + Top 5 + Closing
+    // Total sequence slide count calculation: Cover(1) + Agenda(2) + Dashboard(3) + Tasks(N) + Top 5(N+4) + Closing(N+5)
+    const totalPresentationSlides = activeSlides.length + 5;
 
     container.innerHTML = `
       <!-- Single Unified Executive Container for Monthly Report (Immediate slide edit visibility) -->
@@ -1714,11 +1746,15 @@ const MonthlyReportView = {
                       class="px-2.5 py-1 rounded-lg bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 hover:text-white border border-indigo-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
                 <span>#2 Dashboard Slide</span> <span class="text-[10px]">👁️</span>
               </button>
-              <button onclick="App.switchTab('top5-summary')" title="Slide #Summary: Top 5 Completed & Ongoing Summary"
+              <button onclick="MonthlyReportView.openTop5Modal()" title="Edit Top 5 Completed &amp; Ongoing Summary"
                       class="px-2.5 py-1 rounded-lg bg-rose-900/80 hover:bg-rose-800 text-rose-200 hover:text-white border border-rose-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
                 <span>🏆 Top 5 Projects Summary</span> <span class="text-[10px]">✏️</span>
               </button>
-              <button onclick="MonthlyReportView.previewClosingSlide()" title="Slide #Closing: Thank You & Conclusion"
+              <button onclick="MonthlyReportView.previewTop5Slide()" title="Preview Slide #Summary: Top 5 Completed &amp; Ongoing Summary"
+                      class="px-2 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>👁️</span>
+              </button>
+              <button onclick="MonthlyReportView.previewClosingSlide()" title="Slide #Closing: Thank You &amp; Conclusion"
                       class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
                 <span>#Closing Slide</span> <span class="text-[10px]">👁️</span>
               </button>
@@ -1904,7 +1940,7 @@ const MonthlyReportView = {
           <div class="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/80 rounded-2xl p-4 shadow-2xs flex items-center justify-between gap-3">
             <div class="flex items-center gap-3">
               <span class="w-9 h-9 rounded-xl bg-red-600 text-white font-mono font-black text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
-                #${activeSlides.length + 3}
+                #${activeSlides.length + 4}
               </span>
               <div>
                 <div class="flex items-center gap-1.5">
@@ -1915,10 +1951,10 @@ const MonthlyReportView = {
               </div>
             </div>
             <div class="flex items-center gap-1.5 flex-shrink-0">
-              <button onclick="App.switchTab('top5-summary')" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-red-700 border border-red-200 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+              <button onclick="MonthlyReportView.openTop5Modal()" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-red-700 border border-red-200 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
                 <span>✏️</span> <span>Edit</span>
               </button>
-              <button onclick="MonthlyReportView.previewFullDeck()" class="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+              <button onclick="MonthlyReportView.previewTop5Slide()" class="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
                 <span>👁️</span> <span>Preview</span>
               </button>
             </div>
@@ -1928,7 +1964,7 @@ const MonthlyReportView = {
           <div class="bg-slate-900 text-white rounded-2xl p-4 border border-slate-700 shadow-2xs flex items-center justify-between gap-3">
             <div class="flex items-center gap-3">
               <span class="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-mono font-black text-xs flex items-center justify-center flex-shrink-0">
-                #${activeSlides.length + 4}
+                #${activeSlides.length + 5}
               </span>
               <div>
                 <div class="flex items-center gap-1.5">
@@ -1938,7 +1974,7 @@ const MonthlyReportView = {
                 <h4 class="text-xs font-black text-white mt-0.5">Thank You &bull; Continuous Process Improvement</h4>
               </div>
             </div>
-            <button onclick="MonthlyReportView.previewFullDeck()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1 flex-shrink-0 border border-white/20 cursor-pointer">
+            <button onclick="MonthlyReportView.previewClosingSlide()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1 flex-shrink-0 border border-white/20 cursor-pointer">
               <span>👁️</span> <span>Preview</span>
             </button>
           </div>

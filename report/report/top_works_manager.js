@@ -191,7 +191,57 @@ const TopWorksManager = {
     };
 
     this._saveStore(store);
+
+    // 1. Sync to Hostinger server storage via API
+    try {
+      if (typeof fetch !== 'undefined') {
+        fetch('api/sync_top_works.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            month: m,
+            completedTop5: cleanCompleted,
+            ongoingTop5: cleanOngoing
+          })
+        }).catch(e => console.warn('[TopWorks Sync] Server sync notice:', e));
+      }
+    } catch(e) {}
+
+    // 2. Realtime sync to Google Firebase
+    try {
+      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+        FirebaseSyncService.db.ref(`walton_monthly_report/top_works/${m}`).set({
+          completedTop5: cleanCompleted,
+          ongoingTop5: cleanOngoing,
+          updated_at: Date.now()
+        }).catch(e => console.warn('[TopWorks Sync] Firebase sync notice:', e));
+      }
+    } catch(e) {}
+
     return store[m];
+  },
+
+  async fetchFromServer(month = "SEP-2026") {
+    const m = (month || "SEP-2026").toUpperCase();
+    try {
+      if (typeof fetch !== 'undefined') {
+        const res = await fetch(`api/sync_top_works.php?month=${m}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.success && json.data) {
+            const store = this._loadStore();
+            store[m] = {
+              completedTop5: json.data.completedTop5 || [],
+              ongoingTop5: json.data.ongoingTop5 || [],
+              updated_at: json.data.updated_at || new Date().toISOString()
+            };
+            this._saveStore(store);
+            return store[m];
+          }
+        }
+      }
+    } catch(e) {}
+    return null;
   },
 
   /**

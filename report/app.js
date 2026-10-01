@@ -6,7 +6,7 @@
  */
 
 const App = {
-  VALID_TABS: ['dashboard', 'monthly-input', 'monthly-report', 'mgmt-report', 'projects', 'ai-breakdown', 'report-builder', 'cost-savings', 'history', 'master-data', 'settings'],
+  VALID_TABS: ['dashboard', 'monthly-input', 'monthly-report', 'mgmt-report', 'projects', 'ai-breakdown', 'report-builder', 'cost-savings', 'top5-summary', 'final-report', 'history', 'master-data', 'settings'],
   currentTab: 'dashboard',
 
   async init() {
@@ -192,6 +192,8 @@ const App = {
   },
 
   async switchTab(tabId) {
+    // Alias normalization
+    if (tabId === 'final-report') tabId = 'top5-summary';
     if (!tabId || !this.VALID_TABS.includes(tabId)) {
       tabId = 'dashboard';
     }
@@ -213,7 +215,10 @@ const App = {
 
     // Update Navigation Tab UI Buttons (Executive Sidebar Style from Mockup)
     document.querySelectorAll('.nav-tab-btn').forEach(btn => {
-      if (btn.dataset.tab === tabId) {
+      const bTab = btn.dataset.tab;
+      const isMatch = (bTab === tabId) ||
+        ((tabId === 'top5-summary' || tabId === 'final-report') && (bTab === 'top5-summary' || bTab === 'final-report'));
+      if (isMatch) {
         btn.classList.add('bg-[#2563EB]', 'text-white', 'shadow-md', 'shadow-blue-500/25');
         btn.classList.remove('text-slate-600', 'hover:bg-slate-50', 'hover:text-slate-900');
       } else {
@@ -226,7 +231,10 @@ const App = {
     document.querySelectorAll('.view-container').forEach(c => c.classList.add('hidden'));
 
     // Show active container
-    const activeContainer = document.getElementById(`${tabId}-view-container`);
+    let activeContainer = document.getElementById(`${tabId}-view-container`);
+    if (!activeContainer && (tabId === 'top5-summary' || tabId === 'final-report')) {
+      activeContainer = document.getElementById('top5-summary-view-container') || document.getElementById('final-report-view-container');
+    }
     if (activeContainer) {
       activeContainer.classList.remove('hidden');
     }
@@ -257,8 +265,11 @@ const App = {
       if (typeof ReportBuilderView !== 'undefined') await ReportBuilderView.render('report-builder-view-container');
     } else if (tabId === 'photo-manager') {
       await this.switchTab('monthly-report');
-    } else if (tabId === 'final-report') {
-      if (typeof FinalEditorView !== 'undefined') await FinalEditorView.render('final-report-view-container');
+    } else if (tabId === 'top5-summary' || tabId === 'final-report') {
+      if (typeof FinalEditorView !== 'undefined') {
+        const cId = document.getElementById('top5-summary-view-container') ? 'top5-summary-view-container' : 'final-report-view-container';
+        await FinalEditorView.render(cId);
+      }
     } else if (tabId === 'cost-savings') {
       if (typeof CostSavingsView !== 'undefined') await CostSavingsView.render('cost-savings-view-container');
     } else if (tabId === 'history') {

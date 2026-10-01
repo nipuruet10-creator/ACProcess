@@ -165,39 +165,46 @@ const FinalEditorView = {
     await this.render();
   },
 
-  autoFillCompletedFromMonth() {
+  autoFillCompletedFromMonth(prefix = 'top-completed-input-') {
     if (!window.appState || !window.appState.workbookMgr) return;
-    const tasks = window.appState.workbookMgr.getTasksForMonth(this.selectedMonth)
-      .filter(t => t.include_in_report !== "NO");
+    const allTasks = window.appState.workbookMgr.getTasksForMonth(this.selectedMonth);
+    const completedTasks = allTasks.filter(t => {
+      const cat = (t.category || '').toLowerCase();
+      const status = (t.status || t.project_status || '').toLowerCase();
+      return status.includes('complete') || cat.includes('completed') || (t.is_project && status.includes('done'));
+    });
+    const pool = completedTasks.length >= 3 ? completedTasks : allTasks.filter(t => t.include_in_report !== "NO" && t.monthly_report !== "NO");
     
     for (let i = 0; i < 5; i++) {
-      const input = document.getElementById(`top-completed-input-${i}`);
+      const input = document.getElementById(`${prefix}${i}`);
       if (input) {
-        input.value = (tasks[i] && tasks[i].task_name) ? tasks[i].task_name : "";
+        input.value = (pool[i] && pool[i].task_name) ? pool[i].task_name : "";
       }
     }
     if (typeof window.showToast === 'function') {
-      window.showToast("Filled completed works from active tasks!", "info");
+      window.showToast("✨ Auto-filled completed works from active tasks!", "info");
     }
   },
 
-  copyOngoingFromPreviousMonth() {
+  copyOngoingFromPreviousMonth(namePrefix = 'top-ongoing-name-', progPrefix = 'top-ongoing-prog-', dlinePrefix = 'top-ongoing-dline-') {
     if (typeof TopWorksManager === 'undefined') return;
     const prev = TopWorksManager.getPreviousMonth(this.selectedMonth);
     if (!prev) {
-      alert("No previous month found before " + this.selectedMonth);
+      if (typeof window.showToast === 'function') window.showToast("No previous month found before " + this.selectedMonth, "warning");
+      else alert("No previous month found before " + this.selectedMonth);
       return;
     }
     const prevOngoing = TopWorksManager.copyFromPreviousMonth(this.selectedMonth);
     if (!prevOngoing || prevOngoing.length === 0) {
-      alert("No ongoing records found in " + prev);
+      if (typeof window.showToast === 'function') window.showToast("No ongoing records found in " + prev, "warning");
+      else alert("No ongoing records found in " + prev);
       return;
     }
 
     prevOngoing.slice(0, 5).forEach((p, idx) => {
-      const nameInp = document.getElementById(`top-ongoing-name-${idx}`);
-      const progInp = document.getElementById(`top-ongoing-prog-${idx}`);
-      const dlineInp = document.getElementById(`top-ongoing-dline-${idx}`);
+      const nameInp = document.getElementById(`${namePrefix}${idx}`);
+      const progInp = document.getElementById(`${progPrefix}${idx}`);
+      const dlineInp = document.getElementById(`${dlinePrefix}${idx}`);
       if (nameInp) nameInp.value = p.name || "";
       if (progInp) progInp.value = p.progress || "";
       if (dlineInp) dlineInp.value = p.deadline || "";
@@ -241,10 +248,239 @@ const FinalEditorView = {
     this.render();
   },
 
-  render(containerId = 'final-report-view-container') {
-    const container = document.getElementById(containerId) || document.getElementById('final-report-container');
+  openTop5Modal(month = null) {
+    if (month) this.selectedMonth = month;
+    else if (window.appState && window.appState.workbookMgr && window.appState.workbookMgr.activeMonth) {
+      this.selectedMonth = window.appState.workbookMgr.activeMonth;
+    }
+    const m = this.selectedMonth;
+
+    let container = document.getElementById('top5-editor-modal-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'top5-editor-modal-container';
+      document.body.appendChild(container);
+    }
+
+    const topWorks = (typeof TopWorksManager !== 'undefined')
+      ? TopWorksManager.getTopWorksForMonth(m)
+      : { completedTop5: ["", "", "", "", ""], ongoingTop5: [], isCarriedOver: false };
+
+    container.innerHTML = `
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/85 backdrop-blur-sm overflow-y-auto">
+        <div class="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto max-h-[92vh]">
+          
+          <!-- Modal Header -->
+          <div class="px-5 py-3.5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white flex items-center justify-between gap-3 border-b border-slate-700 flex-shrink-0">
+            <div class="flex items-center gap-3">
+              <img src="assets/img/walton_logo.png" alt="WALTON" class="h-7 w-auto object-contain flex-shrink-0 drop-shadow-2xs">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-600 text-white shadow-2xs">
+                    TOP 5 WORKS ENTRY PANEL
+                  </span>
+                  <span class="text-xs font-mono text-slate-300 font-bold">${m}</span>
+                </div>
+                <h3 class="text-sm font-bold text-white mt-0.5">Top 5 Completed &amp; Ongoing Projects Summary Editor</h3>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="FinalEditorView.closeTop5Modal(); App.switchTab('top5-summary');" title="Open full section view" class="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-semibold border border-white/20 transition flex items-center gap-1 cursor-pointer">
+                <span>↗</span> <span class="hidden sm:inline">Full Section</span>
+              </button>
+              <button type="button" onclick="FinalEditorView.closeTop5Modal()" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Action Bar -->
+          <div class="px-5 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 flex-shrink-0 text-xs">
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="FinalEditorView.autoFillCompletedFromMonth('modal-top-completed-')" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-300 transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>✨</span> <span>Auto-Fill Completed</span>
+              </button>
+              <button type="button" onclick="FinalEditorView.copyOngoingFromPreviousMonth('modal-top-ongoing-name-', 'modal-top-ongoing-prog-', 'modal-top-ongoing-dline-')" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-300 transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>🔁</span> <span>Re-sync Ongoing</span>
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="MonthlyReportView.previewTop5Slide()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>👁️</span> <span>Preview Slide</span>
+              </button>
+              <button type="button" onclick="FinalEditorView.saveTopWorksFromModal('${m}')" class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white font-black shadow-sm transition flex items-center gap-1 cursor-pointer">
+                <span>💾</span> <span>Save Top 5 Projects</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Modal Scrollable Content -->
+          <div class="p-5 space-y-5 overflow-y-auto flex-1 text-xs">
+            
+            <!-- SECTION 1: Development Works Completed (Top Five) -->
+            <div>
+              <div class="flex items-center justify-between mb-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-red-100 text-red-600 flex items-center justify-center text-xs font-bold">⚙️</span>
+                  <h4 class="text-xs font-black text-slate-800 uppercase tracking-wide">1. Development Works Completed (Top Five)</h4>
+                </div>
+                <span class="text-[11px] text-slate-400 font-mono">Headline completed process works for ${m}</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
+                ${[0, 1, 2, 3, 4].map(idx => `
+                  <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex flex-col justify-between focus-within:border-red-400 focus-within:bg-white transition">
+                    <div class="flex items-center justify-between mb-1.5">
+                      <span class="w-5 h-5 rounded-md bg-red-600 text-white font-black text-[10px] flex items-center justify-center shadow-xs font-mono">
+                        0${idx + 1}
+                      </span>
+                      <span class="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.2 rounded">
+                        Done
+                      </span>
+                    </div>
+                    <textarea id="modal-top-completed-${idx}" rows="3"
+                      placeholder="Enter work title ${idx + 1}..."
+                      class="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-red-400 resize-none leading-relaxed">${HELPERS.escapeHtml(topWorks.completedTop5[idx] || '')}</textarea>
+                    <div class="text-[9px] font-mono text-slate-400 mt-1">Slot #${idx + 1}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- SECTION 2: On-going Works (Top Five) -->
+            <div>
+              <div class="flex items-center justify-between mb-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-[#0F172A] text-white flex items-center justify-center text-xs font-bold">📋</span>
+                  <h4 class="text-xs font-black text-slate-800 uppercase tracking-wide">2. On-going Works (Top Five)</h4>
+                  ${topWorks.isCarriedOver ? `
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                      🔁 Carried over
+                    </span>
+                  ` : `
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      ✔ Active for ${m}
+                    </span>
+                  `}
+                </div>
+                <span class="text-[11px] text-slate-400 font-mono">Current progress and target tentative timeline</span>
+              </div>
+
+              <div class="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                <table class="w-full text-xs border-collapse">
+                  <thead class="bg-slate-100 text-slate-700 font-mono uppercase text-[10px] border-b border-slate-200">
+                    <tr>
+                      <th class="py-2 px-2.5 w-10 text-center">Sl</th>
+                      <th class="py-2 px-3 text-left w-2/5">Project Name</th>
+                      <th class="py-2 px-3 text-left w-2/5">Current Progress / Status</th>
+                      <th class="py-2 px-2 text-center w-1/5">Deadline</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 bg-white">
+                    ${[0, 1, 2, 3, 4].map(idx => {
+                      const row = topWorks.ongoingTop5[idx] || { sl: idx + 1, name: "", progress: "", deadline: "" };
+                      return `
+                        <tr class="hover:bg-red-50/20 transition">
+                          <td class="py-2 px-2 text-center font-mono font-bold text-red-600">
+                            0${idx + 1}
+                          </td>
+                          <td class="py-1.5 px-2">
+                            <input type="text" id="modal-top-ongoing-name-${idx}" value="${HELPERS.escapeHtml(row.name || '')}"
+                              placeholder="e.g. CNC Tube Bending Automation..."
+                              class="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-red-400" />
+                          </td>
+                          <td class="py-1.5 px-2">
+                            <input type="text" id="modal-top-ongoing-prog-${idx}" value="${HELPERS.escapeHtml(row.progress || '')}"
+                              placeholder="e.g. Trial run and modification ongoing..."
+                              class="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:border-red-400" />
+                          </td>
+                          <td class="py-1.5 px-2 text-center">
+                            <input type="text" id="modal-top-ongoing-dline-${idx}" value="${HELPERS.escapeHtml(row.deadline || '')}"
+                              placeholder="e.g. Oct, 2026"
+                              class="w-full text-center bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-red-400" />
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 flex-shrink-0">
+            <span class="text-xs text-slate-500">
+              💡 Changes saved here sync live to all devices and appear on PPTX, PDF, and HTML summary slides.
+            </span>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="FinalEditorView.closeTop5Modal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-bold transition cursor-pointer">
+                Close
+              </button>
+              <button type="button" onclick="FinalEditorView.saveTopWorksFromModal('${m}')" class="px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-xs font-black text-white shadow-md shadow-red-200 transition flex items-center gap-1.5 cursor-pointer">
+                <span>💾</span> <span>Save Top 5 Projects</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+  },
+
+  closeTop5Modal() {
+    const container = document.getElementById('top5-editor-modal-container');
+    if (container) container.innerHTML = '';
+  },
+
+  saveTopWorksFromModal(month) {
+    if (typeof TopWorksManager === 'undefined') return;
+
+    const completed = [];
+    for (let i = 0; i < 5; i++) {
+      const inp = document.getElementById(`modal-top-completed-${i}`);
+      completed.push(inp ? inp.value.trim() : "");
+    }
+
+    const ongoing = [];
+    for (let i = 0; i < 5; i++) {
+      const nameInp = document.getElementById(`modal-top-ongoing-name-${i}`);
+      const progInp = document.getElementById(`modal-top-ongoing-prog-${i}`);
+      const dlineInp = document.getElementById(`modal-top-ongoing-dline-${i}`);
+      ongoing.push({
+        sl: i + 1,
+        name: nameInp ? nameInp.value.trim() : "",
+        progress: progInp ? progInp.value.trim() : "",
+        deadline: dlineInp ? dlineInp.value.trim() : ""
+      });
+    }
+
+    TopWorksManager.saveTopWorksForMonth(month, completed, ongoing);
+
+    if (typeof window.showToast === 'function') {
+      window.showToast(`💾 Top 5 Works & Projects saved for ${month}!`, "success");
+    } else {
+      alert(`Top 5 Works saved for ${month}!`);
+    }
+
+    // Refresh any active views
+    if (window.App && (window.App.currentTab === 'top5-summary' || window.App.currentTab === 'final-report')) {
+      this.render();
+    }
+  },
+
+  render(containerId = null) {
+    const container = (containerId ? document.getElementById(containerId) : null) || 
+                      document.getElementById('top5-summary-view-container') || 
+                      document.getElementById('final-report-view-container') || 
+                      document.getElementById('final-report-container');
     if (!container) return;
 
+    if (window.appState && window.appState.workbookMgr && window.appState.workbookMgr.activeMonth) {
+      this.selectedMonth = window.appState.workbookMgr.activeMonth;
+    }
     const month = this.selectedMonth;
     const workbookMgr = window.appState && window.appState.workbookMgr ? window.appState.workbookMgr : null;
     const months = workbookMgr ? workbookMgr.getAllMonths() : [
@@ -431,6 +667,20 @@ const FinalEditorView = {
             <button onclick="FinalEditorView.saveTopWorks()" class="px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-xs font-black text-white shadow-md shadow-red-200/50 transition flex items-center gap-1.5 cursor-pointer">
               <span>💾</span> <span>Save Top 5 Projects</span>
             </button>
+          </div>
+        </div>
+
+        <!-- LIVE SLIDE PREVIEW SECTION -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <span class="text-base">👁️</span>
+              <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">Live Presentation Slide Preview</h3>
+            </div>
+            <span class="text-xs text-slate-400 font-mono">Updates automatically when saved &bull; ${month}</span>
+          </div>
+          <div class="w-full max-w-5xl mx-auto drop-shadow-md rounded-xl overflow-hidden border border-slate-200">
+            ${(typeof SlideLayoutEngine !== 'undefined') ? SlideLayoutEngine.renderTopWorksSummarySlide(month, topWorks) : ''}
           </div>
         </div>
 

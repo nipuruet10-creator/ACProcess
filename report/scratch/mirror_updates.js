@@ -9,15 +9,20 @@ const files = [
   'index.html',
   'api/delete_photo.php',
   'api/get_photos.php',
+  'api/sync_top_works.php',
   'ai/prompt_templates.js',
   'database/firebase_sync_service.js',
   'photos/photo_manager.js',
   'report/monthly_report_view.js',
+  'report/preview_modal.js',
+  'report/top_works_manager.js',
+  'report/final_editor_view.js',
   'slides/slide_layout_engine.js',
   'export/pptx_generator.js',
   'export/html_generator.js',
   'tasks/month_workbook_manager.js',
-  'tasks/sync_engine.js'
+  'tasks/sync_engine.js',
+  'app.js'
 ];
 
 for (const rel of files) {

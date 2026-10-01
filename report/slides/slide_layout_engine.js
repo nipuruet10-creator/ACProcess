@@ -2722,18 +2722,10 @@ const SlideLayoutEngine = {
       <!-- Top Subtle Bar -->
       <div class="flex items-center justify-between border-b border-white/10 pb-3 flex-shrink-0">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 flex-shrink-0">
-            <svg viewBox="0 0 40 40" fill="none" class="w-full h-full">
-              <path d="M20 2L38 20L20 38L2 20Z" fill="#C5161D"/>
-              <path d="M20 2L38 20L20 20Z" fill="#E11D48"/>
-              <path d="M2 20L20 20L20 38Z" fill="#991B1B"/>
-              <path d="M20 20L38 20L20 38Z" fill="#B91C1C"/>
-              <path d="M20 7L33 20L20 33L7 20Z" fill="#FFFFFF" fill-opacity="0.35"/>
-            </svg>
-          </div>
+          <img src="assets/img/walton_logo.png" alt="WALTON" class="h-8 w-auto object-contain flex-shrink-0 drop-shadow-xs" />
           <div>
             <div style="font-size: 13.5px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.05em;">WALTON Hi-Tech Industries PLC</div>
-            <div style="font-size: 9px; font-weight: 700; color: #94A3B8; letter-spacing: 0.15em;">PROCESS DEVELOPMENT DEPARTMENT</div>
+            <div style="font-size: 8.5px; font-weight: 700; color: #94A3B8; letter-spacing: 0.12em;">PROCESS DEVELOPMENT (RESIDENTIAL AND COMMERCIAL AIR CONDITIONER)</div>
           </div>
         </div>
         <div class="px-3.5 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-mono font-bold text-white">
@@ -2805,17 +2797,9 @@ const SlideLayoutEngine = {
       <!-- HEADER -->
       <div class="flex items-center justify-between border-b border-slate-100 pb-2.5 flex-shrink-0">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 flex-shrink-0">
-            <svg viewBox="0 0 40 40" fill="none" class="w-full h-full">
-              <path d="M20 2L38 20L20 38L2 20Z" fill="#C5161D"/>
-              <path d="M20 2L38 20L20 20Z" fill="#E11D48"/>
-              <path d="M2 20L20 20L20 38Z" fill="#991B1B"/>
-              <path d="M20 20L38 20L20 38Z" fill="#B91C1C"/>
-              <path d="M20 7L33 20L20 33L7 20Z" fill="#FFFFFF" fill-opacity="0.25"/>
-            </svg>
-          </div>
+          <img src="assets/img/walton_logo.png" alt="WALTON" class="h-8 w-auto object-contain flex-shrink-0 drop-shadow-xs" />
           <div>
-            <div style="font-size: 13px; font-weight: 900; color: #0F172A;">PROCESS DEVELOPMENT DEPARTMENT (AC)</div>
+            <div style="font-size: 11px; font-weight: 900; color: #0F172A; letter-spacing: -0.01em;">PROCESS DEVELOPMENT (RESIDENTIAL AND COMMERCIAL AIR CONDITIONER)</div>
             <div style="font-size: 8.5px; font-weight: 700; color: #64748B; letter-spacing: 0.18em;">INNOVATE &bull; IMPROVE &bull; DELIVER</div>
           </div>
         </div>
@@ -2908,7 +2892,7 @@ const SlideLayoutEngine = {
       <!-- FOOTER -->
       <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[10.5px] font-semibold text-slate-400 flex-shrink-0">
         <div class="flex items-center gap-2">
-          <span class="font-bold text-[#0F172A]">⚙ PROCESS DEVELOPMENT DEPARTMENT</span>
+          <span class="font-bold text-[#0F172A]">⚙ PROCESS DEVELOPMENT (RESIDENTIAL AND COMMERCIAL AIR CONDITIONER)</span>
         </div>
         <div class="flex items-center gap-4">
           <span>🏆 Continuous Improvement</span>
@@ -3942,8 +3926,8 @@ const SlideLayoutEngine = {
     // Sequence: Standard Tasks -> Completed Projects -> Ongoing Projects
     const taskSlides = [...sequencedStandardTasks, ...completedProjectSlides, ...ongoingProjectSlides];
     const deck = [];
-    // Total slides: Task slides + 4 (Cover + Table of Contents + Management Dashboard + Tasks + Top 5 Works)
-    const totalSlideCount = taskSlides.length + 4;
+    // Total slides: Task slides + 5 (Cover + Table of Contents + Management Dashboard + Tasks + Top 5 Works + Closing)
+    const totalSlideCount = taskSlides.length + 5;
 
     // Slide 1: Cover Page
     if (isBlue) {
@@ -3972,11 +3956,18 @@ const SlideLayoutEngine = {
       deck.push(this.renderTaskSlide(taskWithTpl, idx + 4, totalSlideCount));
     });
 
-    // Slide N+4 (Last Slide): Top 5 Works & Projects Summary (Image 2)
+    // Slide N+4: Top 5 Works & Projects Summary (Image 2)
     if (isBlue) {
       deck.push(this.renderIndustrialBlueTopWorksSlide(month, reportData.topWorksData || reportData));
     } else {
       deck.push(this.renderTopWorksSummarySlide(month, reportData.topWorksData || reportData));
+    }
+
+    // Slide N+5 (Final Closing Slide): Thank You / Continuous Process Improvement
+    if (isBlue) {
+      deck.push(this.renderIndustrialBlueThankYouSlide(month));
+    } else {
+      deck.push(this.renderThankYouSlide(month));
     }
 
     return deck;

@@ -95,7 +95,8 @@ const SlidePreviewModal = {
       }
       this.deckTitles.push(`${i + 4}. ${prefix} ${cleanTitle}`);
     });
-    this.deckTitles.push(`${total}. Top 5 Works & Projects Summary`);
+    this.deckTitles.push(`${total - 1}. Top 5 Works & Projects Summary`);
+    this.deckTitles.push(`${total}. Thank You / Closing Slide`);
 
     const container = this.renderContainer();
     this._renderModal(container);
