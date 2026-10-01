@@ -45,12 +45,16 @@ try {
     $baseUploadDir = dirname(__DIR__) . '/uploads';
     $photosDir = $baseUploadDir . '/photos/' . $cleanMonth;
 
-    // Delete matching files from disk
+    // Determine slots to delete
+    $slotsToDelete = ($slot === 'all') ? ['before_photo', 'after_photo'] : [$slot];
     $extensions = ['jpg', 'jpeg', 'png', 'webp'];
-    foreach ($extensions as $ext) {
-        $path = $photosDir . '/' . $cleanTaskId . '_' . $slot . '.' . $ext;
-        if (file_exists($path)) {
-            @unlink($path);
+
+    foreach ($slotsToDelete as $s) {
+        foreach ($extensions as $ext) {
+            $path = $photosDir . '/' . $cleanTaskId . '_' . $s . '.' . $ext;
+            if (file_exists($path)) {
+                @unlink($path);
+            }
         }
     }
 
@@ -60,7 +64,13 @@ try {
         $raw = @file_get_contents($indexFile);
         $catalog = json_decode($raw, true);
         if (is_array($catalog) && isset($catalog[$cleanTaskId])) {
-            if ($slot === 'after_photo') {
+            if ($slot === 'all') {
+                $catalog[$cleanTaskId]['before_photo'] = null;
+                $catalog[$cleanTaskId]['after_photo'] = null;
+                $catalog[$cleanTaskId]['photo_1'] = null;
+                $catalog[$cleanTaskId]['photo_2'] = null;
+                $catalog[$cleanTaskId]['photo'] = null;
+            } elseif ($slot === 'after_photo') {
                 $catalog[$cleanTaskId]['after_photo'] = null;
                 $catalog[$cleanTaskId]['photo_2'] = null;
                 $catalog[$cleanTaskId]['photo'] = $catalog[$cleanTaskId]['before_photo'] ?? null;
@@ -79,7 +89,13 @@ try {
         $raw = @file_get_contents($masterIndex);
         $master = json_decode($raw, true);
         if (is_array($master) && isset($master[$cleanTaskId])) {
-            if ($slot === 'after_photo') {
+            if ($slot === 'all') {
+                $master[$cleanTaskId]['before_photo'] = null;
+                $master[$cleanTaskId]['after_photo'] = null;
+                $master[$cleanTaskId]['photo_1'] = null;
+                $master[$cleanTaskId]['photo_2'] = null;
+                $master[$cleanTaskId]['photo'] = null;
+            } elseif ($slot === 'after_photo') {
                 $master[$cleanTaskId]['after_photo'] = null;
                 $master[$cleanTaskId]['photo_2'] = null;
             } else {

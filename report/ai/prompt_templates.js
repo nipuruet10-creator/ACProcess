@@ -121,16 +121,71 @@ Return ONLY a JSON object matching this exact schema:
     ];
     let quote = "Automation for a Smarter Tomorrow";
 
-    // Contextual rule-based classification based on genuine industrial terms
-    if (lower.includes("die") || lower.includes("fixture") || lower.includes("jig") || lower.includes("cutter") || lower.includes("tray") || lower.includes("mold")) {
+    // Contextual 10-Domain rule-based classification based on genuine industrial terms
+    // 1. Digitalization / TMS / Software / System Automation / Web Portal / Dashboard / Report
+    if (lower.includes("system") || lower.includes("tms") || lower.includes("software") || lower.includes("web") || lower.includes("portal") || lower.includes("app") || lower.includes("digit") || lower.includes("tracking") || lower.includes("dashboard") || lower.includes("report") || lower.includes("database") || lower.includes("sheet")) {
+      category = "Process Development";
+      projectType = "Process Digitization";
+      desc = `Developed and deployed centralized digital workflow for ${rawName.toLowerCase()}. Automated tracking, eliminated manual reporting bottlenecks, and enabled real-time operational visibility.`;
+      impacts = [
+        "Centralized digital tracking eliminating paper-based logs",
+        "Automated real-time reporting and task status visibility",
+        "Reduced reporting cycle turnaround time across departments",
+        "Seamless multi-user collaboration and operational control"
+      ];
+      metrics = [
+        { name: "Reporting Speed", change: "Fast", trend: "up", color: "green" },
+        { name: "Manual Bottleneck", change: "Eliminated", trend: "down", color: "green" },
+        { name: "Data Accuracy", change: "100%", trend: "up", color: "green" }
+      ];
+      quote = "Digital Innovation for Intelligent Manufacturing";
+    }
+    // 2. Vacuum / Evacuation / Booster / Pump / Leak Test / Pressure Decay / Nitrogen
+    else if (lower.includes("vacuum") || lower.includes("booster") || lower.includes("pump") || lower.includes("evacuation") || lower.includes("leak") || lower.includes("pressure") || lower.includes("nitrogen") || lower.includes("charging") || lower.includes("station")) {
+      category = "Process Development";
+      projectType = "Cycle Time Optimization";
+      desc = `Optimized vacuum evacuation and pressure decay parameters for ${rawName.toLowerCase()}. Upgraded station pumping configuration and reduced cycle time from station bottleneck.`;
+      impacts = [
+        "Vacuum cycle duration minimized across operational stations",
+        "Achieved superior deep vacuum evacuation level for system reliability",
+        "Eliminated station queuing bottleneck and boosted line throughput",
+        "Confirmed zero leak rate compliance on 100% inspected units"
+      ];
+      metrics = [
+        { name: "Vacuum Cycle Time", change: "Reduced", trend: "down", color: "red" },
+        { name: "Deep Vacuum Level", change: "Enhanced", trend: "up", color: "green" },
+        { name: "Station Throughput", change: "Increased", trend: "up", color: "green" }
+      ];
+      quote = "Precision Vacuum Engineering for Superior Reliability";
+    }
+    // 3. Conveyor / Routing / Line Shifting / Material Transfer / Rework / Layout
+    else if (lower.includes("conveyor") || lower.includes("rework") || lower.includes("routing") || lower.includes("transfer") || lower.includes("line shifting") || lower.includes("layout") || lower.includes("chute") || lower.includes("lifter")) {
+      category = "Process Development";
+      projectType = "Line Layout & Flow Optimization";
+      desc = `Re-engineered line layout and material routing mechanism for ${rawName.toLowerCase()}. Balanced station cycle times and eliminated intermediate transfer delays.`;
+      impacts = [
+        "Smooth inline conveyance without manual handling congestion",
+        "Eliminated station starvation and balanced takt time sequence",
+        "Standardized buffer capacity and optimized shop-floor layout",
+        "Enhanced operator ergonomics and material delivery safety"
+      ];
+      metrics = [
+        { name: "Transfer Delay", change: "Minimized", trend: "down", color: "red" },
+        { name: "Line Balance", change: "Optimized", trend: "up", color: "green" },
+        { name: "Takt Time Flow", change: "Balanced", trend: "up", color: "green" }
+      ];
+      quote = "Seamless Material Flow, Maximum Productivity";
+    }
+    // 4. Die / Tooling / Fixture / Jig / Cutter / Mold / Bending / Forming
+    else if (lower.includes("die") || lower.includes("fixture") || lower.includes("jig") || lower.includes("cutter") || lower.includes("mold") || lower.includes("tool") || lower.includes("bending") || lower.includes("punching") || lower.includes("forming")) {
       category = "Tooling & Fixtures";
       projectType = "Tooling Development";
-      desc = `Designed, fabricated, and verified tooling fixture for ${rawName.toLowerCase()}. Verified dimensional tolerance and handed over to production operations.`;
+      desc = `Designed, fabricated, and validated precision tooling fixture for ${rawName.toLowerCase()}. Verified fitment tolerances and commissioned on the active production line.`;
       impacts = [
-        "Enhanced tooling precision and alignment",
-        "Significant reduction in manual changeover time",
-        "Improved fixture durability under production load",
-        "Consistent component fabrication repeatability"
+        "Tooling fabrication and dimensional verification completed",
+        "High mechanical stability and repeatability under continuous load",
+        "Reduced tooling changeover time and minimized production deviation",
+        "Successful trial validation and handover for regular line production"
       ];
       metrics = [
         { name: "Tooling Precision", change: "Enhanced", trend: "up", color: "green" },
@@ -138,47 +193,35 @@ Return ONLY a JSON object matching this exact schema:
         { name: "Defect Ratio", change: "Decreased", trend: "down", color: "red" }
       ];
       quote = "Precision Engineering for Flawless Production";
-    } else if (lower.includes("robot") || lower.includes("automation") || lower.includes("eoat") || lower.includes("turret") || lower.includes("motor") || lower.includes("sensor")) {
-      category = "Automation";
-      projectType = "Automation Upgrade";
-      desc = `Engineered and integrated automated control mechanism for ${rawName.toLowerCase()}. Successfully tested safety interlocks and commissioned on the active line.`;
-      impacts = [
-        "Automated repetitive manual handling stages",
-        "Increased continuous line throughput",
-        "Enhanced operator safety and process consistency",
-        "Real-time operational cycle time reduction"
-      ];
-      metrics = [
-        { name: "Automation Level", change: "Advanced", trend: "up", color: "green" },
-        { name: "Cycle Time", change: "Optimized", trend: "down", color: "red" },
-        { name: "Labor Fatigue", change: "Minimized", trend: "down", color: "red" }
-      ];
-      quote = "Automation for a Smarter Tomorrow";
-    } else if (lower.includes("foil") || lower.includes("cutting") || lower.includes("vacuum") || lower.includes("brazing") || lower.includes("jacket")) {
+    }
+    // 5. BOM / Audit / SFG / Sheet / Store / Raw Material / Coil / Reconciliation / Verification
+    else if (lower.includes("bom") || lower.includes("audit") || lower.includes("sfg") || lower.includes("verification") || lower.includes("inspection") || lower.includes("store") || lower.includes("sheet") || lower.includes("coil") || lower.includes("rm") || lower.includes("raw material") || lower.includes("reconciliation")) {
       category = "Process Development";
-      projectType = "Process Improvement";
-      desc = `Developed and implemented an automatic foil cutting system for compressor jacket production. The system was designed, fabricated and handed over to production for regular use.`;
+      projectType = "Material Audit & BOM Verification";
+      desc = `Conducted physical component audit and technical verification for ${rawName.toLowerCase()}. Reconciled material usage and verified specifications against approved engineering drawings.`;
       impacts = [
-        "Improved cutting accuracy and consistency",
-        "Increased production efficiency",
-        "Reduced manual handling",
-        "Better quality control and less material waste"
+        "Physical line observation & part count verified on active lines",
+        "Verified material specifications & tolerance compliance against drawings",
+        "Eliminated defective processing & storage scrap risks across shifts",
+        "Audit sign-off completed for active production lines"
       ];
       metrics = [
-        { name: "Production Efficiency", change: "Improved", trend: "up", color: "green" },
-        { name: "Quality Consistency", change: "Enhanced", trend: "up", color: "green" },
-        { name: "Material Waste", change: "Reduced", trend: "down", color: "red" }
+        { name: "Audit Accuracy", change: "100%", trend: "up", color: "green" },
+        { name: "BOM Variance", change: "Eliminated", trend: "down", color: "green" },
+        { name: "Inventory Risk", change: "Zero", trend: "down", color: "green" }
       ];
-      quote = "Automation for a Smarter Tomorrow";
-    } else if (lower.includes("chemical") || lower.includes("corrosion") || lower.includes("acid") || lower.includes("coating") || lower.includes("swaat")) {
+      quote = "Accurate Bill of Materials for Lean Manufacturing";
+    }
+    // 6. Chemical / Coating / SWAAT / Corrosion / Metallurgy / Acid / Paint
+    else if (lower.includes("chemical") || lower.includes("corrosion") || lower.includes("acid") || lower.includes("coating") || lower.includes("swaat") || lower.includes("paint") || lower.includes("treatment")) {
       category = "Chemical & Metallurgy";
       projectType = "Materials Quality Trial";
-      desc = `Executed chemical treatment and surface corrosion resistance trial for ${rawName.toLowerCase()}. Verified quality compliance against Walton AC standards.`;
+      desc = `Executed chemical treatment and surface corrosion resistance trial for ${rawName.toLowerCase()}. Verified coating adhesion and durability compliance against Walton AC engineering standards.`;
       impacts = [
-        "Superior corrosion and degradation resistance",
-        "High adherence to Walton metallurgical standards",
-        "Standardized chemical bath preparation procedure",
-        "Enhanced product longevity in field operations"
+        "Superior corrosion and environmental degradation resistance verified",
+        "Standardized chemical bath parameters and immersion cycle timings",
+        "Strict adherence to Walton metallurgical & reliability benchmarks",
+        "Zero chemical defect deviation confirmed on production trial"
       ];
       metrics = [
         { name: "Corrosion Resistance", change: "Enhanced", trend: "up", color: "green" },
@@ -186,15 +229,17 @@ Return ONLY a JSON object matching this exact schema:
         { name: "Quality Rejections", change: "Reduced", trend: "down", color: "red" }
       ];
       quote = "Quality First in Every Process";
-    } else if (lower.includes("cost") || lower.includes("saving") || lower.includes("wastage") || lower.includes("scrap")) {
+    }
+    // 7. Cost / Saving / Wastage / Scrap / Yield / Kaizen
+    else if (lower.includes("cost") || lower.includes("saving") || lower.includes("wastage") || lower.includes("scrap") || lower.includes("yield") || lower.includes("kaizen")) {
       category = "Cost Optimization";
       projectType = "Kaizen & Cost Reduction";
-      desc = `Conducted in-depth engineering analysis and material audit for ${rawName.toLowerCase()}. Streamlined material utilization to eliminate operational scrap.`;
+      desc = `Conducted material audit and process yield optimization for ${rawName.toLowerCase()}. Streamlined material consumption and eliminated trim waste to maximize production value.`;
       impacts = [
-        "Elimination of raw material trim wastage",
-        "Direct optimization of production consumables",
-        "Streamlined operational workflow sequence",
-        "Sustainable resource utilization across lines"
+        "Eliminated process scrap generation & trim material loss",
+        "Direct optimization of production consumables and unit cost",
+        "Improved material yield and workflow sequence across lines",
+        "Validated sustainable resource utilization for active production"
       ];
       metrics = [
         { name: "Material Utilization", change: "Maximized", trend: "up", color: "green" },
@@ -202,6 +247,62 @@ Return ONLY a JSON object matching this exact schema:
         { name: "Process Yield", change: "Improved", trend: "up", color: "green" }
       ];
       quote = "Eliminating Waste, Maximizing Value";
+    }
+    // 8. Hardware Robotics / Motor / Turret / Machine Automation
+    else if (lower.includes("robot") || lower.includes("motor") || lower.includes("sensor") || lower.includes("turret") || lower.includes("press") || lower.includes("pneumatic") || lower.includes("interlock") || lower.includes("automation")) {
+      category = "Automation";
+      projectType = "Automation Upgrade";
+      desc = `Engineered and integrated automated control mechanism for ${rawName.toLowerCase()}. Successfully tested safety interlocks, optimized cycle parameters, and commissioned on the active line.`;
+      impacts = [
+        "Automated repetitive manual handling and loading operations",
+        "Increased continuous line throughput & machine cycle repeatability",
+        "Enhanced operator safety interlocks and handling ergonomics",
+        "Commissioned on active manufacturing line with validated reliability"
+      ];
+      metrics = [
+        { name: "Automation Level", change: "Advanced", trend: "up", color: "green" },
+        { name: "Cycle Time", change: "Optimized", trend: "down", color: "red" },
+        { name: "Labor Fatigue", change: "Minimized", trend: "down", color: "red" }
+      ];
+      quote = "Automation for a Smarter Tomorrow";
+    }
+    // 9. New Model / Pilot Trial / Line Balancing / Sample
+    else if (lower.includes("model") || lower.includes("trial") || lower.includes("pilot") || lower.includes("sample") || lower.includes("balancing")) {
+      category = "Process Development";
+      projectType = "Pilot Trial & Validation";
+      desc = `Executed pilot production trial, line balancing, and assembly verification for ${rawName.toLowerCase()}. Addressed station bottlenecks and confirmed commercial production readiness.`;
+      impacts = [
+        "Component readiness & line tooling verified before trial",
+        "Pilot assembly completed with balanced station cycle times",
+        "Handled station bottlenecks and confirmed ergonomic workflow",
+        "Approved for commercial mass manufacturing handover"
+      ];
+      metrics = [
+        { name: "First Pass Yield", change: "High", trend: "up", color: "green" },
+        { name: "Cycle Balance", change: "Stable", trend: "up", color: "green" },
+        { name: "Trial Defects", change: "Zero", trend: "down", color: "green" }
+      ];
+      quote = "Precision Trial Handover for Flawless Mass Production";
+    }
+    // 10. General Engineering Development
+    else {
+      const cleanWords = rawName.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2);
+      const subject = cleanWords.slice(0, 4).join(' ') || rawName;
+      category = "Process Development";
+      projectType = "Process Improvement";
+      desc = `Engineered, verified, and standardized operational workflow for ${rawName.toLowerCase()}. Optimized process parameters and commissioned for regular daily manufacturing use.`;
+      impacts = [
+        `Process layout & technical analysis finalized for ${subject}`,
+        "Implemented standardized operating mechanism on production line",
+        "Eliminated manual bottlenecks & stabilized operational cycle time",
+        "Production trial validation and operator handover completed"
+      ];
+      metrics = [
+        { name: "Production Efficiency", change: "Improved", trend: "up", color: "green" },
+        { name: "Quality Consistency", change: "Enhanced", trend: "up", color: "green" },
+        { name: "Material Waste", change: "Reduced", trend: "down", color: "red" }
+      ];
+      quote = "Continuous Process Improvement for Operational Excellence";
     }
 
     return {

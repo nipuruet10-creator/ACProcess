@@ -108,14 +108,18 @@ class PhotoManager {
           for (const [tId, pData] of Object.entries(data.photos)) {
             if (!pData) continue;
             const current = this.photoMap[tId] || {};
+            // Never let empty server fields wipe an actively loaded memory photo
             const merged = {
               ...current,
-              before_photo: pData.before_photo || current.before_photo || null,
-              after_photo: pData.after_photo || current.after_photo || null,
-              photo_1: pData.photo_1 || pData.before_photo || current.photo_1 || null,
-              photo_2: pData.photo_2 || pData.after_photo || current.photo_2 || null,
-              photo: pData.after_photo || pData.photo || current.photo || null
+              before_photo: (pData.before_photo !== undefined && pData.before_photo !== null && pData.before_photo !== '') ? pData.before_photo : (current.before_photo || null),
+              after_photo: (pData.after_photo !== undefined && pData.after_photo !== null && pData.after_photo !== '') ? pData.after_photo : (current.after_photo || null),
+              photo_1: (pData.photo_1 !== undefined && pData.photo_1 !== null && pData.photo_1 !== '') ? pData.photo_1 : (pData.before_photo || current.photo_1 || null),
+              photo_2: (pData.photo_2 !== undefined && pData.photo_2 !== null && pData.photo_2 !== '') ? pData.photo_2 : (pData.after_photo || current.photo_2 || null),
+              photo: (pData.after_photo || pData.photo || pData.before_photo || current.after_photo || current.before_photo || null)
             };
+            const hadPhoto = Boolean(current.before_photo || current.after_photo || current.photo);
+            const hasPhotoNow = Boolean(merged.before_photo || merged.after_photo || merged.photo);
+
             this.photoMap[tId] = merged;
             if (month && month !== 'ALL') {
               const monthKey = `${month}_${tId}`;
@@ -123,6 +127,13 @@ class PhotoManager {
             }
             if (typeof PhotoIndexedDB !== 'undefined') {
               PhotoIndexedDB.saveTaskPhotos(tId, merged).catch(() => {});
+            }
+
+            // Real-time live card update when photo is added on another PC
+            if (!hadPhoto && hasPhotoNow) {
+              if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
+                MonthlyReportView.updateSlideCardPhoto(tId);
+              }
             }
             updatedCount++;
           }
@@ -199,18 +210,38 @@ class PhotoManager {
             PhotoIndexedDB.saveTaskPhotos(monthKey, this.photoMap[monthKey]).catch(() => {});
           }
 
-          // Update active slides in SyncEngine so presentation slides use server URL
-          if (typeof window !== 'undefined' && window.appState && window.appState.syncEngine) {
-            const slides = window.appState.syncEngine.getActiveSlides(m);
-            const target = slides.find(s => s && s.task_id === taskId);
-            if (target) {
-              if (isBefore) target.photo_before = serverUrl;
-              if (isAfter) target.photo_after = serverUrl;
-              target.photo = target.photo_after || target.photo_before;
-              try {
-                localStorage.setItem(`walton_pd_active_slides_${m}`, JSON.stringify(slides));
-              } catch(e) {}
-            }
+          // Persist clean server URL to MonthWorkbookManager (lightweight URL prevents localStorage 5MB quota errors!)
+          if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+            try {
+              const wbMgr = window.appState.workbookMgr;
+              const targetTask = wbMgr.getTask(m, taskId);
+              if (targetTask) {
+                if (isBefore) {
+                  targetTask.photo_1 = serverUrl;
+                  targetTask.before_photo = serverUrl;
+                  delete targetTask._photoDeleted_before;
+                }
+                if (isAfter) {
+                  targetTask.photo_2 = serverUrl;
+                  targetTask.after_photo = serverUrl;
+                  delete targetTask._photoDeleted_after;
+                }
+                delete targetTask.clear_photos;
+                targetTask._lastPhotoEditTime = Date.now();
+                targetTask.last_updated = new Date().toISOString();
+                wbMgr.save();
+              }
+            } catch(e) {}
+          }
+
+          // Broadcast server URL to peer laptops via Firebase Realtime Database
+          if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
+            try {
+              FirebaseSyncService.updateCell(m, taskId, isBefore ? 'photo_1' : 'photo_2', serverUrl);
+              FirebaseSyncService.updateCell(m, taskId, isBefore ? 'before_photo' : 'after_photo', serverUrl);
+              FirebaseSyncService.updateCell(m, taskId, 'clear_photos', null);
+              FirebaseSyncService.updateCell(m, taskId, isBefore ? '_photoDeleted_before' : '_photoDeleted_after', null);
+            } catch(e) {}
           }
 
           // If MonthlyReportView is active, update targeted DOM directly (no full render!)
@@ -234,6 +265,7 @@ class PhotoManager {
   }
 
   getTaskPhotos(taskId, month = null) {
+    if (!taskId) return { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
     let m = month;
     if (!m && typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
       m = window.appState.workbookMgr.activeMonth;
@@ -242,7 +274,19 @@ class PhotoManager {
       m = MonthlyInputView.selectedMonth;
     }
     const monthKey = m ? `${m}_${taskId}` : null;
-    const memMonth = monthKey ? this.photoMap[monthKey] : null;
+    let memMonth = monthKey ? this.photoMap[monthKey] : null;
+
+    // Case-insensitive lookup fallback if exact case not found in memory
+    if (!memMonth && monthKey) {
+      const lowerKey = monthKey.toLowerCase();
+      const k = Object.keys(this.photoMap).find(key => key.toLowerCase() === lowerKey);
+      if (k) memMonth = this.photoMap[k];
+    }
+    if (!this.photoMap[taskId]) {
+      const lowerId = String(taskId).toLowerCase();
+      const k = Object.keys(this.photoMap).find(key => key.toLowerCase() === lowerId);
+      if (k) this.photoMap[taskId] = this.photoMap[k];
+    }
 
     let t = null;
     let taskP1 = null;
@@ -523,8 +567,9 @@ class PhotoManager {
       m = MonthlyInputView.selectedMonth;
     }
     const monthKey = m ? `${m}_${taskId}` : null;
-    const isBefore = (slot === 'before_photo' || slot === 'photo_1');
-    const isAfter = (slot === 'after_photo' || slot === 'photo_2');
+    const isAll = (slot === 'all');
+    const isBefore = isAll || (slot === 'before_photo' || slot === 'photo_1');
+    const isAfter = isAll || (slot === 'after_photo' || slot === 'photo_2');
 
     // 1. Clear MonthWorkbookManager FIRST so no fallback can resurrect stale photo!
     let targetTask = null;
@@ -712,13 +757,20 @@ class PhotoManager {
         body: JSON.stringify({
           taskId: taskId,
           month: activeM,
-          slot: isBefore ? 'before_photo' : 'after_photo'
+          slot: isAll ? 'all' : (isBefore ? 'before_photo' : 'after_photo')
         })
       }).catch(err => console.warn("[Hostinger Photo Storage] Server delete notice:", err));
     } catch (e) {}
 
-    if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
-      MonthlyReportView.render();
+    // Targeted DOM update: Never blow away entire page via full render!
+    if (typeof MonthlyReportView !== 'undefined') {
+      if (typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
+        MonthlyReportView.updateSlideCardPhoto(taskId);
+      }
+      if (MonthlyReportView._activeModalTaskId === taskId) {
+        if (typeof MonthlyReportView.renderModalPhotoSlots === 'function') MonthlyReportView.renderModalPhotoSlots(taskId);
+        if (typeof MonthlyReportView.renderModalLivePreview === 'function') MonthlyReportView.renderModalLivePreview(taskId);
+      }
     }
 
     return true;

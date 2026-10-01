@@ -7,6 +7,8 @@ const dest2Base = 'E:/Antigravity/Keyword Research/1_UPLOAD_TO_GITHUB_Only_Updat
 
 const files = [
   'index.html',
+  'api/delete_photo.php',
+  'ai/prompt_templates.js',
   'photos/photo_manager.js',
   'report/monthly_report_view.js',
   'slides/slide_layout_engine.js',

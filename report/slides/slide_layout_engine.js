@@ -436,42 +436,44 @@ const SlideLayoutEngine = {
             </div>
           </div>
 
-          <!-- Project Overview Card (Box 1: Clean sentences, top-down stacked) -->
-          <div class="px-4 py-3.5 rounded-xl border border-slate-200/90 bg-slate-50/80 flex flex-col justify-start">
-            <div class="flex items-center gap-1.5 mb-2 flex-shrink-0">
-              <div class="w-4.5 h-4.5 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0">
+          <!-- Project Overview Card (Box 1: Clean sentences, fills vertical space) -->
+          <div class="px-4 py-3 rounded-xl border border-slate-200/90 bg-slate-50/80 flex flex-col justify-center flex-1 min-h-0">
+            <div class="flex items-center gap-1.5 mb-1.5 flex-shrink-0">
+              <div class="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0">
                 <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
               </div>
-              <span style="font-size: 12.5px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Project Overview</span>
+              <span style="font-size: 12px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Project Overview</span>
             </div>
-            ${formattedDescriptionHtml}
+            <div style="font-size: 14px; line-height: 1.6; color: #1E293B; font-weight: 500; letter-spacing: -0.005em;">
+              ${HELPERS.escapeHtml(cleanDescriptionSentence)}
+            </div>
           </div>
 
-          <!-- Key Impact Card (Box 2: Placed right after Overview, content-adaptive) -->
+          <!-- Key Impact Card (Box 2: Placed right after Overview, fills remaining vertical space) -->
           ${impacts.length > 0 ? `
-          <div class="px-4 py-3.5 rounded-xl border border-slate-200 bg-white flex flex-col justify-start gap-2 shadow-2xs">
-            <div class="flex items-center gap-1.5 mb-1.5 flex-shrink-0">
-              <div class="w-4.5 h-4.5 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0 text-[10px] font-bold">
+          <div class="px-4 py-3 rounded-xl border border-slate-200 bg-white flex flex-col justify-between flex-1 min-h-0 shadow-2xs">
+            <div class="flex items-center gap-1.5 mb-1 flex-shrink-0">
+              <div class="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0 text-[9.5px] font-bold">
                 ✓
               </div>
-              <span style="font-size: 12.5px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Key Impact &amp; Deliverables</span>
+              <span style="font-size: 12px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Key Impact &amp; Deliverables</span>
               <span class="text-[10px] font-mono text-slate-400 font-bold ml-auto">${impacts.length} ${impacts.length === 1 ? 'Deliverable' : 'Deliverables'}</span>
             </div>
 
-            <div class="flex flex-col gap-2 py-1">
+            <div class="flex flex-col justify-around flex-1 py-0.5 gap-1.5">
               ${impacts.map(imp => `
-                <div class="flex items-start gap-2.5">
-                  <span class="w-4.5 h-4.5 rounded bg-red-50 text-red-700 border border-red-200 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5" style="line-height: 1;">✔</span>
-                  <span style="font-size: 13.5px; font-weight: 600; color: #1E293B; line-height: 1.5;">${HELPERS.escapeHtml(imp.replace(/^[•\-\*]\s*/, '').trim())}</span>
+                <div class="flex items-start gap-2">
+                  <span class="w-4 h-4 rounded bg-red-50 text-red-700 border border-red-200 flex items-center justify-center text-[9.5px] font-bold flex-shrink-0 mt-0.5" style="line-height: 1;">✔</span>
+                  <span style="font-size: 13.5px; font-weight: 600; color: #1E293B; line-height: 1.45;">${HELPERS.escapeHtml(imp.replace(/^[•\-\*]\s*/, '').trim())}</span>
                 </div>
               `).join("")}
             </div>
           </div>
           ` : `
           <!-- When user deleted all impacts, show clean subtle empty placeholder -->
-          <div class="px-3.5 py-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 flex items-center justify-between text-slate-400 text-[10.5px]">
+          <div class="px-4 py-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 flex items-center justify-between text-slate-400 text-xs flex-1 min-h-0">
             <span>No key impact bullets entered</span>
-            <span class="text-[9px] font-mono text-slate-400 font-bold">Empty</span>
+            <span class="text-[10px] font-mono text-slate-400 font-bold">Empty</span>
           </div>
           `}
 

@@ -294,59 +294,111 @@ const MonthlyReportView = {
       };
     }
 
-    const lower = taskName.toLowerCase();
+    const raw = String(taskName || '').trim();
+    const lower = raw.toLowerCase();
     let desc = "";
     let bullets = [];
 
-    if (lower.includes("bom") || lower.includes("audit") || lower.includes("sfg") || lower.includes("verification") || lower.includes("inspection") || lower.includes("store") || lower.includes("sheet") || lower.includes("coil") || lower.includes("rm") || lower.includes("raw material")) {
-      desc = `Conducted physical inspection, dimensional verification, and quality audit for ${taskName.toLowerCase()}. Reconciled material usage and validated specifications against engineering drawing standards.`;
+    // 1. Digital / Software / TMS / Task Management / Portal / Web System Automation
+    if (lower.includes("task management") || lower.includes("tms") || lower.includes("portal") || lower.includes("software") || lower.includes("dashboard") || lower.includes("database") || lower.includes("report automation") || (lower.includes("automation") && (lower.includes("system") || lower.includes("data") || lower.includes("management") || lower.includes("excel")))) {
+      desc = `Engineered and deployed digital process automation for ${raw.toLowerCase()}. Standardized task milestones, real-time logging, and transparent performance tracking across engineering operations.`;
       bullets = [
-        `Physical line observation & part count verified`,
-        `Verified material specifications & tolerance compliance`,
-        `Eliminated defective processing & storage scrap risks`,
+        `Automated task milestone tracking & digital logging`,
+        `Eliminated manual coordination delays & paperwork bottlenecks`,
+        `Real-time operational visibility & performance tracking`,
+        `Validated multi-user system deployment across plant teams`
+      ];
+    }
+    // 2. Vacuum / Evacuation / Charging / Refrigerant / Leakage
+    else if (lower.includes("vacuum") || lower.includes("evacuation") || lower.includes("charging") || lower.includes("refrigerant") || lower.includes("leakage") || lower.includes("brazing") || lower.includes("helium") || lower.includes("suction")) {
+      desc = `Conducted vacuum evacuation optimization and process observation for ${raw.toLowerCase()}. Streamlined station flow parameters to reduce cycle time while ensuring stringent vacuum micron limits and refrigeration integrity.`;
+      bullets = [
+        `Vacuum drawdown cycle time analyzed & optimized across active stations`,
+        `Identified station process bottlenecks and eliminated evacuation delays`,
+        `Maintained stringent vacuum hold level & moisture-free quality standards`,
+        `Improved line throughput and cycle synchronization with production pacing`
+      ];
+    }
+    // 3. Conveyor / R&I / Material Transfer / Handover / Rework Line
+    else if (lower.includes("conveyor") || lower.includes("roller") || lower.includes("r&i") || lower.includes("rework") || lower.includes("transfer") || lower.includes("handover") || lower.includes("trolley") || lower.includes("handling")) {
+      desc = `Engineered and coordinated conveyor transfer mechanism for ${raw.toLowerCase()}. Streamlined unit transit between stations, eliminated manual carrying fatigue, and ensured smooth production flow.`;
+      bullets = [
+        `Established dedicated conveyor transfer routing between production zones`,
+        `Minimized manual handling fatigue & reduced unit transit damage risks`,
+        `Synchronized line handover speed with continuous assembly pace`,
+        `Standardized safe handling and conveyor transfer operating procedure`
+      ];
+    }
+    // 4. Die / Fixture / Tooling / Mold / Cutter / Stamping / Jacket / Forming
+    else if (lower.includes("die") || lower.includes("fixture") || lower.includes("jig") || lower.includes("cutter") || lower.includes("mold") || lower.includes("tool") || lower.includes("stamping") || lower.includes("jacket") || lower.includes("punch") || lower.includes("forming")) {
+      desc = `Designed, fabricated, and validated modified tooling fixture for ${raw.toLowerCase()}. Verified fitment tolerances, dimensional precision, and completed line trial handover.`;
+      bullets = [
+        `Tooling design & precision fabrication completed to engineering specs`,
+        `Verified fitment tolerance, clearance, and component forming accuracy`,
+        `Reduced tooling changeover time and minimized production deviation`,
+        `Successful trial validation and handover for regular line production`
+      ];
+    }
+    // 5. BOM Verification / Material Audit / Store / SFG / Inspection
+    else if (lower.includes("bom") || lower.includes("audit") || lower.includes("sfg") || lower.includes("verification") || lower.includes("inspection") || lower.includes("store") || lower.includes("sheet") || lower.includes("coil") || lower.includes("rm") || lower.includes("raw material") || lower.includes("reconciliation")) {
+      desc = `Conducted physical component audit and technical verification for ${raw.toLowerCase()}. Reconciled material usage and verified specifications against approved engineering drawings.`;
+      bullets = [
+        `Physical line observation & part count verified on active lines`,
+        `Verified material specifications & tolerance compliance against drawings`,
+        `Eliminated defective processing & storage scrap risks across shifts`,
         `Audit sign-off completed for active production lines`
       ];
-    } else if (lower.includes("die") || lower.includes("fixture") || lower.includes("jig") || lower.includes("cutter") || lower.includes("mold") || lower.includes("tool")) {
-      desc = `Designed, fabricated, and validated precision tooling fixture for ${taskName.toLowerCase()}. Verified fitment tolerance and commissioned on the active production line.`;
+    }
+    // 6. Chemical / Coating / SWAAT / Corrosion / Metallurgy / Acid
+    else if (lower.includes("chemical") || lower.includes("corrosion") || lower.includes("acid") || lower.includes("coating") || lower.includes("swaat") || lower.includes("paint") || lower.includes("treatment")) {
+      desc = `Executed chemical treatment and surface corrosion resistance trial for ${raw.toLowerCase()}. Verified coating adhesion and durability compliance against Walton AC engineering standards.`;
       bullets = [
-        `Tooling design & 3D fabrication finalized`,
-        `Verified fitment & dimensional tolerance`,
-        `Reduced changeover & manual setup time`,
-        `Commissioned on active manufacturing line`
+        `Superior corrosion and environmental degradation resistance verified`,
+        `Standardized chemical bath parameters and immersion cycle timings`,
+        `Strict adherence to Walton metallurgical & reliability benchmarks`,
+        `Zero chemical defect deviation confirmed on production trial`
       ];
-    } else if (lower.includes("robot") || lower.includes("automation") || lower.includes("punch") || lower.includes("press") || lower.includes("turret") || lower.includes("sensor") || lower.includes("motor") || lower.includes("tms")) {
-      desc = `Engineered and integrated automated control mechanism for ${taskName.toLowerCase()}. Successfully tested safety interlocks and commissioned on the active line.`;
+    }
+    // 7. Cost Savings / Kaizen / Scrap / Wastage / Yield
+    else if (lower.includes("cost") || lower.includes("saving") || lower.includes("wastage") || lower.includes("scrap") || lower.includes("yield") || lower.includes("kaizen")) {
+      desc = `Conducted material audit and process yield optimization for ${raw.toLowerCase()}. Streamlined material consumption and eliminated trim waste to maximize production value.`;
       bullets = [
-        `Automated cycle & safety interlock setup`,
-        `Increased continuous line throughput`,
-        `Enhanced operator safety & handling speed`,
-        `Validated operational reliability on line`
+        `Eliminated process scrap generation & trim material loss`,
+        `Direct optimization of production consumables and unit cost`,
+        `Improved material yield and workflow sequence across lines`,
+        `Validated sustainable resource utilization for active production`
       ];
-    } else if (lower.includes("foil") || lower.includes("cutting") || lower.includes("vacuum") || lower.includes("brazing") || lower.includes("jacket") || lower.includes("pipe") || lower.includes("bending")) {
-      desc = `Developed and implemented specialized process mechanism for ${taskName.toLowerCase()}. Commissioned for daily manufacturing with zero quality deviation.`;
+    }
+    // 8. Hardware Robotics / Motor / Turret / Machine Automation
+    else if (lower.includes("robot") || lower.includes("motor") || lower.includes("sensor") || lower.includes("turret") || lower.includes("press") || lower.includes("pneumatic") || lower.includes("interlock") || lower.includes("automation")) {
+      desc = `Engineered and integrated automated control mechanism for ${raw.toLowerCase()}. Successfully tested safety interlocks, optimized cycle parameters, and commissioned on the active line.`;
       bullets = [
-        `Process flow & cycle parameters optimized`,
-        `Eliminated manual handling bottlenecks`,
-        `Improved cutting & assembly consistency`,
-        `Ensured zero-defect line handover`
+        `Automated repetitive manual handling and loading operations`,
+        `Increased continuous line throughput & machine cycle repeatability`,
+        `Enhanced operator safety interlocks and handling ergonomics`,
+        `Commissioned on active manufacturing line with validated reliability`
       ];
-    } else if (lower.includes("model") || lower.includes("trial") || lower.includes("pilot") || lower.includes("sample")) {
-      desc = `Executed pilot production trial, tooling readiness, and assembly flow for ${taskName.toLowerCase()}. Addressed line balancing issues and confirmed commercial readiness.`;
+    }
+    // 9. New Model / Pilot Trial / Line Balancing / Sample
+    else if (lower.includes("model") || lower.includes("trial") || lower.includes("pilot") || lower.includes("sample") || lower.includes("balancing")) {
+      desc = `Executed pilot production trial, line balancing, and assembly verification for ${raw.toLowerCase()}. Addressed station bottlenecks and confirmed commercial production readiness.`;
       bullets = [
-        `Tooling & component readiness verified`,
-        `Pilot trial assembly completed on line`,
-        `Cycle time & line balance verified`,
-        `Approved for commercial mass production`
+        `Component readiness & line tooling verified before trial`,
+        `Pilot assembly completed with balanced station cycle times`,
+        `Handled station bottlenecks and confirmed ergonomic workflow`,
+        `Approved for commercial mass manufacturing handover`
       ];
-    } else {
-      const cleanWords = taskName.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2);
-      const subject = cleanWords.slice(0, 3).join(' ') || taskName;
-      desc = `Engineered, verified, and standardized operational workflow for ${taskName.toLowerCase()}. Successfully implemented on the active manufacturing line.`;
+    }
+    // 10. General Engineering Development (Intelligent terms extraction from title)
+    else {
+      const cleanWords = raw.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2);
+      const subject = cleanWords.slice(0, 4).join(' ') || raw;
+      desc = `Engineered, verified, and standardized operational workflow for ${raw.toLowerCase()}. Optimized process parameters and commissioned for regular daily manufacturing use.`;
       bullets = [
-        `Layout & process study finalized for ${subject}`,
-        `Implemented standardized operating mechanism`,
-        `Eliminated manual bottleneck & reduced cycle time`,
-        `Production validation & operator training done`
+        `Process layout & technical analysis finalized for ${subject}`,
+        `Implemented standardized operating mechanism on production line`,
+        `Eliminated manual bottlenecks & stabilized operational cycle time`,
+        `Production trial validation and operator handover completed`
       ];
     }
 
@@ -564,10 +616,19 @@ const MonthlyReportView = {
             </div>
             <div class="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 opacity-90 hover:opacity-100">
               <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" title="Replace via Clipboard (Ctrl+V)"
-                      class="px-2 py-0.5 rounded bg-black/60 hover:bg-black/80 text-white text-[9px] font-bold backdrop-blur-xs transition">
+                      class="px-2 py-0.5 rounded bg-black/60 hover:bg-black/80 text-white text-[9px] font-bold backdrop-blur-xs transition cursor-pointer">
                 📋 Paste
               </button>
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); document.getElementById('card-file-${taskId}')?.click();" title="Replace from file"
+                      class="px-2 py-0.5 rounded bg-black/60 hover:bg-black/80 text-white text-[9px] font-bold backdrop-blur-xs transition cursor-pointer">
+                📁 Replace
+              </button>
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteCardPhoto('${taskId}');" title="Remove Photo"
+                      class="px-2 py-0.5 rounded bg-rose-600/80 hover:bg-rose-600 text-white text-[9px] font-bold backdrop-blur-xs transition cursor-pointer">
+                🗑 Remove
+              </button>
             </div>
+            <input type="file" id="card-file-${taskId}" accept="image/*" class="hidden" onchange="MonthlyReportView.handleCardFileInput(this, '${taskId}', 'after_photo')" />
           </div>
         `;
       } else {
@@ -580,14 +641,15 @@ const MonthlyReportView = {
             <span class="text-[11px] font-bold text-slate-500">No Photo Attached</span>
             <div class="flex items-center gap-1.5 mt-2">
               <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" title="Paste image from clipboard (Ctrl+V)"
-                      class="px-2 py-0.8 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 transition shadow-2xs">
+                      class="px-2 py-0.8 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 transition shadow-2xs cursor-pointer">
                 📋 Paste (Ctrl+V)
               </button>
-              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.openModal('${taskId}')" title="Upload file in Studio"
-                      class="px-2 py-0.8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition">
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); document.getElementById('card-file-${taskId}')?.click();" title="Upload from file"
+                      class="px-2 py-0.8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition cursor-pointer">
                 📁 Browse
               </button>
             </div>
+            <input type="file" id="card-file-${taskId}" accept="image/*" class="hidden" onchange="MonthlyReportView.handleCardFileInput(this, '${taskId}', 'after_photo')" />
           </div>
         `;
       }
@@ -665,10 +727,7 @@ const MonthlyReportView = {
 
   async deleteModalPhoto(taskId, slot) {
     if (typeof photoManager !== 'undefined' && photoManager.removePhoto) {
-      await photoManager.removePhoto(taskId, 'after_photo', this.selectedMonth);
-      await photoManager.removePhoto(taskId, 'before_photo', this.selectedMonth);
-      await photoManager.removePhoto(taskId, 'photo_1', this.selectedMonth);
-      await photoManager.removePhoto(taskId, 'photo_2', this.selectedMonth);
+      await photoManager.removePhoto(taskId, 'all', this.selectedMonth);
     }
     this.renderModalPhotoSlots(taskId);
     this.renderModalLivePreview(taskId);
@@ -676,6 +735,28 @@ const MonthlyReportView = {
     if (typeof window.showToast === 'function') {
       window.showToast("🗑 Photo removed. Live preview updated.", "info");
     }
+  },
+
+  async deleteCardPhoto(taskId) {
+    if (!taskId) return;
+    if (typeof photoManager !== 'undefined' && photoManager.removePhoto) {
+      await photoManager.removePhoto(taskId, 'all', this.selectedMonth);
+    }
+    this.updateSlideCardPhoto(taskId);
+    if (this._activeModalTaskId === taskId) {
+      this.renderModalPhotoSlots(taskId);
+      this.renderModalLivePreview(taskId);
+    }
+    if (typeof window.showToast === 'function') {
+      window.showToast(`🗑 Photo removed for task ${taskId}.`, "info");
+    }
+  },
+
+  async handleCardFileInput(input, taskId, slot = 'after_photo') {
+    if (!input || !input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    await this.uploadPhotoFromBlob(file, taskId, slot);
+    input.value = "";
   },
 
   /**
@@ -884,10 +965,10 @@ const MonthlyReportView = {
                     <span>✨</span> <span>Auto-Generate</span>
                   </button>
                 </div>
-                <textarea id="edit-slide-desc" rows="2" 
+                <textarea id="edit-slide-desc" rows="3" style="min-height: 75px;"
                           oninput="MonthlyReportView.debouncedLivePreview('${taskId}')"
                           placeholder="e.g. Developed and fabricated precision automated mechanism for active assembly line."
-                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 leading-snug font-sans shadow-2xs resize-none">${HELPERS.escapeHtml(currentDesc)}</textarea>
+                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 leading-relaxed font-sans shadow-2xs resize-y">${HELPERS.escapeHtml(currentDesc)}</textarea>
               </div>
 
               <!-- Key Outcomes (Short bullets) -->
@@ -896,9 +977,10 @@ const MonthlyReportView = {
                   <label class="block font-bold text-slate-700 text-xs">Project Impact &amp; Outcomes (Bullets)</label>
                   <span class="text-[9.5px] text-slate-400 font-mono">1 bullet / line</span>
                 </div>
-                <textarea id="edit-slide-impact" rows="2" 
+                <textarea id="edit-slide-impact" rows="5" style="min-height: 120px;"
                           oninput="MonthlyReportView.debouncedLivePreview('${taskId}')"
-                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-sans shadow-2xs resize-none">${HELPERS.escapeHtml(currentImpact)}</textarea>
+                          placeholder="One key outcome or deliverable per line..."
+                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-sans shadow-2xs resize-y leading-relaxed">${HELPERS.escapeHtml(currentImpact)}</textarea>
               </div>
 
               <!-- Category & Concern Engineer in 2 Columns Side-by-Side -->
@@ -1620,6 +1702,7 @@ const MonthlyReportView = {
                    data-is-project="${Boolean(s.is_project)}"
                    data-status="${HELPERS.escapeHtml(s.status || '')}"
                    onclick="MonthlyReportView.selectSlideCard('${s.task_id}')"
+                   onmouseenter="MonthlyReportView.selectSlideCard('${s.task_id}')"
                    class="task-slide-card bg-white border ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/15' : (isOverridden ? 'border-amber-400 bg-amber-50/10' : 'border-slate-200')} rounded-2xl p-4 flex flex-col justify-between shadow-2xs hover:border-blue-300 hover:shadow-sm transition space-y-3 cursor-pointer">
                 <div>
                   <!-- Slide Top Indicator -->
@@ -1675,7 +1758,16 @@ const MonthlyReportView = {
                                   class="px-2 py-0.5 rounded bg-black/70 hover:bg-black/90 text-white text-[9px] font-bold backdrop-blur-xs transition cursor-pointer">
                             📋 Paste
                           </button>
+                          <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${s.task_id}'); document.getElementById('card-file-${s.task_id}')?.click();" title="Replace from file"
+                                  class="px-2 py-0.5 rounded bg-black/70 hover:bg-black/90 text-white text-[9px] font-bold backdrop-blur-xs transition cursor-pointer">
+                            📁 Replace
+                          </button>
+                          <button type="button" onclick="event.stopPropagation(); MonthlyReportView.deleteCardPhoto('${s.task_id}');" title="Remove Photo"
+                                  class="px-2 py-0.5 rounded bg-rose-600/80 hover:bg-rose-600 text-white text-[9px] font-bold backdrop-blur-xs transition cursor-pointer">
+                            🗑 Remove
+                          </button>
                         </div>
+                        <input type="file" id="card-file-${s.task_id}" accept="image/*" class="hidden" onchange="MonthlyReportView.handleCardFileInput(this, '${s.task_id}', 'after_photo')" />
                       </div>
                     ` : `
                       <div class="relative w-full aspect-video rounded-xl border border-dashed border-slate-300 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/30 flex flex-col items-center justify-center p-2.5 text-center transition group/drop cursor-pointer"
@@ -1685,7 +1777,17 @@ const MonthlyReportView = {
                            ondrop="event.preventDefault(); this.classList.remove('border-blue-500', 'bg-blue-50'); MonthlyReportView.handleSlotDrop(event, '${s.task_id}', 'after_photo');">
                         <span class="text-xl text-slate-400 group-hover/drop:scale-110 group-hover/drop:text-blue-600 transition">📋</span>
                         <span class="text-[11px] font-bold text-slate-700 mt-1">Paste Photo (Ctrl+V)</span>
-                        <span class="text-[9px] text-slate-400 mt-0.5">Click card or drop photo here</span>
+                        <div class="flex items-center gap-1.5 mt-1.5" onclick="event.stopPropagation()">
+                          <button type="button" onclick="MonthlyReportView.selectSlideCard('${s.task_id}'); MonthlyReportView.pasteFromClipboard('${s.task_id}', 'after_photo')" 
+                                  class="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 transition shadow-2xs cursor-pointer">
+                            📋 Paste
+                          </button>
+                          <button type="button" onclick="MonthlyReportView.selectSlideCard('${s.task_id}'); document.getElementById('card-file-${s.task_id}')?.click();" 
+                                  class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition cursor-pointer">
+                            📁 Browse
+                          </button>
+                        </div>
+                        <input type="file" id="card-file-${s.task_id}" accept="image/*" class="hidden" onchange="MonthlyReportView.handleCardFileInput(this, '${s.task_id}', 'after_photo')" />
                       </div>
                     `}
                   </div>
