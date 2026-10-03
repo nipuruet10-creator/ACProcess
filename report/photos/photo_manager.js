@@ -38,28 +38,36 @@ class PhotoManager {
       console.warn("Legacy photo migration notice:", e);
     }
 
-    // 2. Clean up any bloated active slides in LocalStorage
+    // 2. Safe local active slides preservation (never nullify user photos!)
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith("walton_pd_active_slides_")) {
           const val = localStorage.getItem(key);
-          if (val && val.length > 500000) { // If larger than 500KB, strip base64
+          if (val) {
             const slides = JSON.parse(val);
             if (Array.isArray(slides)) {
+              // Extract any local base64 photos into memory and IndexedDB so they are safely preserved
               slides.forEach(s => {
-                s.photo = null;
-                s.photo_before = null;
-                s.photo_after = null;
+                if (s && s.task_id) {
+                  if (s.photo_after && s.photo_after.startsWith('data:image/')) {
+                    if (!this.photoMap[s.task_id]) this.photoMap[s.task_id] = {};
+                    this.photoMap[s.task_id].after_photo = s.photo_after;
+                    this.photoMap[s.task_id].photo_2 = s.photo_after;
+                  }
+                  if (s.photo_before && s.photo_before.startsWith('data:image/')) {
+                    if (!this.photoMap[s.task_id]) this.photoMap[s.task_id] = {};
+                    this.photoMap[s.task_id].before_photo = s.photo_before;
+                    this.photoMap[s.task_id].photo_1 = s.photo_before;
+                  }
+                }
               });
-              localStorage.setItem(key, JSON.stringify(slides));
-              console.log(`Optimized storage for ${key}`);
             }
           }
         }
       }
     } catch (e) {
-      console.warn("Storage quota optimization notice:", e);
+      console.warn("Storage preservation notice:", e);
     }
 
     // 3. Load all photos from IndexedDB into memory
@@ -115,6 +123,9 @@ class PhotoManager {
     if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) return endpoint;
     const clean = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
     if (typeof window !== 'undefined' && window.location) {
+      if (window.location.hostname && window.location.hostname.includes('acprocess.com')) {
+        return 'https://acprocess.com/report/' + clean;
+      }
       const p = window.location.pathname;
       if (p.includes('/report')) {
         const idx = p.indexOf('/report');
@@ -197,7 +208,15 @@ class PhotoManager {
             if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
               const wbMgr = window.appState.workbookMgr;
               const activeM = (month && month !== 'ALL') ? month : (wbMgr.activeMonth || 'SEP-2026');
-              const t = wbMgr.getTask(activeM, tId);
+              let t = wbMgr.getTask(activeM, tId);
+              if (!t && String(tId).includes('-')) {
+                const parts = String(tId).split('-');
+                if (parts.length >= 3) {
+                  const prefix = `${parts[0]}-${parts[1]}-${parts[2]}`.toLowerCase();
+                  const allTasks = wbMgr.getTasksForMonth ? wbMgr.getTasksForMonth(activeM) : [];
+                  t = allTasks.find(tsk => tsk && tsk.task_id && tsk.task_id.toLowerCase().startsWith(prefix));
+                }
+              }
               if (t) {
                 if (merged.before_photo) {
                   t.photo_1 = merged.before_photo;
@@ -501,6 +520,9 @@ class PhotoManager {
     if (clean.startsWith('uploads/') || clean.startsWith('/uploads/')) {
       const rel = clean.startsWith('/') ? clean.slice(1) : clean;
       if (typeof window !== 'undefined' && window.location) {
+        if (window.location.hostname && window.location.hostname.includes('acprocess.com')) {
+          return 'https://acprocess.com/report/' + rel;
+        }
         const origin = window.location.origin;
         const p = window.location.pathname;
         if (p.includes('/report')) {

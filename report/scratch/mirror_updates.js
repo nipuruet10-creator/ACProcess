@@ -9,6 +9,7 @@ const files = [
   'index.html',
   'api/delete_photo.php',
   'api/get_photos.php',
+  'api/save_photo.php',
   'api/sync_top_works.php',
   'ai/prompt_templates.js',
   'database/firebase_sync_service.js',
@@ -62,6 +63,14 @@ if (fs.existsSync(photosDir)) {
     fs.copyFileSync(pSrc, pd2);
     console.log(`Mirrored photo uploads/photos/SEP-2026/${pf}`);
   }
+}
+
+// Mirror photos_SEP-2026.json
+const jsonCatalog = path.join(srcBase, 'uploads', 'photos_SEP-2026.json');
+if (fs.existsSync(jsonCatalog)) {
+  fs.copyFileSync(jsonCatalog, path.join(dest1Base, 'uploads', 'photos_SEP-2026.json'));
+  fs.copyFileSync(jsonCatalog, path.join(dest2Base, 'uploads', 'photos_SEP-2026.json'));
+  console.log('Mirrored photos_SEP-2026.json');
 }
 
 console.log('All files mirrored successfully!');
