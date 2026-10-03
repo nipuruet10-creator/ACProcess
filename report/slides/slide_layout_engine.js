@@ -495,8 +495,8 @@ const SlideLayoutEngine = {
                 <svg class="w-3.5 h-3.5 ${isCostSaving ? 'text-emerald-600' : 'text-red-600'}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
               </div>
               <div class="overflow-hidden">
-                <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.04em;">Category</div>
-                <div style="font-size: 12px; font-weight: 800; color: #0F172A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${category}</div>
+                <div style="font-size: 9px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.04em;">${isProj ? 'Project Deadline' : 'Category'}</div>
+                <div style="font-size: 12px; font-weight: 800; color: #0F172A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${isProj ? (slideData.deadline || '4-5 Months') : category}</div>
               </div>
             </div>
           </div>
@@ -517,6 +517,26 @@ const SlideLayoutEngine = {
             </div>
             <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-extrabold text-[9px] uppercase tracking-wider">
               Cost Optimization
+            </span>
+          </div>
+          ` : ''}
+
+          <!-- Strategic Project Status Note -->
+          ${(isProj && slideData.status_details) ? `
+          <div class="px-4 py-2 rounded-xl border border-sky-300 bg-gradient-to-r from-sky-50 via-blue-50 to-sky-50 flex items-center justify-between shadow-2xs flex-shrink-0">
+            <div class="flex items-center gap-2.5">
+              <div class="w-6 h-6 rounded-lg bg-sky-600 text-white flex items-center justify-center text-xs font-black shadow-2xs">
+                ℹ️
+              </div>
+              <div>
+                <div style="font-size: 8.5px; font-weight: 800; color: #0369A1; text-transform: uppercase; letter-spacing: 0.08em;">Current Status Details</div>
+                <div style="font-size: 12px; font-weight: 700; color: #0F172A;">
+                  ${HELPERS.escapeHtml(slideData.status_details)}
+                </div>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded bg-sky-100 text-sky-800 font-extrabold text-[9px] uppercase tracking-wider">
+              ${HELPERS.escapeHtml(slideData.project_status || slideData.status || 'Ongoing')}
             </span>
           </div>
           ` : ''}

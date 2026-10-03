@@ -113,9 +113,211 @@ const ProjectsView = {
     await this.render();
   },
 
+  viewMode: 'table', // 'table' or 'slides'
+
+  setViewMode(mode) {
+    this.viewMode = mode;
+    this.render();
+  },
+
   setFilter(filter) {
     this.activeFilter = filter;
     this.render();
+  },
+
+  previewProjectSlide(taskId, openFullscreen = false) {
+    const proj = this.getProject(taskId);
+    if (!proj) {
+      if (typeof window.showToast === 'function') window.showToast("Project task not found", "error");
+      return;
+    }
+
+    const photo = this.getProjectPhoto(taskId) || proj.photo_1 || proj.photo || proj.after_photo || "";
+    const isCompleted = (proj.status === 'Completed' || proj.category === 'Completed Projects' || proj.project_status === 'Completed');
+    const slideData = {
+      task_id: proj.task_id,
+      task_name: proj.task_name,
+      slide_title: proj.task_name,
+      raw_task_name: proj.task_name,
+      category: isCompleted ? "Completed Projects" : "Ongoing Projects",
+      status: isCompleted ? "Completed" : (proj.project_status || proj.status || "Ongoing"),
+      project_status: isCompleted ? "Completed" : (proj.project_status || proj.status || "Ongoing"),
+      deadline: proj.deadline || "4-5 Months",
+      overview: proj.overview || proj.description || "",
+      description: proj.overview || proj.description || "",
+      task_details: proj.task_details || "",
+      assignee: proj.assignee || proj.engineer || "Department Engineer",
+      engineer: proj.engineer || proj.assignee || "Department Engineer",
+      photo: photo,
+      photo_1: photo,
+      photo_2: photo,
+      after_photo: photo,
+      photo_after: photo,
+      is_project: true,
+      is_strategic_project: true,
+      month: this.selectedMonth,
+      status_details: proj.status_details || proj.project_status_details || "",
+      impact: (proj.task_details && proj.task_details.trim())
+        ? proj.task_details.split('\n').map(s => s.trim()).filter(Boolean)
+        : (proj.status_details ? [proj.status_details] : null)
+    };
+
+    if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.openSingle) {
+      SlidePreviewModal.currentMonth = this.selectedMonth;
+      SlidePreviewModal.openSingle(slideData);
+      if (openFullscreen && typeof SlidePreviewModal.toggleFullscreen === 'function') {
+        setTimeout(() => SlidePreviewModal.toggleFullscreen(), 60);
+      }
+    } else {
+      if (typeof window.showToast === 'function') window.showToast("Preview modal not available", "warning");
+    }
+  },
+
+  previewAllProjectSlides(initialTaskId = null) {
+    const list = this.getProjects();
+    let targetProjects = list;
+    if (this.activeFilter === 'ongoing') {
+      targetProjects = list.filter(t => !String(t.status || t.project_status || '').toLowerCase().includes('complete') && !String(t.category || '').toLowerCase().includes('completed'));
+    } else if (this.activeFilter === 'completed') {
+      targetProjects = list.filter(t => String(t.status || t.project_status || '').toLowerCase().includes('complete') || String(t.category || '').toLowerCase().includes('completed'));
+    }
+
+    if (targetProjects.length === 0) {
+      if (typeof window.showToast === 'function') window.showToast("No project slides to preview in this filter.", "info");
+      return;
+    }
+
+    const formattedSlides = targetProjects.map(proj => {
+      const photo = this.getProjectPhoto(proj.task_id) || proj.photo_1 || proj.photo || proj.after_photo || "";
+      const isCompleted = (proj.status === 'Completed' || proj.category === 'Completed Projects' || proj.project_status === 'Completed');
+      return {
+        task_id: proj.task_id,
+        task_name: proj.task_name,
+        slide_title: proj.task_name,
+        raw_task_name: proj.task_name,
+        category: isCompleted ? "Completed Projects" : "Ongoing Projects",
+        status: isCompleted ? "Completed" : (proj.project_status || proj.status || "Ongoing"),
+        project_status: isCompleted ? "Completed" : (proj.project_status || proj.status || "Ongoing"),
+        deadline: proj.deadline || "4-5 Months",
+        overview: proj.overview || proj.description || "",
+        description: proj.overview || proj.description || "",
+        task_details: proj.task_details || "",
+        assignee: proj.assignee || proj.engineer || "Department Engineer",
+        engineer: proj.engineer || proj.assignee || "Department Engineer",
+        photo: photo,
+        photo_1: photo,
+        photo_2: photo,
+        after_photo: photo,
+        photo_after: photo,
+        is_project: true,
+        is_strategic_project: true,
+        month: this.selectedMonth,
+        status_details: proj.status_details || proj.project_status_details || "",
+        impact: (proj.task_details && proj.task_details.trim())
+          ? proj.task_details.split('\n').map(s => s.trim()).filter(Boolean)
+          : (proj.status_details ? [proj.status_details] : null)
+      };
+    });
+
+    if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.open) {
+      SlidePreviewModal.currentMonth = this.selectedMonth;
+      SlidePreviewModal.open(formattedSlides, initialTaskId);
+    } else {
+      if (typeof window.showToast === 'function') window.showToast("Preview modal not available", "warning");
+    }
+  },
+
+  renderSlideCard(p, idx) {
+    const photoUrl = this.getProjectPhoto(p.task_id) || p.photo_1 || p.photo || p.after_photo || "";
+    const isCompleted = (p.status === 'Completed' || p.category === 'Completed Projects' || p.project_status === 'Completed');
+    const desc = p.overview || p.description || p.task_details || 'Strategic manufacturing process optimization.';
+    const details = p.status_details || p.project_status_details || '';
+
+    return `
+      <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-200 overflow-hidden flex flex-col group hover:-translate-y-0.5">
+        <!-- 16:9 Slide Card Header with Walton Style Gradient -->
+        <div class="bg-gradient-to-r ${isCompleted ? 'from-emerald-950 via-teal-900 to-slate-900' : 'from-slate-950 via-indigo-950 to-slate-900'} text-white px-4 py-3 flex items-center justify-between border-b border-slate-800">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${isCompleted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-sky-500/20 text-sky-300 border border-sky-500/40'}">
+              SLIDE ${idx + 1}
+            </span>
+            <span class="text-xs font-black truncate text-slate-100">${HELPERS.escapeHtml(p.task_name)}</span>
+          </div>
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 ${isCompleted ? 'bg-emerald-500 text-white shadow-xs' : 'bg-sky-500 text-white shadow-xs'}">
+            ${isCompleted ? '✅ Completed' : '⏳ Ongoing'}
+          </span>
+        </div>
+
+        <!-- Slide Preview Body (16:9 presentation preview box) -->
+        <div class="p-4 flex-1 flex flex-col justify-between bg-slate-50/40">
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 mb-3">
+            <!-- 16:9 Thumbnail Photo or Visual Placeholder -->
+            <div class="sm:col-span-5 h-36 rounded-xl overflow-hidden bg-slate-950 border border-slate-200 relative group/img cursor-pointer" onclick="ProjectsView.previewProjectSlide('${p.task_id}')">
+              ${photoUrl ? `
+                <div class="w-full h-full relative overflow-hidden flex items-center justify-center">
+                  <img src="${photoUrl}" alt="" class="absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(10px) brightness(0.65); opacity: 0.6;" />
+                  <img src="${photoUrl}" class="relative z-10 max-w-full max-h-full object-contain drop-shadow" alt="Project Photo" />
+                  <div class="absolute inset-0 z-20 bg-black/45 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition">
+                    <span class="px-2.5 py-1 rounded-lg bg-white text-slate-900 font-bold text-[11px] shadow">👁️ View Slide</span>
+                  </div>
+                </div>
+              ` : `
+                <div class="w-full h-full flex flex-col items-center justify-center text-slate-400 p-2 text-center bg-slate-900/90">
+                  <span class="text-2xl mb-1">🖼️</span>
+                  <span class="text-[10px] font-mono text-slate-300 font-bold">16:9 Slide Frame</span>
+                  <span class="text-[9px] text-slate-400 mt-0.5">Click to preview slide</span>
+                </div>
+              `}
+            </div>
+
+            <!-- Slide Content Info -->
+            <div class="sm:col-span-7 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center gap-1.5 mb-1 text-[11px]">
+                  <span class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Assignee:</span>
+                  <span class="font-bold text-slate-800">${HELPERS.escapeHtml(p.assignee || p.engineer || 'Department Engineer')}</span>
+                </div>
+                <div class="flex items-center gap-1.5 mb-2 text-[11px]">
+                  <span class="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Deadline:</span>
+                  <span class="font-mono text-slate-800 font-bold">${HELPERS.escapeHtml(p.deadline || '4-5 Months')}</span>
+                </div>
+                <div class="text-[11px] text-slate-600 line-clamp-3 bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs leading-relaxed">
+                  ${HELPERS.escapeHtml(desc)}
+                </div>
+              </div>
+              ${details ? `
+                <div class="mt-2 text-[10px] font-medium text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 line-clamp-1">
+                  <strong>Status:</strong> ${HELPERS.escapeHtml(details)}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- Slide Action Buttons Footer -->
+          <div class="pt-3 border-t border-slate-200/80 flex items-center justify-between gap-2 mt-auto">
+            <div class="flex items-center gap-1.5">
+              <button onclick="ProjectsView.previewProjectSlide('${p.task_id}')" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer">
+                <span>👁️</span> <span>Slide Preview</span>
+              </button>
+              <button onclick="ProjectsView.previewProjectSlide('${p.task_id}', true)" title="Fullscreen Slide Preview" class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs transition flex items-center gap-1 cursor-pointer shadow-2xs">
+                <span>⛶</span> <span>Fullscreen</span>
+              </button>
+            </div>
+            <div class="flex items-center gap-1">
+              <button onclick="ProjectsView.openEditProjectModal('${p.task_id}')" title="Edit Project" class="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition">
+                ✏️
+              </button>
+              <button onclick="ProjectsView.toggleProjectStatus('${p.task_id}')" title="${isCompleted ? 'Reopen as Ongoing' : 'Mark Completed'}" class="p-1.5 rounded-lg ${isCompleted ? 'hover:bg-sky-50 text-sky-600' : 'hover:bg-emerald-50 text-emerald-600'} transition">
+                ${isCompleted ? '🔄' : '✅'}
+              </button>
+              <button onclick="ProjectsView.deleteProject('${p.task_id}')" title="Delete Project" class="p-1.5 rounded-lg hover:bg-rose-50 text-rose-500 transition">
+                🗑️
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   },
 
   async handleSyncFromPreviousMonth() {
@@ -1057,31 +1259,48 @@ const ProjectsView = {
               ${(prevMonth && month !== 'SEP-2026') ? `
                 <button onclick="ProjectsView.handleSyncFromPreviousMonth()" title="Carry forward active ongoing projects from ${prevMonth} into ${month}"
                         class="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-                  <span>\u{1F504}</span> <span>Sync from ${prevMonth}</span>
+                  <span>🔄</span> <span>Sync from ${prevMonth}</span>
                 </button>
               ` : ''}
 
+              <button onclick="ProjectsView.previewAllProjectSlides()" title="Preview Executive 16:9 Presentation Slides of Strategic Projects"
+                      class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-700 hover:from-indigo-500 hover:to-violet-600 text-white font-black text-xs shadow-md shadow-indigo-200/50 transition flex items-center gap-1.5 cursor-pointer">
+                <span>👁️</span> <span>Slide Preview (${projectTasks.length})</span>
+              </button>
+
               <button onclick="ProjectsView.openNewProjectModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-500 hover:to-blue-600 text-white font-black text-xs shadow-md shadow-sky-200/50 transition flex items-center gap-1.5 cursor-pointer">
-                <span>\u2795</span> <span>New Project Task</span>
+                <span>➕</span> <span>New Project Task</span>
               </button>
             </div>
           </div>
 
-          <!-- Controls: Month Selector + Filter Tabs -->
+          <!-- Controls: Month Selector + Filter Tabs + View Mode Switcher -->
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-4">
             ${HELPERS.renderMonthSelectorUI(months, this.selectedMonth, 'ProjectsView.handleMonthSelect', 'MonthlyInputView.openAddMonthModal')}
 
-            <!-- Filter Pills -->
-            <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
-              <button onclick="ProjectsView.setFilter('all')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${this.activeFilter === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
-                All Projects (${projectTasks.length})
-              </button>
-              <button onclick="ProjectsView.setFilter('ongoing')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${this.activeFilter === 'ongoing' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
-                Ongoing (${ongoingProjects.length})
-              </button>
-              <button onclick="ProjectsView.setFilter('completed')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${this.activeFilter === 'completed' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
-                Completed (${completedProjects.length})
-              </button>
+            <div class="flex flex-wrap items-center gap-2.5">
+              <!-- View Mode Switcher -->
+              <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+                <button onclick="ProjectsView.setViewMode('table')" class="px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${this.viewMode === 'table' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+                  <span>📋</span> <span>Table View</span>
+                </button>
+                <button onclick="ProjectsView.setViewMode('slides')" class="px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${this.viewMode === 'slides' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+                  <span>🖼️</span> <span>Slide Cards</span>
+                </button>
+              </div>
+
+              <!-- Filter Pills -->
+              <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                <button onclick="ProjectsView.setFilter('all')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${this.activeFilter === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+                  All (${projectTasks.length})
+                </button>
+                <button onclick="ProjectsView.setFilter('ongoing')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${this.activeFilter === 'ongoing' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+                  Ongoing (${ongoingProjects.length})
+                </button>
+                <button onclick="ProjectsView.setFilter('completed')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${this.activeFilter === 'completed' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+                  Completed (${completedProjects.length})
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1098,11 +1317,11 @@ const ProjectsView = {
               <div class="text-4xl font-black text-sky-900 font-mono mt-2">${ongoingProjects.length}</div>
               <p class="text-xs text-slate-600 mt-1 font-medium">Strategic automation tasks currently active in ${month}</p>
               <div class="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100/80 text-sky-800 text-[11px] font-semibold">
-                <span>\u23F1\uFE0F</span> <span>Typical duration: 4-5 months &bull; Auto-carries over</span>
+                <span>⏱️</span> <span>Typical duration: 4-5 months &bull; Auto-carries over</span>
               </div>
             </div>
             <div class="w-12 h-12 rounded-2xl bg-sky-100 border border-sky-200 flex items-center justify-center text-2xl flex-shrink-0 text-sky-600">
-              \u{1F680}
+              🚀
             </div>
           </div>
 
@@ -1116,11 +1335,11 @@ const ProjectsView = {
               <div class="text-4xl font-black text-emerald-900 font-mono mt-2">${completedProjects.length}</div>
               <p class="text-xs text-slate-600 mt-1 font-medium">Fully verified & implemented milestone completions</p>
               <div class="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/80 text-emerald-800 text-[11px] font-semibold">
-                <span>\u2705</span> <span>Milestone verification finished</span>
+                <span>✅</span> <span>Milestone verification finished</span>
               </div>
             </div>
             <div class="w-12 h-12 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-2xl flex-shrink-0 text-emerald-600">
-              \u{1F3C6}
+              🏆
             </div>
           </div>
         </div>
@@ -1131,13 +1350,19 @@ const ProjectsView = {
             <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center text-lg shadow-sm">
-                  \u23F3
+                  ⏳
                 </div>
                 <div>
                   <h3 class="text-base font-black text-slate-800">Active Ongoing Projects (${ongoingProjects.length})</h3>
                   <p class="text-xs text-slate-400">These tasks carry forward across months until marked as Completed</p>
                 </div>
               </div>
+
+              ${ongoingProjects.length > 0 ? `
+                <button onclick="ProjectsView.previewAllProjectSlides()" class="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                  <span>👁️</span> <span>Preview Slides (${ongoingProjects.length})</span>
+                </button>
+              ` : ''}
             </div>
 
             ${ongoingProjects.length === 0 ? `
@@ -1145,13 +1370,17 @@ const ProjectsView = {
                 No active ongoing projects recorded for ${month}.<br>
                 ${(prevMonth && month !== 'SEP-2026') ? `
                   <button onclick="ProjectsView.handleSyncFromPreviousMonth()" class="mt-3 px-4 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs inline-flex items-center gap-1.5 transition">
-                    <span>\u{1F504}</span> <span>Carry forward ongoing projects from ${prevMonth}</span>
+                    <span>🔄</span> <span>Carry forward ongoing projects from ${prevMonth}</span>
                   </button>
                 ` : `
                   <button onclick="ProjectsView.openNewProjectModal()" class="mt-3 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs inline-flex items-center gap-1.5 transition">
-                    <span>\u2795</span> <span>Add First Project</span>
+                    <span>➕</span> <span>Add First Project</span>
                   </button>
                 `}
+              </div>
+            ` : (this.viewMode === 'slides' ? `
+              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                ${ongoingProjects.map((p, idx) => this.renderSlideCard(p, idx)).join('')}
               </div>
             ` : `
               <div class="overflow-x-auto rounded-2xl border border-slate-200">
@@ -1165,13 +1394,13 @@ const ProjectsView = {
                       <th class="py-3 px-3 border-r border-slate-200 w-36">Deadline</th>
                       <th class="py-3 px-3 border-r border-slate-200 w-36">Assignee</th>
                       <th class="py-3 px-3 text-center border-r border-slate-200 w-32">Project Status</th>
-                      <th class="py-3 px-3 text-center w-24">Actions</th>
+                      <th class="py-3 px-3 text-center w-28">Actions</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-100 bg-white">
                     ${ongoingProjects.map((p, idx) => {
                       const photoUrl = this.getProjectPhoto(p.task_id);
-                      const desc = p.overview || p.description || p.task_details || '\u2014';
+                      const desc = p.overview || p.description || p.task_details || '—';
                       return `
                         <tr class="hover:bg-slate-50/80 transition">
                           <td class="py-3 px-3 text-center font-mono font-bold text-slate-500 border-r border-slate-100">${idx + 1}</td>
@@ -1189,12 +1418,15 @@ const ProjectsView = {
                             <div class="line-clamp-2">${HELPERS.escapeHtml(desc)}</div>
                           </td>
                           <td class="py-3 px-3 font-mono text-slate-600 border-r border-slate-100">${HELPERS.escapeHtml(p.deadline || '4-5 Months')}</td>
-                          <td class="py-3 px-3 font-bold text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.assignee || p.engineer || '\u2014')}</td>
+                          <td class="py-3 px-3 font-bold text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.assignee || p.engineer || '—')}</td>
                           <td class="py-3 px-3 text-center border-r border-slate-100">
                             ${renderStatusBadge(p)}
                           </td>
                           <td class="py-3 px-3 text-center">
                             <div class="flex items-center justify-center gap-1.5">
+                              <button onclick="ProjectsView.previewProjectSlide('${p.task_id}')" title="Preview 16:9 Presentation Slide" class="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-600 transition">
+                                👁️
+                              </button>
                               <button onclick="ProjectsView.openEditProjectModal('${p.task_id}')" title="Edit Project Details" class="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition">
                                 ✏️
                               </button>
@@ -1212,7 +1444,7 @@ const ProjectsView = {
                   </tbody>
                 </table>
               </div>
-            `}
+            `)}
           </div>
         ` : ''}
 
@@ -1222,18 +1454,28 @@ const ProjectsView = {
             <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-lg shadow-sm">
-                  \u{1F3C6}
+                  🏆
                 </div>
                 <div>
                   <h3 class="text-base font-black text-slate-800">Completed Projects (${completedProjects.length})</h3>
                   <p class="text-xs text-slate-400">Finished automation milestones documented with verified outcomes</p>
                 </div>
               </div>
+
+              ${completedProjects.length > 0 ? `
+                <button onclick="ProjectsView.previewAllProjectSlides()" class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+                  <span>👁️</span> <span>Preview Slides (${completedProjects.length})</span>
+                </button>
+              ` : ''}
             </div>
 
             ${completedProjects.length === 0 ? `
               <div class="py-12 text-center text-slate-400 font-mono text-xs border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
                 No completed projects recorded for ${month}. When an ongoing project finishes, change its status to Completed.
+              </div>
+            ` : (this.viewMode === 'slides' ? `
+              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                ${completedProjects.map((p, idx) => this.renderSlideCard(p, ongoingProjects.length + idx)).join('')}
               </div>
             ` : `
               <div class="overflow-x-auto rounded-2xl border border-slate-200">
@@ -1247,13 +1489,13 @@ const ProjectsView = {
                       <th class="py-3 px-3 border-r border-slate-200 w-36">Deadline</th>
                       <th class="py-3 px-3 border-r border-slate-200 w-36">Assignee</th>
                       <th class="py-3 px-3 text-center border-r border-slate-200 w-32">Project Status</th>
-                      <th class="py-3 px-3 text-center w-24">Actions</th>
+                      <th class="py-3 px-3 text-center w-28">Actions</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-100 bg-white">
                     ${completedProjects.map((p, idx) => {
                       const photoUrl = this.getProjectPhoto(p.task_id);
-                      const desc = p.overview || p.description || p.task_details || '\u2014';
+                      const desc = p.overview || p.description || p.task_details || '—';
                       return `
                         <tr class="hover:bg-slate-50/80 transition">
                           <td class="py-3 px-3 text-center font-mono font-bold text-slate-500 border-r border-slate-100">${idx + 1}</td>
@@ -1271,12 +1513,15 @@ const ProjectsView = {
                             <div class="line-clamp-2">${HELPERS.escapeHtml(desc)}</div>
                           </td>
                           <td class="py-3 px-3 font-mono text-slate-600 border-r border-slate-100">${HELPERS.escapeHtml(p.deadline || 'Completed')}</td>
-                          <td class="py-3 px-3 font-bold text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.assignee || p.engineer || '\u2014')}</td>
+                          <td class="py-3 px-3 font-bold text-slate-800 border-r border-slate-100">${HELPERS.escapeHtml(p.assignee || p.engineer || '—')}</td>
                           <td class="py-3 px-3 text-center border-r border-slate-100">
                             ${renderStatusBadge(p)}
                           </td>
                           <td class="py-3 px-3 text-center">
                             <div class="flex items-center justify-center gap-1.5">
+                              <button onclick="ProjectsView.previewProjectSlide('${p.task_id}')" title="Preview 16:9 Presentation Slide" class="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-600 transition">
+                                👁️
+                              </button>
                               <button onclick="ProjectsView.openEditProjectModal('${p.task_id}')" title="Edit Project Details" class="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition">
                                 ✏️
                               </button>
@@ -1294,7 +1539,7 @@ const ProjectsView = {
                   </tbody>
                 </table>
               </div>
-            `}
+            `)}
           </div>
         ` : ''}
 

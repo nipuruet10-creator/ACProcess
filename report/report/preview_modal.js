@@ -110,10 +110,12 @@ const SlidePreviewModal = {
     this.isDeckMode = false;
     if (typeof photoManager !== 'undefined' && slideData.task_id) {
       const p = photoManager.getTaskPhotos(slideData.task_id, this.currentMonth || "SEP-2026");
-      slideData.photo_before = p.before_photo || null;
-      slideData.photo_after = p.after_photo || null;
-      slideData.photo = p.before_photo || p.after_photo || null;
-      slideData.has_dual_photo = Boolean(p.before_photo && p.after_photo);
+      if (p && (p.before_photo || p.after_photo)) {
+        slideData.photo_before = p.before_photo || null;
+        slideData.photo_after = p.after_photo || null;
+        slideData.photo = p.before_photo || p.after_photo || slideData.photo || null;
+        slideData.has_dual_photo = Boolean(p.before_photo && p.after_photo);
+      }
     }
     this.activeSlides = [slideData];
     this.deckHtmlList = [];
