@@ -164,8 +164,13 @@ const PhotoStorageProvider = {
    * Automatically compresses and resizes photos to Full HD (max 1920x1080) with 0.88 quality.
    * Produces crystal-clear visual quality on 16:9 widescreen presentation slides while keeping file size lean (~150-250KB).
    */
-  async compressImageFile(file, maxWidth = 1920, maxHeight = 1080, quality = 0.88) {
+  async compressImageFile(file, maxWidth = 2560, maxHeight = 1440, quality = 0.95) {
     if (!file || !file.type || !file.type.startsWith('image/')) {
+      return this.fileToBase64(file);
+    }
+
+    // Preserve exact original image bytes and resolution if file is under 2.5MB
+    if (file.size && file.size < 2500000) {
       return this.fileToBase64(file);
     }
 

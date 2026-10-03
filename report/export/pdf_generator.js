@@ -109,9 +109,9 @@ const PDFReportGenerator = {
         }
         await new Promise(r => setTimeout(r, 60));
 
-        // Capture slide to high-res canvas (1.5x scale = 1920x1080 sharp executive render)
+        // Capture slide to high-res canvas (2.0x scale = 2560x1440 2K ultra-sharp executive render)
         const canvas = await html2canvasFunc(stage, {
-          scale: 1.5,
+          scale: 2.0,
           useCORS: true,
           allowTaint: false,
           logging: false,
@@ -126,7 +126,7 @@ const PDFReportGenerator = {
 
         let imgData;
         try {
-          imgData = canvas.toDataURL('image/jpeg', 0.95);
+          imgData = canvas.toDataURL('image/jpeg', 0.98);
         } catch (taintErr) {
           console.warn("Canvas tainted by image, attempting fallback render:", taintErr);
           // Fallback to blank white or sanitized canvas
@@ -137,7 +137,7 @@ const PDFReportGenerator = {
         if (i > 0) {
           pdf.addPage([1280, 720], 'landscape');
         }
-        pdf.addImage(imgData, 'JPEG', 0, 0, 1280, 720, undefined, 'FAST');
+        pdf.addImage(imgData, 'JPEG', 0, 0, 1280, 720, undefined, 'SLOW');
       }
 
       // Save PDF file directly to user's device

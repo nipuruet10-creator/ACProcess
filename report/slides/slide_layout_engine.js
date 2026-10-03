@@ -121,7 +121,7 @@ const SlideLayoutEngine = {
              style="filter: blur(18px) brightness(0.65); opacity: 0.65; transition: opacity 0.25s;" />
         <!-- Crisp Foreground Image (Preserves uncropped original aspect ratio) -->
         <img src="${photoUrl}" alt="${HELPERS.escapeHtml(altText || 'Process Photo')}" 
-             class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 max-w-full max-h-full object-contain'} transition-all duration-200 drop-shadow-md"
+             class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} transition-all duration-200 drop-shadow-md"
              onerror="this.src='assets/images/walton_red_reference_sample.jpg'; this.onerror=null;" />
       </div>
     `;
@@ -167,8 +167,8 @@ const SlideLayoutEngine = {
         if (blurImg) blurImg.style.display = 'block';
         const mainImg = wrapper.querySelector('.photo-main-img');
         if (mainImg) {
-          mainImg.style.width = 'auto';
-          mainImg.style.height = 'auto';
+          mainImg.style.width = '100%';
+          mainImg.style.height = '100%';
           mainImg.style.maxWidth = '100%';
           mainImg.style.maxHeight = '100%';
           mainImg.style.objectFit = 'contain';
@@ -2442,15 +2442,6 @@ const SlideLayoutEngine = {
     yearlyImpact = String(yearlyImpact).replace(/\s*TK(\s*TK)+/gi, " TK");
     if (!currentImpact.toUpperCase().includes("TK")) currentImpact += " TK";
     if (!yearlyImpact.toUpperCase().includes("TK")) yearlyImpact += " TK";
-
-    // 5-Month Table data from Photo 4
-    let tableMonths = [
-      { m: "January", val: "BDT 117,600" },
-      { m: "February", val: "BDT 329,620" },
-      { m: "March", val: "BDT 1,208,308" },
-      { m: "April", val: "BDT 133,830" },
-      { m: "May", val: "BDT 336,995" }
-    ];
 
     // 6-Month Rolling Table data (Last 6 Months, Requirement 6)
     let tableMonths = [];

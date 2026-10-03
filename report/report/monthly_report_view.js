@@ -469,7 +469,7 @@ const MonthlyReportView = {
           ${photo ? `
             <div class="photo-fit-wrapper photo-fit-blur relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
               <img src="${photo}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
-              <img src="${photo}" class="photo-main-img relative z-10 max-w-full max-h-full object-contain drop-shadow-md" alt="Slide Photo" />
+              <img src="${photo}" class="photo-main-img relative z-10 w-full h-full object-contain drop-shadow-md" alt="Slide Photo" />
             </div>
             <div class="absolute inset-0 z-20 bg-black/45 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
               <button type="button" onclick="event.stopPropagation(); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold shadow transition cursor-pointer">
@@ -643,7 +643,7 @@ const MonthlyReportView = {
         previewContainer.innerHTML = `
           <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
             <img src="${photoSingle}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" />
-            <img src="${photoSingle}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 max-w-full max-h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" />
+            <img src="${photoSingle}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" />
             <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
               <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
                 ${photoAfter && photoBefore ? 'Dual Photo' : (photoAfter ? 'After Photo' : 'Before Photo')}
@@ -1890,7 +1890,7 @@ const MonthlyReportView = {
                     ${hasPhoto ? `
                       <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200 shadow-2xs group/img">
                         <img src="${photoDisplay}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" />
-                        <img src="${photoDisplay}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 max-w-full max-h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" />
+                        <img src="${photoDisplay}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" />
                         <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
                           <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
                             ${s.photo_after && s.photo_before ? 'Dual Photo' : (s.photo_after ? 'After Photo' : 'Before Photo')}

@@ -65,7 +65,7 @@ class PPTXGenerator {
               canvas.height = img.naturalHeight || img.height;
               const ctx = canvas.getContext('2d');
               ctx.drawImage(img, 0, 0);
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.98);
               resolve(dataUrl);
             } catch(err) {
               resolve(fetchUrl);
