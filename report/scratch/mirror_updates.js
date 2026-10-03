@@ -46,4 +46,20 @@ for (const rel of files) {
   console.log(`Mirrored ${rel}`);
 }
 
+// Also mirror uploads/photos
+const photosDir = path.join(srcBase, 'uploads', 'photos', 'SEP-2026');
+if (fs.existsSync(photosDir)) {
+  const pFiles = fs.readdirSync(photosDir);
+  for (const pf of pFiles) {
+    const pSrc = path.join(photosDir, pf);
+    const pd1 = path.join(dest1Base, 'uploads', 'photos', 'SEP-2026', pf);
+    const pd2 = path.join(dest2Base, 'uploads', 'photos', 'SEP-2026', pf);
+    fs.mkdirSync(path.dirname(pd1), { recursive: true });
+    fs.copyFileSync(pSrc, pd1);
+    fs.mkdirSync(path.dirname(pd2), { recursive: true });
+    fs.copyFileSync(pSrc, pd2);
+    console.log(`Mirrored photo uploads/photos/SEP-2026/${pf}`);
+  }
+}
+
 console.log('All files mirrored successfully!');

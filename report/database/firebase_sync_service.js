@@ -246,21 +246,28 @@ const FirebaseSyncService = {
 
             // Cross-device photo reconciliation on initial connect
             if (typeof photoManager !== 'undefined') {
-              const isRecentBeforeDelete = localMatch && localMatch._photoDeleted_before && (Date.now() - localMatch._photoDeleted_before < 300000);
-              const isRecentAfterDelete = localMatch && localMatch._photoDeleted_after && (Date.now() - localMatch._photoDeleted_after < 300000);
-              const isRecentBeforeEdit = localMatch && localMatch._lastPhotoEditTime && (Date.now() - localMatch._lastPhotoEditTime < 15000);
-              const isLocalBeforeEmpty = localMatch && localMatch.photo_1 === "";
-              const isLocalAfterEmpty = localMatch && localMatch.photo_2 === "";
+              const isRecentBeforeDelete = localMatch && localMatch._photoDeleted_before && (Date.now() - localMatch._photoDeleted_before < 15000);
+              const isRecentAfterDelete = localMatch && localMatch._photoDeleted_after && (Date.now() - localMatch._photoDeleted_after < 15000);
 
-              if (t.photo_1) {
-                if (!isRecentBeforeDelete && !isLocalBeforeEmpty && !localMatch?.clear_photos) {
-                  photoManager.setTaskPhoto(t.task_id, 'before_photo', t.photo_1, t.photo_1, normMonth);
+              const photo1 = t.photo_1 || t.before_photo;
+              if (photo1 && !isRecentBeforeDelete) {
+                photoManager.setTaskPhoto(t.task_id, 'before_photo', photo1, photo1, normMonth);
+                if (localMatch) {
+                  localMatch.photo_1 = photo1;
+                  localMatch.before_photo = photo1;
+                  delete localMatch._photoDeleted_before;
+                  delete localMatch.clear_photos;
                 }
               }
 
-              if (t.photo_2) {
-                if (!isRecentAfterDelete && !isLocalAfterEmpty && !localMatch?.clear_photos) {
-                  photoManager.setTaskPhoto(t.task_id, 'after_photo', t.photo_2, t.photo_2, normMonth);
+              const photo2 = t.photo_2 || t.after_photo || t.photo;
+              if (photo2 && !isRecentAfterDelete) {
+                photoManager.setTaskPhoto(t.task_id, 'after_photo', photo2, photo2, normMonth);
+                if (localMatch) {
+                  localMatch.photo_2 = photo2;
+                  localMatch.after_photo = photo2;
+                  delete localMatch._photoDeleted_after;
+                  delete localMatch.clear_photos;
                 }
               }
             }
@@ -1021,13 +1028,29 @@ const FirebaseSyncService = {
       }
 
       // 9. Photo real-time cross-device sync (Adds and deletes on all PCs immediately!)
-      else if (field === 'photo_1' || field === 'photo_2') {
-        const val = task[field];
-        const slot = (field === 'photo_1') ? 'before_photo' : 'after_photo';
-        if (val && val !== "" && val !== "null") {
+      else if (field === 'photo_1' || field === 'photo_2' || field === 'before_photo' || field === 'after_photo' || field === 'photo') {
+        const val = task[field] || task.photo_2 || task.after_photo || task.photo;
+        const slot = (field === 'photo_1' || field === 'before_photo') ? 'before_photo' : 'after_photo';
+        if (val && val !== "" && val !== "null" && val !== "undefined") {
           // Another user added/updated this photo: save it into this PC's photoManager!
           if (typeof photoManager !== 'undefined') {
             photoManager.setTaskPhoto(taskId, slot, val, val, month);
+          }
+          if (window.appState && window.appState.workbookMgr) {
+            const lt = window.appState.workbookMgr.getTask(month, taskId);
+            if (lt) {
+              if (slot === 'before_photo') {
+                lt.photo_1 = val;
+                lt.before_photo = val;
+                delete lt._photoDeleted_before;
+              } else {
+                lt.photo_2 = val;
+                lt.after_photo = val;
+                lt.photo = val;
+                delete lt._photoDeleted_after;
+              }
+              delete lt.clear_photos;
+            }
           }
         } else if (task && task.clear_photos && task._explicitUserPhotoDeleteTime) {
           // Only if another user explicitly clicked Delete

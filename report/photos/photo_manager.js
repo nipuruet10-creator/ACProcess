@@ -186,6 +186,27 @@ class PhotoManager {
               PhotoIndexedDB.saveTaskPhotos(tId, merged).catch(() => {});
             }
 
+            // Sync into MonthWorkbookManager tasks so views immediately reflect photos
+            if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+              const wbMgr = window.appState.workbookMgr;
+              const activeM = (month && month !== 'ALL') ? month : (wbMgr.activeMonth || 'SEP-2026');
+              const t = wbMgr.getTask(activeM, tId);
+              if (t) {
+                if (merged.before_photo) {
+                  t.photo_1 = merged.before_photo;
+                  t.before_photo = merged.before_photo;
+                  delete t._photoDeleted_before;
+                }
+                if (merged.after_photo) {
+                  t.photo_2 = merged.after_photo;
+                  t.after_photo = merged.after_photo;
+                  t.photo = merged.after_photo;
+                  delete t._photoDeleted_after;
+                }
+                delete t.clear_photos;
+              }
+            }
+
             // Real-time live card update when photo is added or updated on another PC
             if (photoChanged) {
               if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
@@ -434,6 +455,8 @@ class PhotoManager {
         p2 = null;
       }
     }
+    p1 = this.formatPhotoUrl(p1);
+    p2 = this.formatPhotoUrl(p2);
 
     return {
       photo_1: p1 || null,
@@ -441,6 +464,29 @@ class PhotoManager {
       before_photo: p1 || null,
       after_photo: p2 || null
     };
+  }
+
+  formatPhotoUrl(url) {
+    if (!url || typeof url !== 'string') return null;
+    const clean = url.trim();
+    if (!clean) return null;
+    if (clean.startsWith('data:image/') || clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('blob:')) {
+      return clean;
+    }
+    if (clean.startsWith('uploads/') || clean.startsWith('/uploads/')) {
+      const rel = clean.startsWith('/') ? clean.slice(1) : clean;
+      if (typeof window !== 'undefined' && window.location) {
+        const origin = window.location.origin;
+        const p = window.location.pathname;
+        if (p.includes('/report')) {
+          const idx = p.indexOf('/report');
+          return origin + p.substring(0, idx) + '/report/' + rel;
+        }
+        return origin + '/' + rel;
+      }
+      return 'https://acprocess.com/report/' + rel;
+    }
+    return clean;
   }
 
   /**
