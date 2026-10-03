@@ -1963,19 +1963,18 @@ class PPTXGenerator {
     ];
 
     completedTop5.forEach((item, idx) => {
-      const pal = cardPalettes[idx % cardPalettes.length];
       const px = 0.8 + idx * 2.38;
       const py = 1.18;
 
       slide.addShape(pptx.ShapeType.roundRect, {
         x: px, y: py, w: 2.25, h: 1.55,
-        fill: { color: pal.bg }, line: { color: pal.border, width: 1.2 }, rectRadius: 0.08
+        fill: { color: "F8FAFC" }, line: { color: "CBD5E1", width: 1.2 }, rectRadius: 0.08
       });
 
       // Number badge
       slide.addShape(pptx.ShapeType.roundRect, {
         x: px + 0.12, y: py + 0.12, w: 0.50, h: 0.30,
-        fill: { color: "FFFFFF", transparency: 25 }, line: { color: "FFFFFF", width: 0.8 }, rectRadius: 0.04
+        fill: { color: "1E293B" }, line: { color: "0F172A", width: 0.8 }, rectRadius: 0.04
       });
       slide.addText(`0${idx + 1}`, {
         x: px + 0.12, y: py + 0.12, w: 0.50, h: 0.30,
@@ -1999,7 +1998,7 @@ class PPTXGenerator {
       }
       slide.addText(displayTitle, {
         x: px + 0.12, y: py + 0.48, w: 2.01, h: 0.95,
-        fontFace: font, fontSize: fontSize, bold: true, color: "FFFFFF", lineSpacing: lineSpacing, valign: "middle"
+        fontFace: font, fontSize: fontSize, bold: true, color: "0F172A", lineSpacing: lineSpacing, valign: "middle"
       });
     });
 
@@ -2503,18 +2502,17 @@ class PPTXGenerator {
     ];
 
     completedTop5.forEach((item, idx) => {
-      const pal = cardPalettes[idx % cardPalettes.length];
       const px = 0.8 + idx * 2.38;
       const py = 1.48;
 
       slide.addShape(pptx.ShapeType.roundRect, {
         x: px, y: py, w: 2.25, h: 1.55,
-        fill: { color: pal.bg }, line: { color: pal.border, width: 1.2 }, rectRadius: 0.08
+        fill: { color: "F8FAFC" }, line: { color: "CBD5E1", width: 1.2 }, rectRadius: 0.08
       });
 
       slide.addShape(pptx.ShapeType.roundRect, {
         x: px + 0.12, y: py + 0.12, w: 0.50, h: 0.30,
-        fill: { color: "FFFFFF", transparency: 25 }, line: { color: "FFFFFF", width: 0.8 }, rectRadius: 0.04
+        fill: { color: "1E293B" }, line: { color: "0F172A", width: 0.8 }, rectRadius: 0.04
       });
       slide.addText(`0${idx + 1}`, {
         x: px + 0.12, y: py + 0.12, w: 0.50, h: 0.30,
@@ -2524,7 +2522,7 @@ class PPTXGenerator {
       const displayTitle = (item && item.trim() && item.trim() !== "—") ? item : "— (Pending completion)";
       slide.addText(displayTitle, {
         x: px + 0.12, y: py + 0.48, w: 2.01, h: 0.95,
-        fontFace: font, fontSize: 10, bold: true, color: "FFFFFF", lineSpacing: 14, valign: "middle"
+        fontFace: font, fontSize: 10, bold: true, color: "0F172A", lineSpacing: 14, valign: "middle"
       });
     });
 
@@ -2679,6 +2677,9 @@ class PPTXGenerator {
     const isProj = Boolean(task.is_project === true);
     const isCompletedProj = isProj && (statusLower.includes('complete') || catLower.includes('completed'));
     const isCostSaving = Boolean(task.is_cost_saving || catLower.includes('cost') || catLower.includes('saving') || titleLower.includes('cost saving'));
+    if (isCostSaving) {
+      slide.background = { color: "F0FDF4" };
+    }
 
     let badgeText = (task.category || "PROCESS DEVELOPMENT").toUpperCase();
     let badgeFill = redPrimary;
@@ -2978,6 +2979,9 @@ class PPTXGenerator {
     const isProj = Boolean(task.is_project === true);
     const isCompletedProj = isProj && (statusLower.includes('complete') || catLower.includes('completed'));
     const isCostSaving = Boolean(task.is_cost_saving || catLower.includes('cost') || catLower.includes('saving') || titleLower.includes('cost saving'));
+    if (isCostSaving) {
+      slide.background = { color: "F0FDF4" };
+    }
 
     let badgeText = category.toUpperCase();
     let badgeFill = bluePrimary;

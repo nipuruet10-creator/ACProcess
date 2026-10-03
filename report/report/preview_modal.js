@@ -169,8 +169,26 @@ const SlidePreviewModal = {
   },
 
   close() {
+    if (document.fullscreenElement) {
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    }
     const container = document.getElementById('slide-preview-modal-container');
     if (container) container.innerHTML = '';
+  },
+
+  toggleFullscreen() {
+    const elem = document.getElementById('slide-preview-modal-container') || document.documentElement;
+    if (!document.fullscreenElement) {
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
   },
 
   _renderModal(container) {
@@ -230,6 +248,9 @@ const SlidePreviewModal = {
               </span>
               <button onclick="SlidePreviewModal.next()" ${this.currentSlideIndex === total - 1 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold disabled:opacity-30 border border-slate-700">
                 Next &rarr;
+              </button>
+              <button onclick="SlidePreviewModal.toggleFullscreen()" title="Toggle Fullscreen Presentation" class="ml-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center gap-1 cursor-pointer">
+                <span>⛶</span> <span class="hidden sm:inline">Fullscreen</span>
               </button>
               <button onclick="SlidePreviewModal.close()" class="ml-2 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>

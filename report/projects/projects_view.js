@@ -206,6 +206,124 @@ const ProjectsView = {
     }
   },
 
+  generateAiDescription(event) {
+    if (event && event.preventDefault) event.preventDefault();
+    const nameInput = document.getElementById('proj-name');
+    const overviewArea = document.getElementById('proj-overview');
+    const categorySelect = document.getElementById('proj-category');
+    if (!nameInput || !overviewArea) return;
+
+    const taskName = nameInput.value.trim();
+    if (!taskName) {
+      if (typeof window.showToast === 'function') {
+        window.showToast("Please enter a Project Name first to generate AI description!", "warning");
+      } else {
+        alert("Please enter a Project Name first!");
+      }
+      nameInput.focus();
+      return;
+    }
+
+    const category = categorySelect ? categorySelect.value : "Ongoing Projects";
+    let desc = "";
+    if (typeof PROMPT_TEMPLATES !== 'undefined' && typeof PROMPT_TEMPLATES.localFactualTransform === 'function') {
+      const res = PROMPT_TEMPLATES.localFactualTransform(taskName, category);
+      desc = res.ai_description || "";
+    }
+    if (!desc) {
+      desc = `Strategic engineering project focused on ${taskName}. Designed to optimize manufacturing workflow, eliminate station bottlenecks, improve operational reliability, and elevate production capability across Walton AC lines.`;
+    }
+
+    overviewArea.value = desc;
+    if (typeof window.showToast === 'function') {
+      window.showToast("✨ AI generated strategic project description!", "success");
+    }
+  },
+
+  isBackMonthDeadline(val) {
+    if (!val || typeof val !== 'string') return false;
+    const trimmed = val.trim();
+    if (!trimmed) return false;
+
+    let refYear = 2026;
+    let refMonth = 9; // September (1-indexed)
+    if (this.selectedMonth && this.selectedMonth.includes('-')) {
+      const [mStr, yStr] = this.selectedMonth.split('-');
+      const monthMap = { JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12 };
+      if (monthMap[mStr.toUpperCase()]) refMonth = monthMap[mStr.toUpperCase()];
+      const y = parseInt(yStr, 10);
+      if (!isNaN(y)) refYear = y;
+    }
+
+    const monthMap = {
+      january: 1, jan: 1,
+      february: 2, feb: 2,
+      march: 3, mar: 3,
+      april: 4, apr: 4,
+      may: 5,
+      june: 6, jun: 6,
+      july: 7, jul: 7,
+      august: 8, aug: 8,
+      september: 9, sep: 9, sept: 9,
+      october: 10, oct: 10,
+      november: 11, nov: 11,
+      december: 12, dec: 12
+    };
+
+    const lower = trimmed.toLowerCase();
+    const yearMatch = lower.match(/(20\d{2})/);
+    const explicitYear = yearMatch ? parseInt(yearMatch[1], 10) : null;
+
+    if (explicitYear && explicitYear < refYear) return true;
+
+    const isoMatch = trimmed.match(/(\d{4})[-\/](\d{1,2})/);
+    if (isoMatch) {
+      const yr = parseInt(isoMatch[1], 10);
+      const mo = parseInt(isoMatch[2], 10);
+      if (yr < refYear || (yr === refYear && mo < refMonth)) return true;
+    }
+
+    const dmyMatch = trimmed.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+    if (dmyMatch) {
+      const yr = parseInt(dmyMatch[3], 10);
+      const mo = parseInt(dmyMatch[2], 10);
+      if (yr < refYear || (yr === refYear && mo < refMonth)) return true;
+    }
+
+    for (const [mName, mNum] of Object.entries(monthMap)) {
+      const regex = new RegExp('(?:^|[^a-z])' + mName + '(?:[^a-z]|$)', 'i');
+      if (regex.test(lower)) {
+        const yr = explicitYear || refYear;
+        if (yr < refYear || (yr === refYear && mNum < refMonth)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  },
+
+  validateDeadline(input) {
+    if (!input) return;
+    const isBack = this.isBackMonthDeadline(input.value);
+    let hintElem = document.getElementById('proj-deadline-warning');
+    if (isBack) {
+      input.classList.remove('bg-slate-50', 'border-slate-200', 'text-slate-700', 'focus:border-sky-500', 'focus:border-amber-500');
+      input.classList.add('bg-red-50', 'border-red-500', 'text-red-700', 'ring-2', 'ring-red-400', 'focus:border-red-600', 'focus:ring-red-500');
+      if (!hintElem) {
+        hintElem = document.createElement('p');
+        hintElem.id = 'proj-deadline-warning';
+        hintElem.className = 'text-[11px] font-bold text-red-600 mt-1 flex items-center gap-1';
+        hintElem.innerHTML = '<span>⚠️</span> <span>Warning: Deadline belongs to a past / back month!</span>';
+        input.parentNode.appendChild(hintElem);
+      }
+    } else {
+      input.classList.remove('bg-red-50', 'border-red-500', 'text-red-700', 'ring-2', 'ring-red-400', 'focus:border-red-600', 'focus:ring-red-500');
+      input.classList.add('bg-slate-50', 'border-slate-200', 'text-slate-700');
+      if (hintElem) hintElem.remove();
+    }
+  },
+
   generateAiDetails(event) {
     if (event && event.preventDefault) event.preventDefault();
     const nameInput = document.getElementById('proj-name');
@@ -226,15 +344,19 @@ const ProjectsView = {
 
     const category = categorySelect ? categorySelect.value : "Ongoing Projects";
     let steps = "";
-    if (typeof PROMPT_TEMPLATES !== 'undefined' && typeof PROMPT_TEMPLATES.generateEngineeringSteps === 'function') {
-      steps = PROMPT_TEMPLATES.generateEngineeringSteps(taskName, category);
-    } else {
+    if (typeof PROMPT_TEMPLATES !== 'undefined' && typeof PROMPT_TEMPLATES.localFactualTransform === 'function') {
+      const res = PROMPT_TEMPLATES.localFactualTransform(taskName, category);
+      if (Array.isArray(res.ai_impact) && res.ai_impact.length > 0) {
+        steps = res.ai_impact.map((imp, i) => `${i + 1}. ${imp}`).join(' • ');
+      }
+    }
+    if (!steps) {
       steps = `1. Conduct engineering feasibility & design study for ${taskName}. 2. Procure tooling & fabricate pilot components. 3. Execute trial run & validate process parameters. 4. Complete quality sign-off and SOP documentation.`;
     }
 
     detailsArea.value = steps;
     if (typeof window.showToast === 'function') {
-      window.showToast("\u2728 AI generated tailored milestone details!", "success");
+      window.showToast("✨ AI generated tailored milestone details!", "success");
     }
   },
 
@@ -492,30 +614,22 @@ const ProjectsView = {
                      class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-sky-500 focus:bg-white shadow-sm" />
             </div>
 
-            <!-- Category, Project Status, Deadline -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- Category & Deadline (2 columns, NO Project Status dropdown) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block font-bold text-slate-700 mb-1">Project Category / Type</label>
-                <select id="proj-category" onchange="document.getElementById('proj-status').value = this.value === 'Completed Projects' ? 'Completed' : 'Ongoing'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-sky-500">
+                <select id="proj-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-sky-500">
                   <option value="Ongoing Projects" selected>New / Ongoing Project (In Progress)</option>
                   <option value="Completed Projects">Completed Project</option>
                 </select>
               </div>
 
               <div>
-                <label class="block font-bold text-slate-700 mb-1">Project Status <span class="text-red-500">*</span></label>
-                <select id="proj-status" onchange="document.getElementById('proj-category').value = this.value === 'Completed' ? 'Completed Projects' : 'Ongoing Projects'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-sky-500">
-                  <option value="Ongoing" selected>⏳ Ongoing</option>
-                  <option value="Completed">✅ Completed</option>
-                  <option value="Under Trial">🔬 Under Trial</option>
-                  <option value="Planning">📝 Planning</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block font-bold text-slate-700 mb-1">Target Deadline / Duration</label>
-                <input type="text" id="proj-deadline" placeholder="e.g. 4-5 Months (Target: Dec, 2026)"
-                       class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-sky-500" />
+                <label class="block font-bold text-slate-700 mb-1">Deadline <span class="text-red-500">*</span></label>
+                <input type="text" id="proj-deadline" required placeholder="e.g. 2026-12-31 or Dec, 2026 (4-5 Months)"
+                       oninput="ProjectsView.validateDeadline(this)"
+                       onchange="ProjectsView.validateDeadline(this)"
+                       class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-sky-500 transition" />
               </div>
             </div>
 
@@ -533,23 +647,38 @@ const ProjectsView = {
               <div id="proj-photo-slot-container"></div>
             </div>
 
-            <!-- Description Box (Requirement 7) -->
+            <!-- Description Box with AI Generate Button -->
             <div>
-              <label class="block font-bold text-slate-700 mb-1">Description <span class="text-red-500">*</span></label>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block font-bold text-slate-700">Description <span class="text-red-500">*</span></label>
+                <button type="button" onclick="ProjectsView.generateAiDescription(event)" class="inline-flex items-center gap-1 text-[11px] font-bold text-sky-600 hover:text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-lg transition shadow-xs cursor-pointer">
+                  <span>✨</span> <span>AI Generate Description</span>
+                </button>
+              </div>
               <textarea id="proj-overview" rows="3" required placeholder="Provide an executive description of the automation project, engineering objectives, methodology, and scope..."
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-sky-500 resize-none shadow-xs"></textarea>
             </div>
 
-            <!-- Milestone Details / Action Steps -->
+            <!-- Milestone Details / Action Steps with AI Generate Button -->
             <div>
               <div class="flex items-center justify-between mb-1">
                 <label class="block font-bold text-slate-700">Milestone Details / Action Steps</label>
-                <button type="button" onclick="ProjectsView.generateAiDetails(event)" class="inline-flex items-center gap-1 text-[11px] font-bold text-sky-600 hover:text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-lg transition shadow-xs">
+                <button type="button" onclick="ProjectsView.generateAiDetails(event)" class="inline-flex items-center gap-1 text-[11px] font-bold text-sky-600 hover:text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-0.5 rounded-lg transition shadow-xs cursor-pointer">
                   <span>✨</span> <span>AI Generate Details</span>
                 </button>
               </div>
               <textarea id="proj-details" rows="3" placeholder="1. Technical study & punch matrix 2. Fabrication trial 3. Safety inspection..."
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 focus:outline-none focus:border-sky-500 resize-none"></textarea>
+            </div>
+
+            <!-- Project Status Details Box (Requirement 5: Bottom box, mandatory, NO AI GENERATE BUTTON) -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block font-bold text-slate-700">Project Status Details <span class="text-red-500">*</span></label>
+                <span class="text-[10px] text-slate-400 font-semibold">(Mandatory &bull; Manual entry only &bull; Cannot be empty)</span>
+              </div>
+              <textarea id="proj-status-details" rows="2" required placeholder="Enter current progress status, active milestones, blockers, or next actions (mandatory)..."
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-sky-500 resize-none shadow-xs"></textarea>
             </div>
 
             <div class="flex items-center justify-between pt-4 border-t border-slate-100">
@@ -587,7 +716,7 @@ const ProjectsView = {
     const engineers = (typeof MasterDataManager !== 'undefined') ? MasterDataManager.getEngineers() : [];
     const isCompleted = (task.status === 'Completed' || task.category === 'Completed Projects' || task.project_status === 'Completed');
     const currentEng = task.assignee || task.engineer || (engineers[0] ? engineers[0].display : "Sazzad (50463)");
-    const currentStatus = task.project_status || (isCompleted ? 'Completed' : 'Ongoing');
+    const currentStatusDetails = task.status_details || task.project_status_details || task.project_status || task.status || '';
 
     modal.innerHTML = `
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -617,30 +746,22 @@ const ProjectsView = {
                      class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-amber-500 focus:bg-white shadow-sm" />
             </div>
 
-            <!-- Category, Project Status, Deadline -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- Category & Deadline (2 columns, NO Project Status dropdown) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block font-bold text-slate-700 mb-1">Project Category / Type</label>
-                <select id="proj-category" onchange="document.getElementById('proj-status').value = this.value === 'Completed Projects' ? 'Completed' : 'Ongoing'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-amber-500">
+                <select id="proj-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-amber-500">
                   <option value="Ongoing Projects" ${!isCompleted ? 'selected' : ''}>New / Ongoing Project (In Progress)</option>
                   <option value="Completed Projects" ${isCompleted ? 'selected' : ''}>Completed Project</option>
                 </select>
               </div>
 
               <div>
-                <label class="block font-bold text-slate-700 mb-1">Project Status <span class="text-red-500">*</span></label>
-                <select id="proj-status" onchange="document.getElementById('proj-category').value = this.value === 'Completed' ? 'Completed Projects' : 'Ongoing Projects'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-amber-500">
-                  <option value="Ongoing" ${currentStatus === 'Ongoing' ? 'selected' : ''}>⏳ Ongoing</option>
-                  <option value="Completed" ${currentStatus === 'Completed' ? 'selected' : ''}>✅ Completed</option>
-                  <option value="Under Trial" ${currentStatus === 'Under Trial' ? 'selected' : ''}>🔬 Under Trial</option>
-                  <option value="Planning" ${currentStatus === 'Planning' ? 'selected' : ''}>📝 Planning</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block font-bold text-slate-700 mb-1">Target Deadline / Duration</label>
-                <input type="text" id="proj-deadline" value="${HELPERS.escapeHtml(task.deadline || '4-5 Months')}" placeholder="e.g. 4-5 Months (Target: Dec, 2026)"
-                       class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-amber-500" />
+                <label class="block font-bold text-slate-700 mb-1">Deadline <span class="text-red-500">*</span></label>
+                <input type="text" id="proj-deadline" required value="${HELPERS.escapeHtml(task.deadline || '4-5 Months')}" placeholder="e.g. 2026-12-31 or Dec, 2026 (4-5 Months)"
+                       oninput="ProjectsView.validateDeadline(this)"
+                       onchange="ProjectsView.validateDeadline(this)"
+                       class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-amber-500 transition" />
               </div>
             </div>
 
@@ -658,23 +779,38 @@ const ProjectsView = {
               <div id="proj-photo-slot-container"></div>
             </div>
 
-            <!-- Description Box (Requirement 7) -->
+            <!-- Description Box with AI Generate Button -->
             <div>
-              <label class="block font-bold text-slate-700 mb-1">Description <span class="text-red-500">*</span></label>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block font-bold text-slate-700">Description <span class="text-red-500">*</span></label>
+                <button type="button" onclick="ProjectsView.generateAiDescription(event)" class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg transition shadow-xs cursor-pointer">
+                  <span>✨</span> <span>AI Generate Description</span>
+                </button>
+              </div>
               <textarea id="proj-overview" rows="3" required placeholder="Provide an executive description of the automation project, engineering objectives, methodology, and scope..."
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-amber-500 resize-none shadow-xs">${HELPERS.escapeHtml(task.overview || task.description || '')}</textarea>
             </div>
 
-            <!-- Milestone Details / Action Steps -->
+            <!-- Milestone Details / Action Steps with AI Generate Button -->
             <div>
               <div class="flex items-center justify-between mb-1">
                 <label class="block font-bold text-slate-700">Milestone Details / Action Steps</label>
-                <button type="button" onclick="ProjectsView.generateAiDetails(event)" class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg transition shadow-xs">
+                <button type="button" onclick="ProjectsView.generateAiDetails(event)" class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg transition shadow-xs cursor-pointer">
                   <span>✨</span> <span>AI Generate Details</span>
                 </button>
               </div>
               <textarea id="proj-details" rows="3" placeholder="1. Technical study & punch matrix 2. Fabrication trial 3. Safety inspection..."
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 focus:outline-none focus:border-amber-500 resize-none">${HELPERS.escapeHtml(task.task_details || '')}</textarea>
+            </div>
+
+            <!-- Project Status Details Box (Requirement 5: Bottom box, mandatory, NO AI GENERATE BUTTON) -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block font-bold text-slate-700">Project Status Details <span class="text-red-500">*</span></label>
+                <span class="text-[10px] text-slate-400 font-semibold">(Mandatory &bull; Manual entry only &bull; Cannot be empty)</span>
+              </div>
+              <textarea id="proj-status-details" rows="2" required placeholder="Enter current progress status, active milestones, blockers, or next actions (mandatory)..."
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-amber-500 resize-none shadow-xs">${HELPERS.escapeHtml(currentStatusDetails)}</textarea>
             </div>
 
             <div class="flex items-center justify-between pt-4 border-t border-slate-100">
@@ -692,7 +828,11 @@ const ProjectsView = {
       </div>
     `;
 
-    setTimeout(() => this.renderModalPhotoSlot(task.task_id), 10);
+    setTimeout(() => {
+      this.renderModalPhotoSlot(task.task_id);
+      const dl = document.getElementById('proj-deadline');
+      if (dl) this.validateDeadline(dl);
+    }, 20);
   },
 
   closeModal() {
@@ -701,23 +841,69 @@ const ProjectsView = {
   },
 
   async saveProjectEntry(event) {
-    event.preventDefault();
-    const name = document.getElementById('proj-name').value.trim();
-    if (!name) return;
+    if (event && event.preventDefault) event.preventDefault();
+    const nameInput = document.getElementById('proj-name');
+    const name = nameInput ? nameInput.value.trim() : '';
+    if (!name) {
+      if (typeof window.showToast === 'function') window.showToast("Please enter a Project Name", "warning");
+      if (nameInput) nameInput.focus();
+      return;
+    }
 
     const editTaskIdElem = document.getElementById('proj-edit-task-id');
     const isNewElem = document.getElementById('proj-is-new');
     const isNew = isNewElem ? (isNewElem.value === 'true') : false;
     const targetTaskId = editTaskIdElem ? editTaskIdElem.value.trim() : `PROJ-2026-${Date.now().toString().slice(-4)}`;
 
-    const category = document.getElementById('proj-category').value;
-    const projectStatus = document.getElementById('proj-status').value;
-    const deadline = document.getElementById('proj-deadline').value.trim();
+    const categoryElem = document.getElementById('proj-category');
+    const category = categoryElem ? categoryElem.value : "Ongoing Projects";
+
+    // Validate Deadline (Requirement 5: Required, cannot be empty)
+    const deadlineInput = document.getElementById('proj-deadline');
+    const deadline = deadlineInput ? deadlineInput.value.trim() : '';
+    if (!deadline) {
+      if (typeof window.showToast === 'function') {
+        window.showToast("⚠️ Deadline is required! Please enter a valid deadline.", "warning");
+      } else {
+        alert("Deadline is required! Please enter a valid deadline.");
+      }
+      if (deadlineInput) {
+        deadlineInput.focus();
+        deadlineInput.classList.add('ring-2', 'ring-red-400', 'border-red-500');
+      }
+      return;
+    }
+
+    // Validate Status Details (Requirement 5: Bottom box, mandatory, cannot be empty)
+    const statusDetailsInput = document.getElementById('proj-status-details');
+    const statusDetails = statusDetailsInput ? statusDetailsInput.value.trim() : '';
+    if (!statusDetails) {
+      if (typeof window.showToast === 'function') {
+        window.showToast("⚠️ Project Status Details is required! This field cannot be left empty.", "warning");
+      } else {
+        alert("Project Status Details is required! This field cannot be left empty.");
+      }
+      if (statusDetailsInput) {
+        statusDetailsInput.focus();
+        statusDetailsInput.classList.add('ring-2', 'ring-red-400', 'border-red-500');
+      }
+      return;
+    }
+
     const assignee = document.getElementById('proj-assignee').value;
-    const overview = document.getElementById('proj-overview').value.trim();
+    const overviewArea = document.getElementById('proj-overview');
+    const overview = overviewArea ? overviewArea.value.trim() : '';
+    if (!overview) {
+      if (typeof window.showToast === 'function') {
+        window.showToast("⚠️ Project Description is required!", "warning");
+      }
+      if (overviewArea) overviewArea.focus();
+      return;
+    }
     const details = document.getElementById('proj-details').value.trim();
 
-    const isCompleted = (projectStatus === 'Completed' || category === 'Completed Projects');
+    const isCompleted = (category === 'Completed Projects');
+    const projectStatus = isCompleted ? 'Completed' : 'Ongoing';
     const photoUrl = this.getProjectPhoto(targetTaskId) || "";
 
     const list = this.getProjects();
@@ -728,8 +914,10 @@ const ProjectsView = {
       if (existing) {
         existing.task_name = name;
         existing.category = category;
-        existing.status = isCompleted ? "Completed" : projectStatus;
+        existing.status = projectStatus;
         existing.project_status = projectStatus;
+        existing.status_details = statusDetails;
+        existing.project_status_details = statusDetails;
         existing.deadline = deadline;
         existing.overview = overview;
         existing.description = overview;
@@ -760,8 +948,10 @@ const ProjectsView = {
         task_id: targetTaskId,
         task_name: name,
         category: category,
-        status: isCompleted ? "Completed" : projectStatus,
+        status: projectStatus,
         project_status: projectStatus,
+        status_details: statusDetails,
+        project_status_details: statusDetails,
         deadline: deadline,
         overview: overview,
         description: overview,
@@ -826,15 +1016,18 @@ const ProjectsView = {
 
     const renderStatusBadge = (p) => {
       const st = p.project_status || p.status || 'Ongoing';
+      const details = p.status_details || p.project_status_details || '';
+      let badge = '';
       if (st === 'Completed') {
-        return `<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>✅</span> <span>Completed</span></span>`;
+        badge = `<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>✅</span> <span>Completed</span></span>`;
       } else if (st === 'Under Trial') {
-        return `<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>🔬</span> <span>Under Trial</span></span>`;
+        badge = `<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>🔬</span> <span>Under Trial</span></span>`;
       } else if (st === 'Planning') {
-        return `<span class="px-2.5 py-1 rounded-full bg-purple-100 text-purple-900 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>📝</span> <span>Planning</span></span>`;
+        badge = `<span class="px-2.5 py-1 rounded-full bg-purple-100 text-purple-900 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>📝</span> <span>Planning</span></span>`;
       } else {
-        return `<span class="px-2.5 py-1 rounded-full bg-sky-100 text-sky-800 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>⏳</span> <span>Ongoing</span></span>`;
+        badge = `<span class="px-2.5 py-1 rounded-full bg-sky-100 text-sky-800 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs"><span>⏳</span> <span>Ongoing</span></span>`;
       }
+      return `${badge}${details ? `<div class="text-[10px] text-slate-600 mt-1.5 font-medium line-clamp-2 px-1 max-w-[150px] mx-auto text-center" title="${HELPERS.escapeHtml(details)}">${HELPERS.escapeHtml(details)}</div>` : ''}`;
     };
 
     container.innerHTML = `
@@ -969,7 +1162,7 @@ const ProjectsView = {
                       <th class="py-3 px-3 w-20 text-center border-r border-slate-200">Photo</th>
                       <th class="py-3 px-4 border-r border-slate-200 w-60">Project Name</th>
                       <th class="py-3 px-4 border-r border-slate-200">Project Overview &amp; Milestones</th>
-                      <th class="py-3 px-3 border-r border-slate-200 w-36">Timeline</th>
+                      <th class="py-3 px-3 border-r border-slate-200 w-36">Deadline</th>
                       <th class="py-3 px-3 border-r border-slate-200 w-36">Assignee</th>
                       <th class="py-3 px-3 text-center border-r border-slate-200 w-32">Project Status</th>
                       <th class="py-3 px-3 text-center w-24">Actions</th>
@@ -1051,7 +1244,7 @@ const ProjectsView = {
                       <th class="py-3 px-3 w-20 text-center border-r border-slate-200">Photo</th>
                       <th class="py-3 px-4 border-r border-slate-200 w-60">Project Name</th>
                       <th class="py-3 px-4 border-r border-slate-200">Project Overview &amp; Outcomes</th>
-                      <th class="py-3 px-3 border-r border-slate-200 w-36">Timeline</th>
+                      <th class="py-3 px-3 border-r border-slate-200 w-36">Deadline</th>
                       <th class="py-3 px-3 border-r border-slate-200 w-36">Assignee</th>
                       <th class="py-3 px-3 text-center border-r border-slate-200 w-32">Project Status</th>
                       <th class="py-3 px-3 text-center w-24">Actions</th>

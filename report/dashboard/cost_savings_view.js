@@ -335,17 +335,14 @@ const CostSavingsView = {
     }
 
     if (summaryEl) {
-      const yLac = (yearly / 100000).toFixed(2);
-      const oLac = (onetime / 100000).toFixed(2);
-      const totLac = ((yearly + onetime) / 100000).toFixed(2);
       summaryEl.innerHTML = `
         <div class="flex items-center justify-between text-xs">
-          <span class="text-emerald-900 font-bold">Monthly Impact:</span>
+          <span class="text-emerald-900 font-bold">Monthly Financial Impact:</span>
           <span class="font-mono font-black text-emerald-700 text-sm">৳ ${monthly.toLocaleString()} BDT / Month</span>
         </div>
         <div class="text-[11px] text-slate-600 mt-1 flex flex-wrap items-center justify-between gap-1">
-          <span>Formula: (৳ ${yearly.toLocaleString()} [${yLac}L] + ৳ ${onetime.toLocaleString()} [${oLac}L]) ÷ 12</span>
-          <span class="font-bold text-emerald-800">Total Year 1: ৳ ${(yearly + onetime).toLocaleString()} (${totLac} Lac)</span>
+          <span>Formula: (৳ ${yearly.toLocaleString()} + ৳ ${onetime.toLocaleString()}) ÷ 12</span>
+          <span class="font-bold text-emerald-800">Total Year 1: ৳ ${(yearly + onetime).toLocaleString()} BDT</span>
         </div>
       `;
     }
@@ -388,7 +385,10 @@ const CostSavingsView = {
     const yearly = parseFloat(document.getElementById('slide-calc-yearly')?.value) || 0;
     const onetime = parseFloat(document.getElementById('slide-calc-onetime')?.value) || 0;
     const totYear1 = yearly + onetime;
-    const highlightStr = monthly > 0 ? `৳ ${monthly.toLocaleString()} / Mo (৳ ${(totYear1/100000).toFixed(1)} Lac / Yr)` : '';
+    const useCustom = document.getElementById('slide-use-custom-highlight')?.checked;
+    const customHighlight = (document.getElementById('slide-custom-highlight')?.value || '').trim();
+    const calcHighlight = monthly > 0 ? `৳ ${monthly.toLocaleString()} / Mo (৳ ${totYear1.toLocaleString()} / Yr)` : '';
+    const highlightStr = (useCustom && customHighlight) ? customHighlight : calcHighlight;
     const photoUrl = this.getSlidePhoto(taskId) || null;
 
     const slideData = {
@@ -476,6 +476,7 @@ const CostSavingsView = {
     const initMonthly = existingTask ? (existingTask.cost_saving_monthly || existingTask.cost_saving_amount || existingTask.amount || existingTask.savings || '') : '';
     const initYearly = existingTask ? (existingTask.cost_saving_yearly || existingTask.yearly_amount || (initMonthly ? initMonthly * 12 : '')) : '';
     const initOnetime = existingTask ? (existingTask.cost_saving_onetime || existingTask.onetime_amount || '') : '';
+    const initCustomHighlight = existingTask ? (existingTask.cost_saving_custom_highlight || '') : '';
 
     container.innerHTML = `
       <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in font-sans">
@@ -544,11 +545,13 @@ const CostSavingsView = {
                 <div id="slide-photo-slot-container"></div>
               </div>
 
-              <!-- Description -->
+              <!-- Description with AI Generate Button (Requirement 2) -->
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <label class="block font-bold text-slate-700">Description <span class="text-red-500">*</span></label>
-                  <span class="text-[9.5px] text-slate-400 font-mono">Narrative sentences</span>
+                  <button type="button" onclick="CostSavingsView.generateAiDescription(event)" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-lg transition shadow-xs cursor-pointer">
+                    <span>✨</span> <span>AI Generate Description</span>
+                  </button>
                 </div>
                 <textarea id="slide-overview" rows="3" required 
                           oninput="CostSavingsView.debouncedLiveSlidePreview('${targetTaskId}')"
@@ -556,11 +559,13 @@ const CostSavingsView = {
                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 resize-none shadow-xs">${HELPERS.escapeHtml(initDesc)}</textarea>
               </div>
 
-              <!-- Key Impact -->
+              <!-- Key Impact with AI Generate Button (Requirement 2) -->
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <label class="block font-bold text-slate-700">Key Impact <span class="font-normal text-slate-400">(Bullets, 1 per line)</span></label>
-                  <span class="text-[9.5px] text-slate-400 font-mono">1 bullet / line</span>
+                  <button type="button" onclick="CostSavingsView.generateAiImpact(event)" class="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-0.5 rounded-lg transition shadow-xs cursor-pointer">
+                    <span>✨</span> <span>AI Generate Impact</span>
+                  </button>
                 </div>
                 <textarea id="slide-impacts" rows="3" 
                           oninput="CostSavingsView.debouncedLiveSlidePreview('${targetTaskId}')"
@@ -598,7 +603,7 @@ const CostSavingsView = {
                   </div>
                 </div>
 
-                <!-- Live Formula & Output Summary -->
+                <!-- Live Formula & Output Summary (Full amounts without Lac) -->
                 <div id="slide-calc-summary" class="p-2.5 rounded-xl bg-white/90 border border-emerald-200">
                   <div class="flex items-center justify-between text-xs">
                     <span class="text-emerald-900 font-bold">Monthly Financial Impact:</span>
@@ -607,6 +612,25 @@ const CostSavingsView = {
                   <div class="text-[10px] text-slate-600 mt-1 flex flex-wrap items-center justify-between gap-1">
                     <span>Formula: (Yearly + One-Time) ÷ 12</span>
                     <span class="font-bold text-emerald-800">Total Year 1: ৳ ${((parseFloat(initYearly) || 0) + (parseFloat(initOnetime) || 0)).toLocaleString()} BDT</span>
+                  </div>
+                </div>
+
+                <!-- Custom Highlight Amount & Text Option (Requirement 2) -->
+                <div class="pt-2 border-t border-emerald-200 space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" id="slide-use-custom-highlight" ${initCustomHighlight ? 'checked' : ''}
+                             onchange="document.getElementById('slide-custom-highlight-box').style.display = this.checked ? 'block' : 'none'; CostSavingsView.debouncedLiveSlidePreview('${targetTaskId}')"
+                             class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
+                      <span class="text-[11px] font-bold text-emerald-950">Custom Highlight Text &amp; Amount</span>
+                    </label>
+                    <span class="text-[9.5px] text-slate-500 font-mono">Custom text/amount</span>
+                  </div>
+                  <div id="slide-custom-highlight-box" style="display: ${initCustomHighlight ? 'block' : 'none'};">
+                    <input type="text" id="slide-custom-highlight" value="${HELPERS.escapeHtml(initCustomHighlight)}"
+                           oninput="CostSavingsView.debouncedLiveSlidePreview('${targetTaskId}')"
+                           placeholder="e.g. ৳ 2,50,000 / Batch (Process Optimization) or custom text"
+                           class="w-full bg-white border border-emerald-400 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-xs" />
                   </div>
                 </div>
 
@@ -628,17 +652,23 @@ const CostSavingsView = {
               </div>
             </form>
 
-            <!-- Right: Real-Time 16:9 Presentation Canvas Preview (7 Columns) -->
+            <!-- Right: Real-Time 16:9 Presentation Canvas Preview (7 Columns) with Fullscreen Button -->
             <div class="xl:col-span-7 bg-slate-950 rounded-2xl p-3 border border-slate-800 flex flex-col justify-between shadow-2xl overflow-hidden min-h-[360px]">
               <div class="flex items-center justify-between pb-2 border-b border-slate-800/80 text-xs">
                 <div class="flex items-center gap-2">
                   <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span class="font-bold text-slate-200 font-mono text-[11px]">Real-Time Slide Preview</span>
                   <span class="px-2 py-0.5 rounded text-[9.5px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800/60">
-                    Walton Executive Widescreen 16:9
+                    Walton Executive 16:9
                   </span>
                 </div>
-                <span class="text-[10px] text-slate-400 font-mono">Cost Optimization Layout</span>
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="CostSavingsView.toggleFullscreenPreview('${targetTaskId}')"
+                          class="px-2.5 py-1 rounded-lg bg-emerald-800/80 hover:bg-emerald-700 text-emerald-100 border border-emerald-600/70 text-[10.5px] font-bold transition flex items-center gap-1 cursor-pointer shadow-sm">
+                    <span>⛶</span> <span>Fullscreen Preview</span>
+                  </button>
+                  <span class="text-[10px] text-slate-400 font-mono hidden sm:inline">Cost Optimization</span>
+                </div>
               </div>
 
               <!-- Presentation Stage Area -->
@@ -691,7 +721,10 @@ const CostSavingsView = {
 
     const photoUrl = this.getSlidePhoto(taskId) || "";
     const totYear1 = yearly + onetime;
-    const highlightStr = `৳ ${monthly.toLocaleString()} / Mo (৳ ${(totYear1/100000).toFixed(1)} Lac / Yr)`;
+    const useCustom = document.getElementById('slide-use-custom-highlight')?.checked;
+    const customHighlight = (document.getElementById('slide-custom-highlight')?.value || '').trim();
+    const defaultHighlight = `৳ ${monthly.toLocaleString()} / Mo (৳ ${totYear1.toLocaleString()} / Yr)`;
+    const highlightStr = (useCustom && customHighlight) ? customHighlight : defaultHighlight;
 
     // 1. Build Isolated Slide Object (Stored in Cost Savings ONLY - Never touches MonthWorkbookManager tasks!)
     const slideObj = {
@@ -714,6 +747,7 @@ const CostSavingsView = {
       cost_saving_yearly: yearly,
       cost_saving_onetime: onetime,
       cost_saving_amount: monthly,
+      cost_saving_custom_highlight: useCustom ? customHighlight : "",
       cost_saving_highlight: highlightStr,
       savings: monthly,
       last_updated: new Date().toISOString()
@@ -735,6 +769,8 @@ const CostSavingsView = {
       amount: monthly,
       yearly_amount: yearly,
       onetime_amount: onetime,
+      cost_saving_custom_highlight: useCustom ? customHighlight : "",
+      cost_saving_highlight: highlightStr,
       remarks: overview,
       slideObj: slideObj,
       last_updated: new Date().toISOString()
@@ -1089,7 +1125,10 @@ const CostSavingsView = {
       cost_saving_yearly: yearlyAmt,
       cost_saving_onetime: onetimeAmt,
       cost_saving_amount: monthlyAmt,
-      cost_saving_highlight: `৳ ${monthlyAmt.toLocaleString()} / Mo (৳ ${(totYear1/100000).toFixed(1)} Lac / Yr)`,
+      cost_saving_custom_highlight: item.slideObj?.cost_saving_custom_highlight || item.cost_saving_custom_highlight || '',
+      cost_saving_highlight: (item.slideObj?.cost_saving_custom_highlight || item.cost_saving_custom_highlight)
+        ? (item.slideObj?.cost_saving_custom_highlight || item.cost_saving_custom_highlight)
+        : `৳ ${monthlyAmt.toLocaleString()} / Mo (৳ ${totYear1.toLocaleString()} / Yr)`,
       savings: monthlyAmt,
       photo_before: photo,
       photo_after: null,
@@ -1099,6 +1138,123 @@ const CostSavingsView = {
 
     if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.openSingle) {
       SlidePreviewModal.openSingle(slideData);
+    }
+  },
+
+  openFullscreenSlide(id) {
+    this.previewSlideEntry(id);
+    if (typeof SlidePreviewModal !== 'undefined' && typeof SlidePreviewModal.toggleFullscreen === 'function') {
+      SlidePreviewModal.toggleFullscreen();
+    }
+  },
+
+  generateAiDescription(event) {
+    if (event && event.preventDefault) event.preventDefault();
+    const titleInput = document.getElementById('slide-title');
+    const catSelect = document.getElementById('slide-category');
+    const descArea = document.getElementById('slide-overview');
+    if (!titleInput || !descArea) return;
+    const title = titleInput.value.trim();
+    if (!title) {
+      if (typeof window.showToast === 'function') window.showToast("Please enter a slide title first to generate AI description!", "warning");
+      titleInput.focus();
+      return;
+    }
+    const cat = catSelect ? catSelect.value : "Cost Savings";
+    let text = "";
+    if (typeof PROMPT_TEMPLATES !== 'undefined' && typeof PROMPT_TEMPLATES.localFactualTransform === 'function') {
+      const tr = PROMPT_TEMPLATES.localFactualTransform({ task_name: title, category: cat });
+      text = tr.ai_description || `Engineered and executed process optimization for ${title}. Conducted industrial trial runs, verified tooling parameters, and established standardized operating procedures to achieve verified recurring cost savings.`;
+    } else {
+      text = `Engineered and executed process optimization for ${title}. Conducted industrial trial runs, verified tooling parameters, and established standardized operating procedures to achieve verified recurring cost savings.`;
+    }
+    descArea.value = text;
+    const taskId = document.getElementById('slide-task-id')?.value;
+    if (taskId) this.debouncedLiveSlidePreview(taskId);
+    if (typeof window.showToast === 'function') window.showToast("✨ AI generated cost saving description!", "success");
+  },
+
+  generateAiImpact(event) {
+    if (event && event.preventDefault) event.preventDefault();
+    const titleInput = document.getElementById('slide-title');
+    const catSelect = document.getElementById('slide-category');
+    const impactArea = document.getElementById('slide-impacts');
+    if (!titleInput || !impactArea) return;
+    const title = titleInput.value.trim();
+    if (!title) {
+      if (typeof window.showToast === 'function') window.showToast("Please enter a slide title first to generate AI impact!", "warning");
+      titleInput.focus();
+      return;
+    }
+    const cat = catSelect ? catSelect.value : "Cost Savings";
+    let bullets = [];
+    if (typeof PROMPT_TEMPLATES !== 'undefined' && typeof PROMPT_TEMPLATES.localFactualTransform === 'function') {
+      const tr = PROMPT_TEMPLATES.localFactualTransform({ task_name: title, category: cat });
+      bullets = Array.isArray(tr.ai_impact) ? tr.ai_impact : [
+        "Verified recurring financial cost saving validated by industrial engineering",
+        "Streamlined manufacturing process with zero compromise on quality and cooling performance",
+        "Standardized production parameters and updated technical operational SOP"
+      ];
+    } else {
+      bullets = [
+        "Verified recurring financial cost saving validated by industrial engineering",
+        "Streamlined manufacturing process with zero compromise on quality and cooling performance",
+        "Standardized production parameters and updated technical operational SOP"
+      ];
+    }
+    impactArea.value = bullets.join("\n");
+    const taskId = document.getElementById('slide-task-id')?.value;
+    if (taskId) this.debouncedLiveSlidePreview(taskId);
+    if (typeof window.showToast === 'function') window.showToast("✨ AI generated key impact bullets!", "success");
+  },
+
+  toggleFullscreenPreview(taskId) {
+    const title = (document.getElementById('slide-title')?.value || '').trim() || 'Cost Optimization Initiative';
+    const engineer = (document.getElementById('slide-engineer')?.value || 'Concern Engineer').trim();
+    const category = (document.getElementById('slide-category')?.value || 'Cost Savings').trim();
+    const overview = (document.getElementById('slide-overview')?.value || '').trim();
+    const impactsRaw = (document.getElementById('slide-impacts')?.value || '').trim();
+    const impacts = impactsRaw ? impactsRaw.split('\n').map(l => l.trim()).filter(Boolean) : [];
+    const monthly = parseFloat(document.getElementById('slide-calc-monthly')?.value) || 0;
+    const yearly = parseFloat(document.getElementById('slide-calc-yearly')?.value) || 0;
+    const onetime = parseFloat(document.getElementById('slide-calc-onetime')?.value) || 0;
+    const totYear1 = yearly + onetime;
+    const useCustom = document.getElementById('slide-use-custom-highlight')?.checked;
+    const customHighlight = (document.getElementById('slide-custom-highlight')?.value || '').trim();
+    const calcHighlight = monthly > 0 ? `৳ ${monthly.toLocaleString()} / Mo (৳ ${totYear1.toLocaleString()} / Yr)` : '';
+    const highlightStr = (useCustom && customHighlight) ? customHighlight : calcHighlight;
+    const photoUrl = this.getSlidePhoto(taskId) || null;
+
+    const slideData = {
+      task_id: taskId,
+      month: this.selectedMonth,
+      slide_title: title,
+      raw_task_name: title,
+      description: overview,
+      impact: impacts,
+      engineer: engineer,
+      category: category,
+      photo_fit: 'blur',
+      status: 'Completed',
+      is_project: false,
+      is_cost_saving: true,
+      cost_saving_monthly: monthly,
+      cost_saving_yearly: yearly,
+      cost_saving_onetime: onetime,
+      cost_saving_amount: monthly,
+      cost_saving_highlight: highlightStr,
+      savings: monthly,
+      photo_before: photoUrl,
+      photo_after: null,
+      photo: photoUrl,
+      has_dual_photo: false
+    };
+
+    if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.openSingle) {
+      SlidePreviewModal.openSingle(slideData);
+      if (typeof SlidePreviewModal.toggleFullscreen === 'function') {
+        SlidePreviewModal.toggleFullscreen();
+      }
     }
   },
 
@@ -1422,10 +1578,16 @@ const CostSavingsView = {
 
                   <!-- Card Actions -->
                   <div class="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <button onclick="CostSavingsView.previewSlideEntry('${item.task_id || item.id}')"
-                            class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
-                      <span>👁️</span> <span>Preview</span>
-                    </button>
+                    <div class="flex items-center gap-1.5">
+                      <button onclick="CostSavingsView.previewSlideEntry('${item.task_id || item.id}')"
+                              class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="Preview Slide">
+                        <span>👁️</span> <span>Preview</span>
+                      </button>
+                      <button onclick="CostSavingsView.openFullscreenSlide('${item.task_id || item.id}')"
+                              class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="Fullscreen Presentation Preview">
+                        <span>⛶</span>
+                      </button>
+                    </div>
                     <div class="flex items-center gap-1.5">
                       <button onclick="CostSavingsView.openAddSlideModal('${item.task_id || item.id}')"
                               class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer">

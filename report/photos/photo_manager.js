@@ -178,6 +178,13 @@ class PhotoManager {
             const photoChanged = (merged.after_photo !== current.after_photo || merged.before_photo !== current.before_photo || (!hadPhoto && hasPhotoNow));
 
             this.photoMap[tId] = merged;
+            if (String(tId).includes('-')) {
+              const pParts = String(tId).split('-');
+              if (pParts.length >= 3) {
+                const pPrefix = `${pParts[0]}-${pParts[1]}-${pParts[2]}`;
+                this.photoMap[pPrefix] = { ...(this.photoMap[pPrefix] || {}), ...merged };
+              }
+            }
             if (month && month !== 'ALL') {
               const monthKey = `${month}_${tId}`;
               this.photoMap[monthKey] = { ...(this.photoMap[monthKey] || {}), ...merged };
@@ -398,15 +405,29 @@ class PhotoManager {
     const monthKey = m ? `${m}_${taskId}` : null;
     let memMonth = monthKey ? this.photoMap[monthKey] : null;
 
-    // Case-insensitive lookup fallback if exact case not found in memory
+    // Case-insensitive & prefix lookup fallback if exact case not found in memory
     if (!memMonth && monthKey) {
       const lowerKey = monthKey.toLowerCase();
-      const k = Object.keys(this.photoMap).find(key => key.toLowerCase() === lowerKey);
+      let k = Object.keys(this.photoMap).find(key => key.toLowerCase() === lowerKey);
+      if (!k && String(taskId).includes('-')) {
+        const parts = String(taskId).split('-');
+        if (parts.length >= 3) {
+          const prefix = `${parts[0]}-${parts[1]}-${parts[2]}`.toLowerCase();
+          k = Object.keys(this.photoMap).find(key => key.toLowerCase().includes(prefix));
+        }
+      }
       if (k) memMonth = this.photoMap[k];
     }
     if (!this.photoMap[taskId]) {
       const lowerId = String(taskId).toLowerCase();
-      const k = Object.keys(this.photoMap).find(key => key.toLowerCase() === lowerId);
+      let k = Object.keys(this.photoMap).find(key => key.toLowerCase() === lowerId);
+      if (!k && String(taskId).includes('-')) {
+        const parts = String(taskId).split('-');
+        if (parts.length >= 3) {
+          const prefix = `${parts[0]}-${parts[1]}-${parts[2]}`.toLowerCase();
+          k = Object.keys(this.photoMap).find(key => key.toLowerCase().includes(prefix));
+        }
+      }
       if (k) this.photoMap[taskId] = this.photoMap[k];
     }
 
@@ -417,8 +438,12 @@ class PhotoManager {
       const wbMgr = window.appState.workbookMgr;
       t = m ? wbMgr.getTask(m, taskId) : wbMgr.getTask(wbMgr.activeMonth, taskId);
       if (t) {
-        taskP1 = (!t.clear_photos && !t._photoDeleted_before && t.photo_1) ? t.photo_1 : null;
-        taskP2 = (!t.clear_photos && !t._photoDeleted_after && t.photo_2) ? t.photo_2 : null;
+        // If task has real photo URLs, ensure clear_photos is cleared
+        if (t.photo_1 || t.photo_2 || t.photo || t.before_photo || t.after_photo) {
+          delete t.clear_photos;
+        }
+        taskP1 = (!t._photoDeleted_before && (t.photo_1 || t.before_photo)) ? (t.photo_1 || t.before_photo) : null;
+        taskP2 = (!t._photoDeleted_after && (t.photo_2 || t.after_photo || t.photo)) ? (t.photo_2 || t.after_photo || t.photo) : null;
       }
     }
 

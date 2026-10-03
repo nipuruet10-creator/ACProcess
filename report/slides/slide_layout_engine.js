@@ -415,8 +415,8 @@ const SlideLayoutEngine = {
     const costSavingVal = slideData.cost_saving_highlight || (slideData.cost_saving_amount ? `৳ ${Number(slideData.cost_saving_amount).toLocaleString()} / Month` : (slideData.savings ? `৳ ${slideData.savings}` : ''));
 
     return `
-    <div class="walton-task-slide walton-red-executive bg-white relative overflow-hidden rounded-xl shadow-2xl ${isCostSaving ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/20' : 'border border-slate-200'}" 
-         style="width: 100%; aspect-ratio: 16/9; font-family: 'Lexend', sans-serif; box-sizing: border-box; padding: 20px 28px 14px 28px; display: flex; flex-direction: column; justify-content: space-between; background: #FFFFFF; ${isCostSaving ? 'box-shadow: 0 10px 30px -5px rgba(16, 185, 129, 0.25);' : ''}">
+    <div class="walton-task-slide walton-red-executive ${isCostSaving ? 'bg-[#F0FDF4]' : 'bg-white'} relative overflow-hidden rounded-xl shadow-2xl ${isCostSaving ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/20' : 'border border-slate-200'}" 
+         style="width: 100%; aspect-ratio: 16/9; font-family: 'Lexend', sans-serif; box-sizing: border-box; padding: 20px 28px 14px 28px; display: flex; flex-direction: column; justify-content: space-between; background: ${isCostSaving ? '#F0FDF4' : '#FFFFFF'}; ${isCostSaving ? 'box-shadow: 0 10px 30px -5px rgba(16, 185, 129, 0.25);' : ''}">
       
       <!-- TOP BACKGROUND GEOMETRY (Subtle header accent lines) -->
       <svg class="absolute top-0 left-1/3 w-1/2 h-16 opacity-30 pointer-events-none" viewBox="0 0 500 60" fill="none">
@@ -2910,14 +2910,6 @@ const SlideLayoutEngine = {
           </div>
           <div class="grid grid-cols-5 gap-3 items-stretch">
             ${completedTop5.map((item, idx) => {
-              const palettes = [
-                { bg: 'linear-gradient(135deg, #881337 0%, #BE123C 50%, #C5161D 100%)', border: '#FDA4AF', shadow: 'rgba(197, 22, 29, 0.25)' },
-                { bg: 'linear-gradient(135deg, #0F172A 0%, #1E293B 60%, #1E3A8A 100%)', border: '#93C5FD', shadow: 'rgba(15, 23, 42, 0.25)' },
-                { bg: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%)', border: '#60A5FA', shadow: 'rgba(37, 99, 235, 0.25)' },
-                { bg: 'linear-gradient(135deg, #0F4C81 0%, #0284C7 100%)', border: '#7DD3FC', shadow: 'rgba(2, 132, 199, 0.25)' },
-                { bg: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)', border: '#CBD5E1', shadow: 'rgba(51, 65, 85, 0.25)' }
-              ];
-              const pal = palettes[idx % palettes.length];
               const hasItem = item && item.trim() && item.trim() !== "—";
               const textContent = hasItem ? item.trim() : '— (Pending completion)';
               const textLen = textContent.length;
@@ -2934,17 +2926,16 @@ const SlideLayoutEngine = {
                 lineHeight = '1.35';
               }
               return `
-              <div class="rounded-xl p-3 flex flex-col justify-between shadow-md transition h-full min-h-[122px] text-white relative overflow-hidden group hover:scale-[1.02] duration-200"
-                   style="background: ${pal.bg}; border: 1.5px solid ${pal.border}; box-shadow: 0 6px 16px ${pal.shadow};">
+              <div class="rounded-xl p-3 flex flex-col justify-between shadow-xs transition h-full min-h-[122px] relative overflow-hidden group hover:scale-[1.01] duration-150"
+                   style="background: #F8FAFC; border: 1.5px solid #CBD5E1; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05);">
                 <div class="flex items-center justify-between mb-1 relative z-10">
-                  <div class="w-6 h-6 rounded-lg bg-white/20 backdrop-blur-md text-white font-extrabold text-xs flex items-center justify-center border border-white/35 shadow-sm font-mono">
+                  <div class="w-6 h-6 rounded-lg bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center shadow-xs font-mono">
                     0${idx + 1}
                   </div>
                 </div>
-                <div class="flex-1 flex items-center my-0.5 relative z-10" style="font-size: ${fontSize}; font-weight: 700; color: #FFFFFF; line-height: ${lineHeight}; letter-spacing: -0.01em; word-break: break-word;">
+                <div class="flex-1 flex items-center my-0.5 relative z-10" style="font-size: ${fontSize}; font-weight: 700; color: #0F172A; line-height: ${lineHeight}; letter-spacing: -0.01em; word-break: break-word;">
                   ${HELPERS.escapeHtml(textContent)}
                 </div>
-                <div class="absolute -right-3 -bottom-3 w-16 h-16 rounded-full bg-white/10 pointer-events-none"></div>
               </div>`;
             }).join('')}
           </div>
@@ -3617,14 +3608,6 @@ const SlideLayoutEngine = {
           </div>
           <div class="grid grid-cols-5 gap-3 items-stretch">
             ${completedTop5.map((item, idx) => {
-              const palettes = [
-                { bg: 'linear-gradient(135deg, #0B192C 0%, #1E3E62 100%)', border: '#60A5FA', shadow: 'rgba(11, 25, 44, 0.25)' },
-                { bg: 'linear-gradient(135deg, #0052CC 0%, #1D4ED8 100%)', border: '#93C5FD', shadow: 'rgba(0, 82, 204, 0.25)' },
-                { bg: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)', border: '#7DD3FC', shadow: 'rgba(2, 132, 199, 0.25)' },
-                { bg: 'linear-gradient(135deg, #0F766E 0%, #047857 100%)', border: '#6EE7B7', shadow: 'rgba(15, 118, 110, 0.25)' },
-                { bg: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)', border: '#CBD5E1', shadow: 'rgba(51, 65, 85, 0.25)' }
-              ];
-              const pal = palettes[idx % palettes.length];
               const hasItem = item && item.trim() && item.trim() !== "—";
               const textContent = hasItem ? item.trim() : '— (Pending completion)';
               const textLen = textContent.length;
@@ -3641,17 +3624,16 @@ const SlideLayoutEngine = {
                 lineHeight = '1.35';
               }
               return `
-              <div class="rounded-xl p-3 flex flex-col justify-between shadow-md transition h-full min-h-[122px] text-white relative overflow-hidden group hover:scale-[1.02] duration-200"
-                   style="background: ${pal.bg}; border: 1.5px solid ${pal.border}; box-shadow: 0 6px 16px ${pal.shadow};">
+              <div class="rounded-xl p-3 flex flex-col justify-between shadow-xs transition h-full min-h-[122px] relative overflow-hidden group hover:scale-[1.01] duration-150"
+                   style="background: #F8FAFC; border: 1.5px solid #CBD5E1; box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05);">
                 <div class="flex items-center justify-between mb-1 relative z-10">
-                  <div class="w-6 h-6 rounded-lg bg-white/20 backdrop-blur-md text-white font-extrabold text-xs flex items-center justify-center border border-white/35 shadow-sm font-mono">
+                  <div class="w-6 h-6 rounded-lg bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center shadow-xs font-mono">
                     0${idx + 1}
                   </div>
                 </div>
-                <div class="flex-1 flex items-center my-0.5 relative z-10" style="font-size: ${fontSize}; font-weight: 700; color: #FFFFFF; line-height: ${lineHeight}; letter-spacing: -0.01em; word-break: break-word;">
+                <div class="flex-1 flex items-center my-0.5 relative z-10" style="font-size: ${fontSize}; font-weight: 700; color: #0F172A; line-height: ${lineHeight}; letter-spacing: -0.01em; word-break: break-word;">
                   ${HELPERS.escapeHtml(textContent)}
                 </div>
-                <div class="absolute -right-3 -bottom-3 w-16 h-16 rounded-full bg-white/10 pointer-events-none"></div>
               </div>`;
             }).join('')}
           </div>

@@ -169,23 +169,37 @@ const MonthlyReportView = {
     const catFilter = (this.filterCategory || "").trim().toLowerCase().replace(/–/g, '-');
 
     const cards = document.querySelectorAll('.task-slide-card');
+    if (cards.length === 0) {
+      this.render();
+      return;
+    }
+
     let visibleCount = 0;
 
-    cards.forEach(card => {
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
       const cardEng = (card.dataset.engineer || "").toLowerCase();
       const cardCat = (card.dataset.category || "").toLowerCase().replace(/–/g, '-');
       const isProject = card.dataset.isProject === 'true';
       const cardStatus = (card.dataset.status || "").toLowerCase();
-      const text = card.textContent.toLowerCase();
 
-      // Check engineer match
+      // 1. Check engineer match
       let engMatch = true;
       if (engFilter) {
-        const cFirst = cardEng.split(/[\s(]/)[0];
-        engMatch = cardEng.includes(engFilter) || Boolean(cFirst && engFirst && cFirst === engFirst);
+        const filterTokens = engFilter.match(/[a-z0-9]+/g) || [];
+        const cardTokens = cardEng.match(/[a-z0-9]+/g) || [];
+        engMatch = cardEng.includes(engFilter) || engFilter.includes(cardEng);
+        if (!engMatch && filterTokens.length > 0) {
+          engMatch = filterTokens.some(tok => tok.length >= 3 && cardTokens.includes(tok));
+        }
       }
 
-      // Check category match
+      if (!engMatch) {
+        if (card.style.display !== 'none') card.style.display = 'none';
+        continue;
+      }
+
+      // 2. Check category match
       let catMatch = true;
       if (catFilter) {
         if (catFilter.includes('complete') && (isProject || cardCat.includes('project'))) {
@@ -197,16 +211,26 @@ const MonthlyReportView = {
         }
       }
 
-      // Check search query match
-      let searchMatch = !q || text.includes(q);
-
-      if (engMatch && catMatch && searchMatch) {
-        card.style.display = '';
-        visibleCount++;
-      } else {
-        card.style.display = 'none';
+      if (!catMatch) {
+        if (card.style.display !== 'none') card.style.display = 'none';
+        continue;
       }
-    });
+
+      // 3. Check search query match (only if q is provided)
+      let searchMatch = true;
+      if (q) {
+        const searchData = card.dataset.searchText || '';
+        searchMatch = searchData ? searchData.includes(q) : card.textContent.toLowerCase().includes(q);
+      }
+
+      if (!searchMatch) {
+        if (card.style.display !== 'none') card.style.display = 'none';
+        continue;
+      }
+
+      if (card.style.display !== '') card.style.display = '';
+      visibleCount++;
+    }
 
     // Update filter counter
     const counter = document.getElementById('monthly-report-filtered-counter');
@@ -1680,22 +1704,25 @@ const MonthlyReportView = {
 
     highlightCards.sort((a, b) => b.val - a.val);
 
+    const isCatMatch = (cat, s) => {
+      if (!this.filterCategory) return true;
+      const fCat = this.filterCategory.toLowerCase().replace(/–/g, '-').trim();
+      const sCat = (cat || '').toLowerCase().replace(/–/g, '-');
+      if (fCat.includes('complete') && (s.is_project || sCat.includes('project'))) {
+        return (s.status || '').toLowerCase() === 'completed' || sCat.includes('complete');
+      }
+      if (fCat.includes('ongoing') && (s.is_project || sCat.includes('project'))) {
+        return (s.status || '').toLowerCase() !== 'completed' && !sCat.includes('complete');
+      }
+      return sCat.includes(fCat) || sCat === fCat;
+    };
+
     let displayedSlides = this.filterEngineer
       ? activeSlides.filter(s => isEngMatch(s.engineer))
       : activeSlides;
 
     if (this.filterCategory) {
-      const fCat = this.filterCategory.toLowerCase().replace(/–/g, '-').trim();
-      displayedSlides = displayedSlides.filter(s => {
-        const sCat = (s.category || '').toLowerCase().replace(/–/g, '-');
-        if (fCat.includes('complete') && (s.is_project || sCat.includes('project'))) {
-          return (s.status || '').toLowerCase() === 'completed' || sCat.includes('complete');
-        }
-        if (fCat.includes('ongoing') && (s.is_project || sCat.includes('project'))) {
-          return (s.status || '').toLowerCase() !== 'completed' && !sCat.includes('complete');
-        }
-        return sCat.includes(fCat) || (s.category || '').toLowerCase() === fCat;
-      });
+      displayedSlides = displayedSlides.filter(s => isCatMatch(s.category, s));
     }
 
     // Unique engineers for filter pills and task count calculation
@@ -1830,7 +1857,11 @@ const MonthlyReportView = {
           <div id="monthly-report-no-slides-msg" style="${displayedSlides.length === 0 ? '' : 'display: none;'}" class="col-span-full py-12 text-center bg-slate-50 border border-slate-200 rounded-2xl text-slate-400 text-xs font-mono">
             No active slides match the current filter in ${month}.
           </div>
-          ${displayedSlides.map((s, idx) => {
+          ${activeSlides.map((s, idx) => {
+            const initialEngMatch = !this.filterEngineer || isEngMatch(s.engineer);
+            const initialCatMatch = isCatMatch(s.category, s);
+            const initialVisible = initialEngMatch && initialCatMatch;
+            const searchText = `${s.task_name || ''} ${s.description || ''} ${s.engineer || ''} ${s.category || ''} ${s.task_id || ''}`.toLowerCase();
             const hasPhoto = Boolean(s.photo_before || s.photo_after || s.photo);
             const isOverridden = Boolean(s.has_manual_override);
             const photoDisplay = s.photo_after || s.photo_before || s.photo;
@@ -1844,6 +1875,8 @@ const MonthlyReportView = {
                    data-category="${HELPERS.escapeHtml(s.category || '')}"
                    data-is-project="${Boolean(s.is_project)}"
                    data-status="${HELPERS.escapeHtml(s.status || '')}"
+                   data-search-text="${HELPERS.escapeHtml(searchText)}"
+                   style="${initialVisible ? '' : 'display: none;'}"
                    onclick="MonthlyReportView.selectSlideCard('${s.task_id}')"
                    onmouseenter="MonthlyReportView.selectSlideCard('${s.task_id}')"
                    class="task-slide-card bg-white border ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/15' : (isOverridden ? 'border-amber-400 bg-amber-50/10' : 'border-slate-200')} rounded-2xl p-4 flex flex-col justify-between shadow-2xs hover:border-blue-300 hover:shadow-sm transition space-y-3 cursor-pointer">

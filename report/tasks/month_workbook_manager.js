@@ -1300,9 +1300,22 @@ class MonthWorkbookManager {
   }
 
   getTask(month, taskId) {
+    if (!taskId) return null;
     const m = this.normalizeMonth(month);
     const tasks = this.workbooks[m] || [];
-    return tasks.find(t => t.task_id === taskId) || null;
+    let found = tasks.find(t => t.task_id === taskId);
+    if (!found && typeof taskId === 'string') {
+      const lower = taskId.toLowerCase();
+      found = tasks.find(t => t.task_id && t.task_id.toLowerCase() === lower);
+      if (!found && taskId.includes('-')) {
+        const parts = taskId.split('-');
+        if (parts.length >= 3) {
+          const prefix = `${parts[0]}-${parts[1]}-${parts[2]}`;
+          found = tasks.find(t => t.task_id && t.task_id.startsWith(prefix));
+        }
+      }
+    }
+    return found || null;
   }
 
   generateNextTaskId(month) {
