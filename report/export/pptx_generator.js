@@ -1639,7 +1639,7 @@ class PPTXGenerator {
         fill: { color: "C5161D" }, line: { color: "C5161D" }
       });
       slide.addText([
-        { text: "PROCESS DEVELOPMENT DEPARTMENT (AC)\n", options: { fontSize: 10, bold: true, color: "0F172A" } },
+        { text: "PROCESS DEVELOPMENT DEPARTMENT (WAC)\n", options: { fontSize: 10, bold: true, color: "0F172A" } },
         { text: "INNOVATE  |  IMPROVE  |  DELIVER", options: { fontSize: 7.5, bold: true, color: "64748B" } }
       ], {
         x: 1.25, y: 0.18, w: 5.5, h: 0.45,
@@ -1697,17 +1697,30 @@ class PPTXGenerator {
     if (!currentImpact.toUpperCase().includes("TK")) currentImpact += " TK";
     if (!yearlyImpact.toUpperCase().includes("TK")) yearlyImpact += " TK";
 
-    // 5-Month Table data
-    let tableMonths = [
-      { m: "January", val: "BDT 117,600" },
-      { m: "February", val: "BDT 329,620" },
-      { m: "March", val: "BDT 1,208,308" },
-      { m: "April", val: "BDT 133,830" },
-      { m: "May", val: "BDT 336,995" }
-    ];
+    // Rolling 6-Month Table data (Requirement 6: last 6 months)
+    let tableMonths = [];
+    if (rolling && Array.isArray(rolling.months) && rolling.months.length > 0) {
+      tableMonths = rolling.months.slice(-6).map(m => {
+        const mTitle = m.month || m.name || m.code || "Month";
+        let displayAmt = "BDT 0";
+        if (typeof m.val === 'number') {
+          displayAmt = "BDT " + m.val.toLocaleString();
+        } else if (typeof m.val === 'string' && m.val.trim()) {
+          displayAmt = m.val.startsWith("BDT") ? m.val : `BDT ${m.val}`;
+        }
+        return { m: mTitle, val: displayAmt };
+      });
+    }
 
-    if (rolling && Array.isArray(rolling.months) && rolling.months.length >= 5) {
-      tableMonths = rolling.months.slice(-5).map(m => ({ m: m.label || m.shortLabel, val: m.displayAmount }));
+    if (tableMonths.length === 0) {
+      tableMonths = [
+        { m: "November 2025", val: "BDT 0" },
+        { m: "December 2025", val: "BDT 0" },
+        { m: "January 2026", val: "BDT 0" },
+        { m: "February 2026", val: "BDT 0" },
+        { m: "March 2026", val: "BDT 0" },
+        { m: "April 2026", val: "BDT 0" }
+      ];
     }
 
     const topSectionY = isBlue ? 1.0 : 0.98;
@@ -1719,15 +1732,15 @@ class PPTXGenerator {
       fill: { color: "FFFFFF" }, line: { color: "CBD5E1", width: 1.2 }, rectRadius: 0.08
     });
 
-    // Left Side of Top Container: 5-Month Savings Table
+    // Left Side of Top Container: 6-Month Savings Table
     const tableRows = [
       [
-        { text: "Month", options: { bold: true, fill: tableHeaderFill, color: "FFFFFF", fontSize: 8.5 } },
-        { text: "Impact (BDT)", options: { bold: true, fill: tableHeaderFill, color: "FFFFFF", align: "right", fontSize: 8.5 } }
+        { text: "Month", options: { bold: true, fill: tableHeaderFill, color: "FFFFFF", fontSize: 8 } },
+        { text: "Impact (BDT)", options: { bold: true, fill: tableHeaderFill, color: "FFFFFF", align: "right", fontSize: 8 } }
       ],
       ...tableMonths.map((row, idx) => [
-        { text: row.m, options: { bold: (idx === tableMonths.length - 1), color: (idx === tableMonths.length - 1 ? (isBlue ? "2563EB" : "C5161D") : charcoalDark), fill: (idx % 2 === 0 ? "FFFFFF" : "F8FAFC"), fontSize: 8 } },
-        { text: row.val, options: { bold: true, align: "right", color: (idx === tableMonths.length - 1 ? (isBlue ? "2563EB" : "C5161D") : charcoalDark), fill: (idx % 2 === 0 ? "FFFFFF" : "F8FAFC"), fontSize: 8 } }
+        { text: row.m, options: { bold: (idx === tableMonths.length - 1), color: (idx === tableMonths.length - 1 ? (isBlue ? "2563EB" : "C5161D") : charcoalDark), fill: (idx % 2 === 0 ? "FFFFFF" : "F8FAFC"), fontSize: 7.5 } },
+        { text: row.val, options: { bold: true, align: "right", color: (idx === tableMonths.length - 1 ? (isBlue ? "2563EB" : "C5161D") : charcoalDark), fill: (idx % 2 === 0 ? "FFFFFF" : "F8FAFC"), fontSize: 7.5 } }
       ])
     ];
 
@@ -1907,7 +1920,7 @@ class PPTXGenerator {
       fill: { color: "C5161D" }, line: { color: "C5161D" }
     });
     slide.addText([
-      { text: "PROCESS DEVELOPMENT DEPARTMENT (AC)\n", options: { fontSize: 10, bold: true, color: "0F172A" } },
+      { text: "PROCESS DEVELOPMENT DEPARTMENT (WAC)\n", options: { fontSize: 10, bold: true, color: "0F172A" } },
       { text: "INNOVATE  |  IMPROVE  |  DELIVER", options: { fontSize: 7.5, bold: true, color: "64748B" } }
     ], {
       x: 1.25, y: 0.18, w: 4.8, h: 0.45,
@@ -1969,11 +1982,24 @@ class PPTXGenerator {
         fontFace: font, fontSize: 9, bold: true, color: "FFFFFF", align: "center", valign: "middle"
       });
 
-      // Title
+      // Title (Requirement 8: dynamic font scaling for long titles)
       const displayTitle = (item && item.trim() && item.trim() !== "—") ? item : "— (Pending completion)";
+      const tLen = displayTitle.length;
+      let fontSize = 10;
+      let lineSpacing = 14;
+      if (tLen > 100) {
+        fontSize = 7.5;
+        lineSpacing = 10;
+      } else if (tLen > 65) {
+        fontSize = 8.5;
+        lineSpacing = 11;
+      } else if (tLen > 40) {
+        fontSize = 9.2;
+        lineSpacing = 12.5;
+      }
       slide.addText(displayTitle, {
         x: px + 0.12, y: py + 0.48, w: 2.01, h: 0.95,
-        fontFace: font, fontSize: 10, bold: true, color: "FFFFFF", lineSpacing: 14, valign: "middle"
+        fontFace: font, fontSize: fontSize, bold: true, color: "FFFFFF", lineSpacing: lineSpacing, valign: "middle"
       });
     });
 
@@ -2570,8 +2596,11 @@ class PPTXGenerator {
       : rawEng;
     const category = task.category || "Process Development";
     const status = task.status || "Completed";
-    const desc = task.description || task.ai_description || 
-      "Developed and implemented an automatic foil cutting system for compressor jacket production. The system was designed, fabricated and handed over to production for regular use.";
+    let desc = task.description || task.ai_description || "";
+    const isGenericDesc = !desc || 
+      desc.includes("Developed and implemented an automatic foil cutting") ||
+      desc.includes("Developed and implemented specialized process engineering mechanism") ||
+      desc.includes("Specialized engineering initiative implemented");
     
     let impacts = [];
     if (task.impact !== undefined && task.impact !== null) {
@@ -2580,10 +2609,23 @@ class PPTXGenerator {
       } else if (typeof task.impact === 'string' && task.impact.trim()) {
         impacts = task.impact.split(/[\n;]/).map(i => i.trim()).filter(Boolean);
       }
-    } else {
+    }
+    const isGenericImpact = impacts.length === 0 || (impacts.length === 2 && impacts[0].includes("cutting accuracy") && impacts[1].includes("production efficiency"));
+
+    if ((isGenericDesc || isGenericImpact) && typeof window !== 'undefined' && window.PROMPT_TEMPLATES?.localFactualTransform) {
+      const derived = window.PROMPT_TEMPLATES.localFactualTransform(rawTitle || '', category || '', engineer || '');
+      if (derived) {
+        if (isGenericDesc && derived.description) desc = derived.description;
+        if (isGenericImpact && derived.impacts && derived.impacts.length > 0) impacts = derived.impacts;
+      }
+    }
+    if (!desc) {
+      desc = `Engineered and deployed industrial process optimization for ${rawTitle || 'production operations'}. Designed, verified, and commissioned for regular active production use.`;
+    }
+    if (impacts.length === 0) {
       impacts = [
-        "Improved cutting accuracy and consistency",
-        "Increased production efficiency"
+        "Enhanced manufacturing throughput and operational cycle time",
+        "Improved process repeatability and compliance standard"
       ];
     }
 
@@ -2716,7 +2758,7 @@ class PPTXGenerator {
       overviewH = 1.02;
     }
 
-    // Project Overview Card
+    // Description Card
     slide.addShape(pptx.ShapeType.roundRect, {
       x: 0.8, y: overviewY, w: 5.6, h: overviewH,
       fill: { color: cardBgLight }, line: { color: borderLight }, rectRadius: 0.06
@@ -2726,7 +2768,7 @@ class PPTXGenerator {
       fill: { color: isCostSaving ? "059669" : redPrimary }, line: { color: isCostSaving ? "059669" : redPrimary }
     });
     slide.addText("📄", { x: 0.95, y: overviewY + 0.10, w: 0.28, h: 0.28, fontSize: 8, color: "FFFFFF", align: "center", valign: "middle" });
-    slide.addText("Project Overview", {
+    slide.addText("Description", {
       x: 1.3, y: overviewY + 0.08, w: 5.0, h: 0.3,
       fontFace: font, fontSize: 11.5, bold: true, color: charcoalDark, valign: "middle"
     });
@@ -2745,7 +2787,7 @@ class PPTXGenerator {
       fill: { color: isCostSaving ? "059669" : redPrimary }, line: { color: isCostSaving ? "059669" : redPrimary }
     });
     slide.addText("🎯", { x: 0.95, y: 4.80, w: 0.28, h: 0.28, fontSize: 8, color: "FFFFFF", align: "center", valign: "middle" });
-    slide.addText("Key Impact & Deliverables", {
+    slide.addText("Key Impact", {
       x: 1.3, y: 4.78, w: 5.0, h: 0.3,
       fontFace: font, fontSize: 11.5, bold: true, color: charcoalDark, valign: "middle"
     });

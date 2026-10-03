@@ -308,22 +308,47 @@ class SyncEngine {
 
       if (!Array.isArray(slides)) slides = [];
 
-      // 1. Strictly filter out any tombstoned tasks or tasks no longer in workbook
+      // 1. Strictly filter out any tombstoned tasks, tasks no longer in workbook, or marked NO for presentation (Requirement 3: Anam 35 NO -> 1 slide)
       const originalLen = slides.length;
-      slides = slides.filter(s => s && s.task_id && !deletedSet.has(s.task_id) && validTaskMap.has(s.task_id));
+      slides = slides.filter(s => {
+        if (!s || !s.task_id) return false;
+        if (deletedSet.has(s.task_id)) return false;
+        const t = validTaskMap.get(s.task_id);
+        if (!t) return false;
+        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+        if (rep === "NO") return false;
+        const tid = String(t.task_id || '').toUpperCase();
+        if (t.is_project === true || tid.startsWith('PROJ-')) return false;
+        if (t.is_cost_saving === true || tid.startsWith('CS-')) return false;
+        const cat = String(t.category || '').toLowerCase();
+        if (cat.includes('ongoing project') || cat.includes('completed project') || cat.includes('cost saving')) return false;
+        return true;
+      });
 
       // 2. Auto-include any active tasks from workbook not yet present in cached slides
       validTaskMap.forEach((t, tId) => {
-        if (t.include_in_report !== "NO" && !slides.some(s => s.task_id === tId)) {
+        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+        const tid = String(tId).toUpperCase();
+        const cat = String(t.category || '').toLowerCase();
+        const isProj = Boolean(t.is_project || tid.startsWith('PROJ-') || cat.includes('ongoing project') || cat.includes('completed project'));
+        const isCost = Boolean(t.is_cost_saving || tid.startsWith('CS-') || cat.includes('cost saving'));
+
+        if (rep !== "NO" && !isProj && !isCost && !slides.some(s => s.task_id === tId)) {
+          let domainData = null;
+          if (typeof PROMPT_TEMPLATES !== 'undefined' && PROMPT_TEMPLATES.localFactualTransform) {
+            domainData = PROMPT_TEMPLATES.localFactualTransform(t);
+          }
           slides.push({
             task_id: tId,
             month: normalizedMonth,
             engineer: t.concern_engineer || t.engineer || t.assignee || "Concern Engineer",
             raw_task_name: t.task_name,
-            slide_title: t.task_name || `Task ${tId}`,
-            description: t.task_details || "Standard operating procedure execution and engineering development.",
-            impact: ["Zero defect manufacturing", "Enhanced line balancing and cycle efficiency"],
-            category: t.category || "Process Development",
+            slide_title: (domainData && domainData.ai_report_title) ? domainData.ai_report_title : (t.task_name || `Task ${tId}`),
+            split_title_1: (domainData && domainData.split_title_1) || "",
+            split_title_2: (domainData && domainData.split_title_2) || "",
+            description: (domainData && domainData.ai_description) ? domainData.ai_description : (t.task_details || "Standard operating procedure execution and engineering development."),
+            impact: (domainData && domainData.ai_impact && domainData.ai_impact.length > 0) ? domainData.ai_impact : ["Zero defect manufacturing", "Enhanced line balancing and cycle efficiency"],
+            category: t.category || (domainData && domainData.ai_category) || "Process Development",
             status: t.status || "Completed",
             investment: t.investment || "In-house / Direct Implementation",
             has_manual_override: false
@@ -341,6 +366,21 @@ class SyncEngine {
             s.engineer = t.concern_engineer || t.engineer || t.assignee;
           }
           if (t.status) s.status = t.status;
+
+          // If not manually overridden, auto-derive domain description and impact based on title (Requirement 7)
+          if (!s.has_manual_override && typeof PROMPT_TEMPLATES !== 'undefined' && PROMPT_TEMPLATES.localFactualTransform) {
+            const domainData = PROMPT_TEMPLATES.localFactualTransform(t);
+            if (domainData) {
+              if (!s.description || s.description.includes("foil cutting") || s.description.includes("Standard operating procedure execution")) {
+                s.description = domainData.ai_description;
+              }
+              if (!s.impact || s.impact.length === 0 || (s.impact.length === 2 && s.impact[0] === "Zero defect manufacturing")) {
+                s.impact = domainData.ai_impact;
+              }
+              if (!s.split_title_1) s.split_title_1 = domainData.split_title_1;
+              if (!s.split_title_2) s.split_title_2 = domainData.split_title_2;
+            }
+          }
         }
       });
 

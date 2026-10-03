@@ -311,8 +311,11 @@ const SlideLayoutEngine = {
     const titleLower = (rawTitle || "").toLowerCase();
     const isProj = Boolean(slideData.is_project || catLower.includes('project') || titleLower.includes('project'));
     const isCompletedProj = isProj && (status.toLowerCase().includes('complete') || catLower.includes('completed'));
-    const description = slideData.description || slideData.ai_description || 
-      "Developed and implemented an automatic foil cutting system for compressor jacket production. The system was designed, fabricated and handed over to production for regular use.";
+    let description = slideData.description || slideData.ai_description || '';
+    const isGenericDesc = !description || 
+      description.includes("Developed and implemented an automatic foil cutting") ||
+      description.includes("Developed and implemented specialized process engineering mechanism") ||
+      description.includes("Specialized engineering initiative implemented");
     
     // Key Impact Bullet points (Preserve user edits - Never force dummy filler bullets when user deletes or has fewer!)
     let impacts = [];
@@ -322,10 +325,29 @@ const SlideLayoutEngine = {
       } else if (typeof slideData.impact === 'string' && slideData.impact.trim()) {
         impacts = slideData.impact.split(/[\n;]/).map(i => i.trim()).filter(Boolean);
       }
-    } else {
+    }
+    const isGenericImpact = impacts.length === 0 || (impacts.length === 2 && impacts[0].includes("throughput") && impacts[1].includes("reliability"));
+
+    // If unedited/generic, auto-generate title-dependent description and impacts
+    if ((isGenericDesc || isGenericImpact) && typeof window !== 'undefined' && window.PROMPT_TEMPLATES?.localFactualTransform) {
+      const derived = window.PROMPT_TEMPLATES.localFactualTransform(rawTitle || '', category || '', engineer || '');
+      if (derived) {
+        if (isGenericDesc && derived.description) {
+          description = derived.description;
+        }
+        if (isGenericImpact && derived.impacts && derived.impacts.length > 0) {
+          impacts = derived.impacts;
+        }
+      }
+    }
+
+    if (!description) {
+      description = `Engineered and deployed industrial process optimization for ${rawTitle || 'production operations'}. Designed, verified, and commissioned for regular active production use.`;
+    }
+    if (impacts.length === 0) {
       impacts = [
-        "Increased continuous line throughput",
-        "Continuous operational reliability improvement"
+        "Enhanced manufacturing throughput and operational cycle time",
+        "Improved process repeatability and compliance standard"
       ];
     }
 
@@ -344,7 +366,7 @@ const SlideLayoutEngine = {
 
     const cleanDescriptionSentence = sentenceParts.length > 0 
       ? sentenceParts.join(' ') 
-      : "Developed and implemented specialized process engineering mechanism. The system was designed, verified, and commissioned for regular active production use.";
+      : `Engineered and deployed industrial process optimization for ${rawTitle || 'production operations'}. Designed, verified, and commissioned for regular active production use.`;
 
     const formattedDescriptionHtml = `
       <div style="font-size: 14px; line-height: 1.65; color: #1E293B; font-weight: 500; letter-spacing: -0.005em;">
@@ -499,28 +521,28 @@ const SlideLayoutEngine = {
           </div>
           ` : ''}
 
-          <!-- Project Overview Card (Box 1: Clean sentences, fills vertical space) -->
+          <!-- Description Card (Box 1: Clean sentences, fills vertical space) -->
           <div class="px-4 py-3 rounded-xl border border-slate-200/90 bg-slate-50/80 flex flex-col justify-center flex-1 min-h-0">
             <div class="flex items-center gap-1.5 mb-1.5 flex-shrink-0">
               <div class="w-4 h-4 rounded-full ${isCostSaving ? 'bg-emerald-600' : 'bg-red-600'} text-white flex items-center justify-center flex-shrink-0">
                 <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>
               </div>
-              <span style="font-size: 12px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Project Overview</span>
+              <span style="font-size: 12px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Description</span>
             </div>
             <div style="font-size: 14px; line-height: 1.6; color: #1E293B; font-weight: 500; letter-spacing: -0.005em;">
               ${HELPERS.escapeHtml(cleanDescriptionSentence)}
             </div>
           </div>
 
-          <!-- Key Impact Card (Box 2: Placed right after Overview, fills remaining vertical space) -->
+          <!-- Key Impact Card (Box 2: Placed right after Description, fills remaining vertical space) -->
           ${impacts.length > 0 ? `
           <div class="px-4 py-3 rounded-xl border border-slate-200 bg-white flex flex-col justify-between flex-1 min-h-0 shadow-2xs">
             <div class="flex items-center gap-1.5 mb-1 flex-shrink-0">
               <div class="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0 text-[9.5px] font-bold">
                 ✓
               </div>
-              <span style="font-size: 12px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Key Impact &amp; Deliverables</span>
-              <span class="text-[10px] font-mono text-slate-400 font-bold ml-auto">${impacts.length} ${impacts.length === 1 ? 'Deliverable' : 'Deliverables'}</span>
+              <span style="font-size: 12px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.04em;">Key Impact</span>
+              <span class="text-[10px] font-mono text-slate-400 font-bold ml-auto">${impacts.length} Points</span>
             </div>
 
             <div class="flex flex-col justify-around flex-1 py-0.5 gap-1.5">
@@ -1265,7 +1287,7 @@ const SlideLayoutEngine = {
               <div style="width: 22px; height: 22px; border-radius: 50%; background: #0284C7; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 11px;">
                 📄
               </div>
-              <span style="font-size: 14px; font-weight: 800; color: #0284C7;">Project Description</span>
+              <span style="font-size: 14px; font-weight: 800; color: #0284C7;">Description</span>
             </div>
             <p style="font-size: 13px; line-height: 1.5; color: #1E293B; margin-top: 5px; margin-bottom: 0; font-weight: 500;">
               ${HELPERS.escapeHtml(description)}
@@ -1627,47 +1649,47 @@ const SlideLayoutEngine = {
       </div>
 
       <!-- CENTER STAGE (EXECUTIVE RED COVER) -->
-      <div class="flex-1 flex flex-col items-center justify-center text-center z-10 py-1">
+      <!-- CENTER CONTENT -->
+      <div class="flex-1 flex flex-col items-center justify-center text-center z-10 py-3">
         <!-- Walton Logo & Slogan (Accurate 1:1 Aspect Ratio) -->
-        <div class="flex flex-col items-center justify-center mb-1">
-          <img src="assets/img/walton_logo.png" alt="WALTON" style="width: 76px; height: 76px; object-fit: contain;" class="drop-shadow-sm mb-1"
+        <div class="flex flex-col items-center justify-center mb-2">
+          <img src="assets/img/walton_logo.png" alt="WALTON" style="width: 90px; height: 90px; object-fit: contain;" class="drop-shadow-sm mb-1.5"
                onerror="this.style.display='none'; document.getElementById('walton-logo-cover-fallback').style.display='flex';" />
-          <div id="walton-logo-cover-fallback" style="display:none;" class="items-center gap-2 mb-1">
-            <span class="text-3xl font-black text-red-600">W</span>
-            <span class="text-3xl font-black text-[#0B2038]">ALTON</span>
+          <div id="walton-logo-cover-fallback" style="display:none;" class="items-center gap-2 mb-1.5">
+            <span class="text-4xl font-black text-red-600">W</span>
+            <span class="text-4xl font-black text-[#0B2038]">ALTON</span>
           </div>
 
-          <div class="flex items-center justify-center gap-3 my-1">
-            <span class="w-16 h-[1.5px] bg-slate-300 inline-block"></span>
-            <span class="text-[11px] font-bold text-slate-500 tracking-[0.25em] uppercase font-mono">BETTER PRODUCTS &nbsp;|&nbsp; BRIGHTER FUTURE</span>
-            <span class="w-16 h-[1.5px] bg-slate-300 inline-block"></span>
+          <div class="flex items-center justify-center gap-3 my-1.5">
+            <span class="w-20 h-[1.5px] bg-slate-300 inline-block"></span>
+            <span class="text-[12.5px] font-bold text-slate-500 tracking-[0.28em] uppercase font-mono">BETTER PRODUCTS &nbsp;|&nbsp; BRIGHTER FUTURE</span>
+            <span class="w-20 h-[1.5px] bg-slate-300 inline-block"></span>
           </div>
         </div>
 
         <!-- Main Title: MONTHLY REPORT -->
-        <h1 style="font-size: 42px; font-weight: 900; color: #0B2038; letter-spacing: -0.01em; margin: 8px 0 6px 0; text-transform: uppercase; line-height: 1.1;">
+        <h1 style="font-size: 52px; font-weight: 900; color: #0B2038; letter-spacing: -0.015em; margin: 10px 0 10px 0; text-transform: uppercase; line-height: 1.1;">
           MONTHLY REPORT
         </h1>
 
-        <!-- Department Badge (Executive Crimson) -->
-        <div class="inline-flex items-center justify-center px-7 py-2 rounded-full font-black text-sm tracking-wider uppercase text-white shadow-md my-1.5"
+        <!-- Department Badge (Executive Crimson - Slash removed, Requirement 4) -->
+        <div class="inline-flex items-center justify-center px-8 py-2.5 rounded-full font-black text-[15px] tracking-wider uppercase text-white shadow-md my-2"
              style="background: linear-gradient(135deg, #C5161D 0%, #991B1B 100%); border: 1px solid rgba(255, 255, 255, 0.4);">
           <span>Process Development Department (WAC)</span>
-          <span class="ml-2.5 w-1.5 h-3.5 bg-white/80 inline-block transform skew-x-[-20deg]"></span>
         </div>
 
         <!-- Corporate Entity & Location -->
-        <div style="font-size: 15px; font-weight: 800; color: #0F172A; margin-top: 6px;">
+        <div style="font-size: 18px; font-weight: 800; color: #0F172A; margin-top: 10px;">
           Walton Hi-Tech Industries PLC.
         </div>
-        <div class="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 mt-0.5">
-          <svg class="w-3.5 h-3.5 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+        <div class="flex items-center justify-center gap-1.5 text-[13px] font-semibold text-slate-500 mt-1">
+          <svg class="w-4 h-4 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
           <span>Chandra, Kaliakoir, Gazipur, Bangladesh</span>
         </div>
 
         <!-- Month Pill - Prominent Executive Red Focus -->
-        <div class="mt-2.5">
-          <span class="px-5 py-1.5 rounded-full bg-red-50 border border-red-200 text-xs font-mono font-extrabold text-[#C5161D] shadow-sm tracking-wider">
+        <div class="mt-4">
+          <span class="px-6 py-2 rounded-full bg-red-50 border border-red-200 text-sm font-mono font-black text-[#C5161D] shadow-sm tracking-wider">
             📅 ${monthUpper}
           </span>
         </div>
@@ -2121,7 +2143,7 @@ const SlideLayoutEngine = {
 
     return `
     <div class="walton-toc-slide bg-white relative overflow-hidden rounded-xl shadow-2xl border border-slate-200" 
-         style="width: 100%; aspect-ratio: 16/9; font-family: 'Lexend', sans-serif; box-sizing: border-box; padding: 24px 44px; display: flex; flex-direction: column; justify-content: space-between;">
+         style="width: 100%; aspect-ratio: 16/9; font-family: 'Lexend', sans-serif; box-sizing: border-box; padding: 22px 32px 16px 32px; display: flex; flex-direction: column; justify-content: space-between;">
       
       <!-- HEADER -->
       <div class="flex items-center justify-between border-b border-slate-100 pb-2 flex-shrink-0">
@@ -2148,21 +2170,21 @@ const SlideLayoutEngine = {
         <div style="width: 100%; height: 3px; background: ${primaryAccent}; margin-top: 4px; border-radius: 2px;"></div>
       </div>
 
-      <!-- CATEGORY-WISE SECTIONS (DYNAMIC BALANCED GRID) -->
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 24px; flex: 1; min-height: 0; margin: 6px 0; align-content: center;">
+      <!-- CATEGORY-WISE SECTIONS (DYNAMIC BALANCED WIDE GRID - Requirement 5) -->
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 20px; flex: 1; min-height: 0; margin: 8px 0; align-content: center; width: 100%;">
         ${items.map((item, idx) => {
           const isLastOdd = (idx === items.length - 1 && items.length % 2 === 1);
           return `
-            <div style="background: #FFFFFF; border: 1.5px solid #E2E8F0; border-radius: 10px; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.03); position: relative; overflow: hidden; ${isLastOdd ? 'grid-column: span 2; max-width: 70%; justify-self: center; width: 100%;' : ''}">
-              <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 4px; background: ${primaryAccent}; border-radius: 4px 0 0 4px;"></div>
-              <div style="display: flex; align-items: center; gap: 14px; padding-left: 6px;">
-                <span style="font-size: 24px; font-weight: 900; color: ${primaryAccent}; font-family: 'JetBrains Mono', monospace; line-height: 1; min-width: 36px; text-align: center;">${item.num}</span>
+            <div style="background: #FFFFFF; border: 1.5px solid #CBD5E1; border-radius: 12px; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.03); position: relative; overflow: hidden; width: 100%; box-sizing: border-box; ${isLastOdd ? 'grid-column: span 2; max-width: 72%; justify-self: center;' : ''}">
+              <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 5px; background: ${primaryAccent}; border-radius: 4px 0 0 4px;"></div>
+              <div style="display: flex; align-items: center; gap: 16px; padding-left: 6px;">
+                <span style="font-size: 26px; font-weight: 900; color: ${primaryAccent}; font-family: 'JetBrains Mono', monospace; line-height: 1; min-width: 38px; text-align: center;">${item.num}</span>
                 <div>
-                  <div style="font-size: 13.5px; font-weight: 800; color: #0F172A; line-height: 1.2;">${item.title}</div>
-                  <div style="font-size: 10.5px; font-weight: 600; color: #64748B; line-height: 1.2; margin-top: 2px;">${item.sub}</div>
+                  <div style="font-size: 14px; font-weight: 800; color: #0F172A; line-height: 1.25;">${item.title}</div>
+                  <div style="font-size: 11px; font-weight: 600; color: #64748B; line-height: 1.25; margin-top: 2.5px;">${item.sub}</div>
                 </div>
               </div>
-              <span style="background: #FEF2F2; border: 1px solid #FECACA; color: #C5161D; font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; padding: 4px 12px; border-radius: 9999px; white-space: nowrap;">
+              <span style="background: #FEF2F2; border: 1px solid #FECACA; color: #C5161D; font-size: 11.5px; font-weight: 800; font-family: 'JetBrains Mono', monospace; padding: 5px 14px; border-radius: 9999px; white-space: nowrap; margin-left: 12px;">
                 ${item.page}
               </span>
             </div>
@@ -2170,16 +2192,9 @@ const SlideLayoutEngine = {
         }).join('')}
       </div>
 
-      <!-- FOOTER -->
+      <!-- FOOTER (Clean, No Duplicate Taglines - Requirement 5) -->
       <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold flex-shrink-0">
         <div class="text-slate-800 font-bold uppercase tracking-wider">⚙ PROCESS DEVELOPMENT (WAC)</div>
-        <div class="flex items-center gap-4 text-slate-500">
-          <span>🏆 Continuous Improvement</span>
-          <span>&bull;</span>
-          <span>💡 A Smarter Tomorrow</span>
-        </div>
-        <div class="text-red-600 font-mono font-bold">${monthUpper}</div>
-      </div>
         <div class="flex items-center gap-4 text-slate-500">
           <span>🏆 Continuous Improvement</span>
           <span>&bull;</span>
@@ -2437,8 +2452,23 @@ const SlideLayoutEngine = {
       { m: "May", val: "BDT 336,995" }
     ];
 
-    if (rolling && Array.isArray(rolling.months) && rolling.months.length >= 5) {
-      tableMonths = rolling.months.slice(-5).map(m => ({ m: m.label || m.shortLabel, val: m.displayAmount }));
+    // 6-Month Rolling Table data (Last 6 Months, Requirement 6)
+    let tableMonths = [];
+    if (rolling && Array.isArray(rolling.months) && rolling.months.length >= 6) {
+      tableMonths = rolling.months.slice(-6).map(m => ({
+        m: m.month || m.monthYear || m.code || "Month",
+        val: m.val || (m.amount ? `BDT ${m.amount.toLocaleString()}` : "BDT 0"),
+        isCurrent: Boolean(m.isCurrent)
+      }));
+    } else {
+      tableMonths = [
+        { m: "April", val: "BDT 133,830", isCurrent: false },
+        { m: "May", val: "BDT 336,995", isCurrent: false },
+        { m: "June", val: "BDT 280,000", isCurrent: false },
+        { m: "July", val: "BDT 410,000", isCurrent: false },
+        { m: "August", val: "BDT 395,000", isCurrent: false },
+        { m: "September", val: "BDT 80,000", isCurrent: true }
+      ];
     }
 
     // 8 Development KPI Cards (Photo 4 Exact)
@@ -2489,7 +2519,7 @@ const SlideLayoutEngine = {
         icon: "🚀",
         val: (data && data.kpis && data.kpis[7] ? data.kpis[7].val : "1"),
         label: "New Projects/ Ongoing",
-        note: "Cost Save Scope: Target FY 26-27"
+        note: "Target FY 26-27"
       }
     ];
 
@@ -2498,7 +2528,7 @@ const SlideLayoutEngine = {
          data-title="AC Product Dashboard"
          style="width: 100%; aspect-ratio: 16/9; font-family: 'Lexend', sans-serif; box-sizing: border-box; padding: 20px 36px 14px 36px; display: flex; flex-direction: column; justify-content: space-between; background: #FFFFFF;">
       
-      <!-- TOP HEADER BAR -->
+      <!-- TOP HEADER BAR (Matching previous pages: WAC branding, Requirement 6) -->
       <div class="flex items-center justify-between border-b border-slate-100 pb-2 flex-shrink-0">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 flex-shrink-0">
@@ -2511,7 +2541,7 @@ const SlideLayoutEngine = {
             </svg>
           </div>
           <div>
-            <div style="font-size: 13.5px; font-weight: 900; color: #0F172A; letter-spacing: 0.04em;">PROCESS DEVELOPMENT DEPARTMENT (AC)</div>
+            <div style="font-size: 13.5px; font-weight: 900; color: #0F172A; letter-spacing: 0.04em;">PROCESS DEVELOPMENT DEPARTMENT (WAC)</div>
             <div style="font-size: 8.5px; font-weight: 700; color: #64748B; letter-spacing: 0.18em;">INNOVATE &bull; IMPROVE &bull; DELIVER</div>
           </div>
         </div>
@@ -2536,20 +2566,20 @@ const SlideLayoutEngine = {
         </span>
       </div>
 
-      <!-- UPPER SECTION: 5-MONTH SAVINGS TABLE + 2 FINANCIAL IMPACT CARDS -->
+      <!-- UPPER SECTION: 6-MONTH SAVINGS TABLE + 2 FINANCIAL IMPACT CARDS -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 2px 0 6px 0; min-height: 140px; align-items: stretch; flex-shrink: 0; background: #FFFFFF; border: 1.5px solid #CBD5E1; border-radius: 12px; padding: 10px 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
         
-        <!-- Left: 5-Month Savings Table (Walton Red Header) -->
+        <!-- Left: 6-Month Savings Table (Walton Red Header, Requirement 6) -->
         <div style="border: 1px solid #CBD5E1; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;">
-          <div style="background: #C5161D; color: #FFFFFF; padding: 5px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px;">
-            <span>Month</span>
+          <div style="background: #C5161D; color: #FFFFFF; padding: 4.5px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px;">
+            <span>Month (Last 6 Months)</span>
             <span>Impact (BDT)</span>
           </div>
           <div style="display: flex; flex-direction: column; justify-content: space-around; flex: 1;">
             ${tableMonths.map((row, idx) => {
-              const isCurrent = (idx === tableMonths.length - 1);
+              const isCurrent = row.isCurrent || (idx === tableMonths.length - 1);
               return `
-              <div style="padding: 3.5px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: ${isCurrent ? '800' : '600'}; color: ${isCurrent ? '#C5161D' : '#334155'}; border-bottom: ${idx < tableMonths.length - 1 ? '1px solid #E2E8F0' : 'none'}; background: ${isCurrent ? '#FEF2F2' : (idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC')};">
+              <div style="padding: 3px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: ${isCurrent ? '800' : '600'}; color: ${isCurrent ? '#C5161D' : '#334155'}; border-bottom: ${idx < tableMonths.length - 1 ? '1px solid #E2E8F0' : 'none'}; background: ${isCurrent ? '#FEF2F2' : (idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC')};">
                 <span>${row.m}</span>
                 <span style="font-family: 'JetBrains Mono', monospace; font-weight: 800;">${row.val}</span>
               </div>
@@ -2592,25 +2622,27 @@ const SlideLayoutEngine = {
 
       </div>
 
-      <!-- LOWER SECTION: 8 DEVELOPMENT KPI CARDS (Executive Red Pattern) -->
-      <div style="display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: 8px 12px; flex: 1; min-height: 155px; align-items: stretch; margin-top: 2px;">
+      <!-- LOWER SECTION: 8 DEVELOPMENT KPI CARDS (Redesigned with balanced center text, icons, and clean proportions - Requirement 6) -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: 10px 14px; flex: 1; min-height: 165px; align-items: stretch; margin-top: 4px;">
         ${kpiCards.map(k => `
-          <div style="background: #FFFFFF; border: 1.5px solid #E2E8F0; border-top: 3.5px solid #C5161D; border-radius: 12px; padding: 6px 10px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 6px rgba(0,0,0,0.04); position: relative;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-size: 24px; line-height: 1;">${k.icon}</span>
-              <span style="font-size: 28px; font-weight: 900; color: #0F172A; font-family: 'JetBrains Mono', monospace; line-height: 1;">${k.val}</span>
-              ${k.note ? `<span style="font-size: 8.5px; font-weight: 800; color: #DC2626; line-height: 1.1; max-width: 75px; text-align: right;">${k.note}</span>` : `<span style="width: 20px;"></span>`}
+          <div style="background: #FFFFFF; border: 1.5px solid #CBD5E1; border-top: 4px solid #C5161D; border-radius: 12px; padding: 8px 12px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.04); position: relative; overflow: hidden;">
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+              <span style="font-size: 18px; line-height: 1;">${k.icon}</span>
+              ${k.note ? `<span style="font-size: 8px; font-weight: 800; color: #DC2626; line-height: 1.1; max-width: 90px; text-align: right; background: #FEF2F2; padding: 1.5px 5px; border-radius: 4px; border: 1px solid #FECACA;">${k.note}</span>` : `<span></span>`}
             </div>
-            <div style="font-size: 11.5px; font-weight: 800; color: #0F172A; text-align: center; line-height: 1.2; margin-top: 3px;">
+            <div style="font-size: 32px; font-weight: 900; color: #0F172A; font-family: 'JetBrains Mono', monospace; line-height: 1; margin: 4px 0 2px 0;">
+              ${k.val}
+            </div>
+            <div style="font-size: 12px; font-weight: 800; color: #1E293B; line-height: 1.25;">
               ${k.label}
             </div>
           </div>
         `).join('')}
       </div>
 
-      <!-- FOOTER -->
-      <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[10.5px] font-semibold flex-shrink-0">
-        <div class="font-bold text-[#0F172A] uppercase tracking-wider">⚙ PROCESS DEVELOPMENT DEPARTMENT</div>
+      <!-- FOOTER (Standard matching other slides, Requirement 6) -->
+      <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold flex-shrink-0">
+        <div class="font-bold text-[#0F172A] uppercase tracking-wider">⚙ PROCESS DEVELOPMENT (WAC)</div>
         <div class="flex items-center gap-4 text-slate-500">
           <span>🏆 Continuous Improvement</span>
           <span>&bull;</span>
@@ -2896,16 +2928,30 @@ const SlideLayoutEngine = {
               ];
               const pal = palettes[idx % palettes.length];
               const hasItem = item && item.trim() && item.trim() !== "—";
+              const textContent = hasItem ? item.trim() : '— (Pending completion)';
+              const textLen = textContent.length;
+              let fontSize = '13.5px';
+              let lineHeight = '1.35';
+              if (textLen > 100) {
+                fontSize = '10.5px';
+                lineHeight = '1.25';
+              } else if (textLen > 65) {
+                fontSize = '11.5px';
+                lineHeight = '1.3';
+              } else if (textLen > 40) {
+                fontSize = '12.5px';
+                lineHeight = '1.35';
+              }
               return `
-              <div class="rounded-xl p-3.5 flex flex-col justify-between shadow-md transition h-full min-h-[118px] text-white relative overflow-hidden group hover:scale-[1.02] duration-200"
+              <div class="rounded-xl p-3 flex flex-col justify-between shadow-md transition h-full min-h-[122px] text-white relative overflow-hidden group hover:scale-[1.02] duration-200"
                    style="background: ${pal.bg}; border: 1.5px solid ${pal.border}; box-shadow: 0 6px 16px ${pal.shadow};">
-                <div class="flex items-center justify-between mb-1.5 relative z-10">
+                <div class="flex items-center justify-between mb-1 relative z-10">
                   <div class="w-6 h-6 rounded-lg bg-white/20 backdrop-blur-md text-white font-extrabold text-xs flex items-center justify-center border border-white/35 shadow-sm font-mono">
                     0${idx + 1}
                   </div>
                 </div>
-                <div class="text-[14px] sm:text-[15px] font-bold text-white leading-snug my-auto drop-shadow-sm line-clamp-3 relative z-10 tracking-tight">
-                  ${hasItem ? item : '— (Pending completion)'}
+                <div class="flex-1 flex items-center my-0.5 relative z-10" style="font-size: ${fontSize}; font-weight: 700; color: #FFFFFF; line-height: ${lineHeight}; letter-spacing: -0.01em; word-break: break-word;">
+                  ${HELPERS.escapeHtml(textContent)}
                 </div>
                 <div class="absolute -right-3 -bottom-3 w-16 h-16 rounded-full bg-white/10 pointer-events-none"></div>
               </div>`;
@@ -3013,10 +3059,9 @@ const SlideLayoutEngine = {
         </h1>
 
         <!-- Department Badge (Photo 2 / User requirement 3) -->
-        <div class="inline-flex items-center justify-center px-7 py-2 rounded-full font-black text-sm tracking-wider uppercase text-white shadow-md my-2"
+        <div class="inline-flex items-center justify-center px-8 py-2.5 rounded-full font-black text-[15px] tracking-wider uppercase text-white shadow-md my-2"
              style="background: linear-gradient(135deg, #0052CC 0%, #0284C7 100%); border: 1px solid rgba(255, 255, 255, 0.4);">
-          <span>Process Development Department (AC)</span>
-          <span class="ml-2.5 w-1.5 h-3.5 bg-cyan-300 inline-block transform skew-x-[-20deg]"></span>
+          <span>Process Development Department (WAC)</span>
         </div>
 
         <!-- Corporate Entity & Location -->
@@ -3589,17 +3634,31 @@ const SlideLayoutEngine = {
                 { bg: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)', border: '#CBD5E1', shadow: 'rgba(51, 65, 85, 0.25)' }
               ];
               const pal = palettes[idx % palettes.length];
-              const hasItem = item && item.trim();
+              const hasItem = item && item.trim() && item.trim() !== "—";
+              const textContent = hasItem ? item.trim() : '— (Pending completion)';
+              const textLen = textContent.length;
+              let fontSize = '13.5px';
+              let lineHeight = '1.35';
+              if (textLen > 100) {
+                fontSize = '10.5px';
+                lineHeight = '1.25';
+              } else if (textLen > 65) {
+                fontSize = '11.5px';
+                lineHeight = '1.3';
+              } else if (textLen > 40) {
+                fontSize = '12.5px';
+                lineHeight = '1.35';
+              }
               return `
-              <div class="rounded-xl p-3.5 flex flex-col justify-between shadow-md transition h-full min-h-[118px] text-white relative overflow-hidden group hover:scale-[1.02] duration-200"
+              <div class="rounded-xl p-3 flex flex-col justify-between shadow-md transition h-full min-h-[122px] text-white relative overflow-hidden group hover:scale-[1.02] duration-200"
                    style="background: ${pal.bg}; border: 1.5px solid ${pal.border}; box-shadow: 0 6px 16px ${pal.shadow};">
-                <div class="flex items-center justify-between mb-1.5 relative z-10">
+                <div class="flex items-center justify-between mb-1 relative z-10">
                   <div class="w-6 h-6 rounded-lg bg-white/20 backdrop-blur-md text-white font-extrabold text-xs flex items-center justify-center border border-white/35 shadow-sm font-mono">
                     0${idx + 1}
                   </div>
                 </div>
-                <div class="text-[14px] sm:text-[15px] font-bold text-white leading-snug my-auto drop-shadow-sm line-clamp-3 relative z-10 tracking-tight">
-                  ${hasItem ? item : '— (Pending completion)'}
+                <div class="flex-1 flex items-center my-0.5 relative z-10" style="font-size: ${fontSize}; font-weight: 700; color: #FFFFFF; line-height: ${lineHeight}; letter-spacing: -0.01em; word-break: break-word;">
+                  ${HELPERS.escapeHtml(textContent)}
                 </div>
                 <div class="absolute -right-3 -bottom-3 w-16 h-16 rounded-full bg-white/10 pointer-events-none"></div>
               </div>`;

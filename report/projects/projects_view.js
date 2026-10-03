@@ -12,50 +12,81 @@ const ProjectsView = {
   STORAGE_KEY: "walton_strategic_projects_permanent_v1",
 
   getDefaultSeedProjects() {
-    return [];
+    return [
+      {
+        task_id: "PROJ-2026-8134",
+        task_name: "RAC Assembly line reclocation",
+        category: "Ongoing Projects",
+        status: "Ongoing",
+        project_status: "Ongoing",
+        deadline: "4-5 Months",
+        overview: "Line layout CAD design, machine relocation & alignment, air piping, electrical wiring and pilot trial balancing for RAC indoor assembly.",
+        description: "Line layout CAD design, machine relocation & alignment, air piping, electrical wiring and pilot trial balancing for RAC indoor assembly.",
+        task_details: "• Line layout CAD design • Machine relocation & alignment • Air piping & electrical wiring • Pilot trial run & takt time balancing • Handover to production",
+        assignee: "Kamrul (44819)",
+        engineer: "Kamrul (44819)",
+        photo_1: "",
+        photo: "",
+        before_photo: "",
+        is_project: true,
+        created_at: "2026-10-01T14:51:00.000Z",
+        last_updated: new Date().toISOString()
+      }
+    ];
   },
 
   getProjects() {
     try {
       const raw = localStorage.getItem(this.STORAGE_KEY);
+      let parsed = [];
       if (raw) {
-        let parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          // Strictly filter out any legacy dummy seed projects
-          const dummyIds = new Set(['PROJ-2026-001', 'PROJ-2026-002', 'PROJ-2026-003', 'PROJ-2026-004', 'PROJ-2026-005']);
-          parsed = parsed.filter(p => {
-            if (!p || !p.task_id) return false;
-            if (dummyIds.has(p.task_id)) return false;
-            const nm = (p.task_name || '').toLowerCase();
-            if (nm.includes('powder coating booth with cyclone') ||
-                nm.includes('cac condenser & evaporator bending') ||
-                nm.includes('cnc turret punch machine automation') ||
-                nm.includes('automated robotic braze joint quality') ||
-                nm.includes('booster pump cycle time reduced by 37.5%')) {
-              return false;
-            }
-            return true;
-          });
-
-          // Cleanse any legacy reference to inactive personnel
-          let cleaned = false;
-          parsed.forEach(p => {
-            const assLower = String(p.assignee || '').toLowerCase();
-            const engLower = String(p.engineer || '').toLowerCase();
-            if (assLower.includes('mahmud') || assLower.includes('51020') || engLower.includes('mahmud') || engLower.includes('51020')) {
-              p.assignee = "Sazzad (50463)";
-              p.engineer = "Sazzad (50463)";
-              cleaned = true;
-            }
-          });
-          this.saveProjects(parsed);
-          return parsed;
-        }
+        try {
+          parsed = JSON.parse(raw);
+        } catch(e) {}
       }
+
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        parsed = this.getDefaultSeedProjects();
+        this.saveProjects(parsed);
+        return parsed;
+      }
+
+      // Strictly filter out any legacy dummy seed projects
+      const dummyIds = new Set(['PROJ-2026-001', 'PROJ-2026-002', 'PROJ-2026-003', 'PROJ-2026-004', 'PROJ-2026-005']);
+      parsed = parsed.filter(p => {
+        if (!p || !p.task_id) return false;
+        if (dummyIds.has(p.task_id)) return false;
+        const nm = (p.task_name || '').toLowerCase();
+        if (nm.includes('powder coating booth with cyclone') ||
+            nm.includes('cac condenser & evaporator bending') ||
+            nm.includes('cnc turret punch machine automation') ||
+            nm.includes('automated robotic braze joint quality') ||
+            nm.includes('booster pump cycle time reduced by 37.5%')) {
+          return false;
+        }
+        return true;
+      });
+
+      // Ensure RAC Assembly line relocation project is permanently present and visible (Requirement 1)
+      if (!parsed.some(p => (p.task_name || '').toLowerCase().includes('rac assembly line'))) {
+        parsed.push(this.getDefaultSeedProjects()[0]);
+      }
+
+      // Cleanse any legacy reference to inactive personnel
+      parsed.forEach(p => {
+        const assLower = String(p.assignee || '').toLowerCase();
+        const engLower = String(p.engineer || '').toLowerCase();
+        if (assLower.includes('mahmud') || assLower.includes('51020') || engLower.includes('mahmud') || engLower.includes('51020')) {
+          p.assignee = "Sazzad (50463)";
+          p.engineer = "Sazzad (50463)";
+        }
+      });
+      this.saveProjects(parsed);
+      return parsed;
     } catch (e) {
       console.warn("Could not read strategic projects storage:", e);
     }
-    return [];
+    return this.getDefaultSeedProjects();
   },
 
   saveProjects(projects) {
@@ -155,9 +186,6 @@ const ProjectsView = {
       list = list.filter(p => p.task_id !== taskId);
       this.saveProjects(list);
 
-      if (window.appState && window.appState.workbookMgr) {
-        window.appState.workbookMgr.deleteTask(this.selectedMonth, taskId);
-      }
       if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.deleteTask) {
         try {
           FirebaseSyncService.deleteTask(this.selectedMonth, taskId);
@@ -505,10 +533,10 @@ const ProjectsView = {
               <div id="proj-photo-slot-container"></div>
             </div>
 
-            <!-- Project Overview / Description Box -->
+            <!-- Description Box (Requirement 7) -->
             <div>
-              <label class="block font-bold text-slate-700 mb-1">Project Overview / Description <span class="text-red-500">*</span></label>
-              <textarea id="proj-overview" rows="3" required placeholder="Provide an executive overview of the automation project, engineering objectives, methodology, and scope..."
+              <label class="block font-bold text-slate-700 mb-1">Description <span class="text-red-500">*</span></label>
+              <textarea id="proj-overview" rows="3" required placeholder="Provide an executive description of the automation project, engineering objectives, methodology, and scope..."
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-sky-500 resize-none shadow-xs"></textarea>
             </div>
 
@@ -630,10 +658,10 @@ const ProjectsView = {
               <div id="proj-photo-slot-container"></div>
             </div>
 
-            <!-- Project Overview / Description Box -->
+            <!-- Description Box (Requirement 7) -->
             <div>
-              <label class="block font-bold text-slate-700 mb-1">Project Overview / Description <span class="text-red-500">*</span></label>
-              <textarea id="proj-overview" rows="3" required placeholder="Provide an executive overview of the automation project, engineering objectives, methodology, and scope..."
+              <label class="block font-bold text-slate-700 mb-1">Description <span class="text-red-500">*</span></label>
+              <textarea id="proj-overview" rows="3" required placeholder="Provide an executive description of the automation project, engineering objectives, methodology, and scope..."
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-amber-500 resize-none shadow-xs">${HELPERS.escapeHtml(task.overview || task.description || '')}</textarea>
             </div>
 
@@ -717,24 +745,9 @@ const ProjectsView = {
       }
       this.saveProjects(list);
 
-      // Sync into workbook
+      // Ensure strategic project never pollutes monthly tasks (Requirement 1 & 2)
       if (window.appState && window.appState.workbookMgr) {
-        window.appState.workbookMgr.updateTask(this.selectedMonth, targetTaskId, {
-          task_name: name,
-          category: category,
-          deadline: deadline,
-          overview: overview,
-          description: overview,
-          task_details: details,
-          assignee: assignee,
-          engineer: assignee,
-          status: isCompleted ? "Completed" : projectStatus,
-          project_status: projectStatus,
-          photo_1: photoUrl,
-          before_photo: photoUrl,
-          is_project: true,
-          last_updated: new Date().toISOString()
-        });
+        window.appState.workbookMgr.deleteTask(this.selectedMonth, targetTaskId);
       }
 
       this.closeModal();
@@ -765,30 +778,9 @@ const ProjectsView = {
       list.push(newProj);
       this.saveProjects(list);
 
-      // Sync into workbook
+      // Ensure strategic project never pollutes monthly tasks (Requirement 1 & 2)
       if (window.appState && window.appState.workbookMgr) {
-        window.appState.workbookMgr.addTask(
-          this.selectedMonth,
-          assignee,
-          name,
-          "YES",
-          details || overview,
-          category,
-          "",
-          "",
-          {
-            task_id: targetTaskId,
-            is_project: true,
-            project_status: projectStatus,
-            status: isCompleted ? "Completed" : projectStatus,
-            deadline: deadline,
-            overview: overview,
-            description: overview,
-            photo_1: photoUrl,
-            before_photo: photoUrl,
-            last_updated: new Date().toISOString()
-          }
-        );
+        window.appState.workbookMgr.deleteTask(this.selectedMonth, targetTaskId);
       }
 
       this.closeModal();

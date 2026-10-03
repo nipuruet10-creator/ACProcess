@@ -25,6 +25,8 @@ const files = [
   'export/export_controller.js',
   'report/builder_view.js',
   'management/mgmt_report_view.js',
+  'tasks/monthly_input_view.js',
+  'dashboard/cost_saving_tracker.js',
   'tasks/month_workbook_manager.js',
   'tasks/sync_engine.js',
   'app.js'

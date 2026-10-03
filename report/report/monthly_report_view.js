@@ -1428,7 +1428,13 @@ const MonthlyReportView = {
       ? window.appState.syncEngine.getActiveSlides(month)
       : [];
     if (allTasks && allTasks.length > 0) {
-      activeSlides = activeSlides.filter(s => s && s.task_id && allTasks.some(t => t.task_id === s.task_id));
+      activeSlides = activeSlides.filter(s => {
+        if (!s || !s.task_id) return false;
+        const t = allTasks.find(x => x.task_id === s.task_id);
+        if (!t) return false;
+        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+        return rep !== "NO";
+      });
     }
     if (typeof photoManager !== 'undefined') {
       activeSlides.forEach(s => {
@@ -1470,7 +1476,13 @@ const MonthlyReportView = {
         ? window.appState.syncEngine.getActiveSlides(month)
         : [];
       if (allTasks && allTasks.length > 0) {
-        activeSlides = activeSlides.filter(s => s && s.task_id && allTasks.some(t => t.task_id === s.task_id));
+        activeSlides = activeSlides.filter(s => {
+          if (!s || !s.task_id) return false;
+          const t = allTasks.find(x => x.task_id === s.task_id);
+          if (!t) return false;
+          const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+          return rep !== "NO";
+        });
       }
       this.previewFullDeck(activeSlides.length + 3);
     }
@@ -1486,7 +1498,13 @@ const MonthlyReportView = {
         ? window.appState.syncEngine.getActiveSlides(month)
         : [];
       if (allTasks && allTasks.length > 0) {
-        activeSlides = activeSlides.filter(s => s && s.task_id && allTasks.some(t => t.task_id === s.task_id));
+        activeSlides = activeSlides.filter(s => {
+          if (!s || !s.task_id) return false;
+          const t = allTasks.find(x => x.task_id === s.task_id);
+          if (!t) return false;
+          const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+          return rep !== "NO";
+        });
       }
       this.previewFullDeck(activeSlides.length + 4);
     }
@@ -1517,13 +1535,22 @@ const MonthlyReportView = {
       ? window.appState.syncEngine.getActiveSlides(month)
       : [];
 
-    // 1-to-1 Mapping Guarantee: Active slides must correspond exclusively to registered monthly tasks
+    // 1-to-1 Mapping Guarantee: Active slides must correspond exclusively to registered monthly tasks marked YES (Requirement 3: Anam 35 NO, 1 YES -> Only 1 slide)
     if (allTasks && allTasks.length > 0) {
-      activeSlides = activeSlides.filter(s => s && s.task_id && allTasks.some(t => t.task_id === s.task_id));
+      activeSlides = activeSlides.filter(s => {
+        if (!s || !s.task_id) return false;
+        const t = allTasks.find(x => x.task_id === s.task_id);
+        if (!t) return false;
+        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+        return rep !== "NO";
+      });
     }
 
     if (activeSlides.length === 0 && allTasks.length > 0) {
-      activeSlides = allTasks.filter(t => t.include_in_report !== "NO" && t.monthly_report !== "NO").map((t, idx) => ({
+      activeSlides = allTasks.filter(t => {
+        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+        return rep !== "NO";
+      }).map((t, idx) => ({
         task_id: t.task_id || `${month}-${idx + 1}`,
         slide_title: t.task_name || `Task ${idx + 1}`,
         description: t.task_details || "Standard operating procedure execution and engineering development.",

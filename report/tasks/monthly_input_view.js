@@ -2224,6 +2224,17 @@ const MonthlyInputView = {
       const month = this.selectedMonth;
       let allTasks = workbookMgr.getTasksForMonth(month);
 
+      // Strict Project & Cost Saving Isolation Safeguard (Requirement 1 & 2)
+      allTasks = allTasks.filter(t => {
+        if (!t) return false;
+        if (t.is_project === true || t.is_cost_saving === true) return false;
+        const tid = String(t.task_id || '').toUpperCase();
+        if (tid.startsWith('PROJ-') || tid.startsWith('CS-')) return false;
+        const cat = String(t.category || '').toLowerCase();
+        if (cat.includes('ongoing project') || cat.includes('completed project') || cat.includes('strategic project') || cat.includes('cost saving')) return false;
+        return true;
+      });
+
       const months = workbookMgr.getAllMonths();
 
     // Filter tasks strictly by Concern Assignee/Engineer if set (exclude supervisor from assignee tab)

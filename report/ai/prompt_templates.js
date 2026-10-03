@@ -97,8 +97,8 @@ Return ONLY a JSON object matching this exact schema:
   /**
    * Deterministic local factual transformation (used when offline, without API key, or for instant testing)
    */
-  localFactualTransform(task) {
-    const rawName = (task.task_name || task.original_task_name || "").trim();
+  localFactualTransform(task, optCategory = "", optEngineer = "") {
+    const rawName = (typeof task === 'string' ? task : (task?.task_name || task?.original_task_name || task?.title || task?.raw_task_name || "")).trim();
     let title = rawName.replace(/[.:;]+$/, '');
     if (!title) title = "Process Development Engineering Work";
 
@@ -284,7 +284,97 @@ Return ONLY a JSON object matching this exact schema:
       ];
       quote = "Precision Trial Handover for Flawless Mass Production";
     }
-    // 10. General Engineering Development
+    // 10. CNC / Laser / Gasket / Punching / Cutting
+    else if (lower.includes("cnc") || lower.includes("laser") || lower.includes("gasket") || lower.includes("cutting") || lower.includes("punch") || lower.includes("slit") || lower.includes("blade")) {
+      category = "Process Development";
+      projectType = "CNC Tooling & Cutting Process";
+      desc = `Programmed and optimized automated CNC / laser cutting parameters for ${rawName.toLowerCase()}. Formulated custom nesting layouts, validated dimension tolerances, and handed over to mass production.`;
+      impacts = [
+        "Optimized CNC cutting path and program parameters for superior edge finish",
+        "Verified dimensional tolerances and part fitment on production assembly",
+        "Minimized raw material scrap through high-efficiency nesting layout",
+        "Completed trial validation and handed over to active production line"
+      ];
+      metrics = [
+        { name: "Cutting Accuracy", change: "100%", trend: "up", color: "green" },
+        { name: "Raw Material Scrap", change: "Minimized", trend: "down", color: "red" },
+        { name: "Cycle Throughput", change: "Optimized", trend: "up", color: "green" }
+      ];
+      quote = "Precision CNC Automation for Zero-Defect Manufacturing";
+    }
+    // 11. Gas Charging / RRR / High Pressure / Refrigerant / Leak Test
+    else if (lower.includes("gas") || lower.includes("charging") || lower.includes("rrr") || lower.includes("refrigerant") || lower.includes("pressure") || lower.includes("leak") || lower.includes("sensor")) {
+      category = "Process Development";
+      projectType = "Refrigerant & Pressure System";
+      desc = `Engineered and resolved gas charging cycle parameters and high-pressure sensor calibration for ${rawName.toLowerCase()}. Upgraded station pressure regulation and eliminated station cycle delays.`;
+      impacts = [
+        "Calibrated high-pressure sensor threshold for precision safety shutoff",
+        "Stabilized refrigerant charging accuracy and flow repeatability",
+        "Eliminated machine tripping downtime and line stoppage bottlenecks",
+        "Ensured 100% leak-proof compliance and safety interlock validation"
+      ];
+      metrics = [
+        { name: "Charging Accuracy", change: "Precise", trend: "up", color: "green" },
+        { name: "Machine Tripping", change: "Zero", trend: "down", color: "green" },
+        { name: "Safety Compliance", change: "100%", trend: "up", color: "green" }
+      ];
+      quote = "Zero-Leak Safety Engineering for Walton AC";
+    }
+    // 12. Ageing / Electrical / Wiring / Testing / Program Setup
+    else if (lower.includes("ageing") || lower.includes("aging") || lower.includes("electrical") || lower.includes("wiring") || lower.includes("program") || lower.includes("setup") || lower.includes("pcb")) {
+      category = "Process Development";
+      projectType = "Electrical Testing & Automation";
+      desc = `Configured and validated electrical mapping and ageing test cycle programs for ${rawName.toLowerCase()}. Optimized test recipe sequencing and verified safety interlock functions.`;
+      impacts = [
+        "Standardized electrical test recipes and automated cycle run-in sequences",
+        "Verified electrical insulation, load currents, and parameter stability",
+        "Prevented test station queuing delays during monthly production peak",
+        "Commissioned verified test program for continuous shop-floor utilization"
+      ];
+      metrics = [
+        { name: "Testing Speed", change: "Fast", trend: "up", color: "green" },
+        { name: "Parameter Drift", change: "Eliminated", trend: "down", color: "green" },
+        { name: "Test Reliability", change: "100%", trend: "up", color: "green" }
+      ];
+      quote = "Rigorous Electrical Testing for Uncompromised Quality";
+    }
+    // 13. Relocation / Workstation Layout / Conveyor / Ergonomics / Reallocation
+    else if (lower.includes("relocation") || lower.includes("reclocation") || lower.includes("layout") || lower.includes("assembly") || lower.includes("workstation") || lower.includes("ergonomic") || lower.includes("reallocation")) {
+      category = "Ongoing Projects";
+      projectType = "Line Layout & Workstation Ergonomics";
+      desc = `Engineered workstation layout, ergonomic line balance, and machine relocation for ${rawName.toLowerCase()}. Streamlined component delivery flow and eliminated operator reach fatigue.`;
+      impacts = [
+        "Optimized station footprint and streamlined material flow sequence",
+        "Balanced assembly cycle time and eliminated line starvation bottlenecks",
+        "Improved operator workstation ergonomics and handling safety",
+        "Completed trial commissioning with zero production disruption"
+      ];
+      metrics = [
+        { name: "Line Balance", change: "Optimized", trend: "up", color: "green" },
+        { name: "Handling Fatigue", change: "Reduced", trend: "down", color: "red" },
+        { name: "Floor Footprint", change: "Efficient", trend: "up", color: "green" }
+      ];
+      quote = "Lean Ergonomic Workstations for Maximum Productivity";
+    }
+    // 14. Rubber / Foam / Insulation / Sourcing / Feasibility Check
+    else if (lower.includes("rubber") || lower.includes("insulation") || lower.includes("foam") || lower.includes("feasibility") || lower.includes("sourcing") || lower.includes("pad")) {
+      category = "Process Development";
+      projectType = "Material & Process Feasibility";
+      desc = `Coordinated material collection, trial fabrication, and machine feasibility checks for ${rawName.toLowerCase()}. Verified acoustic and thermal insulation performance on regular production units.`;
+      impacts = [
+        "Validated material compressibility, density, and fitment compliance",
+        "Confirmed tooling feasibility on automated CNC cutting machinery",
+        "Ensured defect-free trial installation and mass production readiness",
+        "Approved material specification for bulk store procurement"
+      ];
+      metrics = [
+        { name: "Material Fitment", change: "100%", trend: "up", color: "green" },
+        { name: "Acoustic Damping", change: "Superior", trend: "up", color: "green" },
+        { name: "Trial Rejection", change: "Zero", trend: "down", color: "green" }
+      ];
+      quote = "Advanced Thermal & Acoustic Insulation for Walton AC";
+    }
+    // 15. General Engineering Development
     else {
       const cleanWords = rawName.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2);
       const subject = cleanWords.slice(0, 4).join(' ') || rawName;
@@ -310,11 +400,16 @@ Return ONLY a JSON object matching this exact schema:
       split_title_2: line2,
       ai_report_title: title,
       ai_description: desc,
+      description: desc,
       ai_impact: impacts,
+      impacts: impacts,
+      impact: impacts,
       metrics: metrics,
       quote: quote,
       ai_category: category,
+      category: category,
       ai_project_type: projectType,
+      project_type: projectType,
       isFallback: true
     };
   },

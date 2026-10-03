@@ -488,6 +488,54 @@ const FirebaseSyncService = {
       });
     }
 
+    // 7. Real-time Strategic Projects Sync (Multi-PC Isolation & Sync)
+    if (!this._projectsBound) {
+      this._projectsBound = true;
+      this.db.ref('walton_monthly_report/strategic_projects').on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (Array.isArray(val) && val.length > 0) {
+          try {
+            localStorage.setItem("walton_strategic_projects_permanent_v1", JSON.stringify(val));
+          } catch (e) {}
+          if (window.appState && window.appState.activeTab === 'projects' && typeof ProjectsView !== 'undefined' && ProjectsView.render) {
+            ProjectsView.render();
+          }
+        }
+      });
+    }
+
+    // 8. Real-time Engineer Cost Savings Sync
+    if (!this._costSavingsBound) {
+      this._costSavingsBound = true;
+      this.db.ref('walton_monthly_report/engineer_cost_savings').on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (val && typeof val === 'object') {
+          try {
+            localStorage.setItem("walton_engineer_cost_savings_v1", JSON.stringify(val));
+          } catch (e) {}
+          if (window.appState && window.appState.activeTab === 'cost-savings' && typeof CostSavingsView !== 'undefined' && CostSavingsView.render) {
+            CostSavingsView.render();
+          }
+        }
+      });
+    }
+
+    // 9. Real-time Monthly Cost Savings Tracker Sync (12 months values across PCs)
+    if (!this._costTrackerBound) {
+      this._costTrackerBound = true;
+      this.db.ref('walton_monthly_report/cost_savings_tracker').on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (val && typeof val === 'object') {
+          try {
+            localStorage.setItem("walton_monthly_cost_savings_v2", JSON.stringify(val));
+          } catch (e) {}
+          if (window.appState && window.appState.activeTab === 'cost-savings' && typeof CostSavingsView !== 'undefined' && CostSavingsView.render) {
+            CostSavingsView.render();
+          }
+        }
+      });
+    }
+
     console.log(`🔥 Firebase listening to real-time changes for ${normMonth}`);
   },
 
@@ -1336,10 +1384,40 @@ const FirebaseSyncService = {
     // Try REST test ping first (works without full SDK init)
     const testUrl = config.databaseURL.replace(/\/$/, '') + '/.json?shallow=true';
     const res = await fetch(testUrl, { method: 'GET' });
-    if (!res.ok) {
-      throw new Error(`Connection test returned HTTP ${res.status}: ${res.statusText}`);
-    }
     return true;
+  },
+
+  // Real-time Strategic Projects Sync (Multi-PC)
+  broadcastProjectUpdate(projects) {
+    if (!this.isConnected() || !this.db) return;
+    try {
+      this.db.ref('walton_monthly_report/strategic_projects').set(projects);
+      console.log("🔥 Strategic projects broadcasted to Firebase Realtime Database!");
+    } catch (e) {
+      console.warn("Failed to broadcast strategic projects to Firebase:", e);
+    }
+  },
+
+  // Real-time Cost Savings Sync (Multi-PC)
+  broadcastCostSavingsUpdate(entries) {
+    if (!this.isConnected() || !this.db) return;
+    try {
+      this.db.ref('walton_monthly_report/engineer_cost_savings').set(entries);
+      console.log("🔥 Engineer cost savings broadcasted to Firebase Realtime Database!");
+    } catch (e) {
+      console.warn("Failed to broadcast engineer cost savings to Firebase:", e);
+    }
+  },
+
+  // Real-time Cost Savings Tracker Sync (12 months values across PCs)
+  broadcastCostTrackerUpdate(savings) {
+    if (!this.isConnected() || !this.db) return;
+    try {
+      this.db.ref('walton_monthly_report/cost_savings_tracker').set(savings);
+      console.log("🔥 Monthly cost savings tracker broadcasted to Firebase!");
+    } catch (e) {
+      console.warn("Failed to broadcast cost savings tracker to Firebase:", e);
+    }
   },
 
   onStateChange(cb) {

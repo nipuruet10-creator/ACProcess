@@ -364,6 +364,79 @@ const CostSavingsView = {
     }
   },
 
+  _slidePreviewTimer: null,
+  debouncedLiveSlidePreview(taskId) {
+    if (this._slidePreviewTimer) clearTimeout(this._slidePreviewTimer);
+    this._slidePreviewTimer = setTimeout(() => {
+      this.renderModalLiveSlidePreview(taskId);
+    }, 50);
+  },
+
+  renderModalLiveSlidePreview(taskId) {
+    const previewEl = document.getElementById('cost-slide-modal-preview');
+    if (!previewEl) return;
+
+    const title = (document.getElementById('slide-title')?.value || '').trim() || 'Cost Optimization Initiative';
+    const engineer = (document.getElementById('slide-engineer')?.value || 'Concern Engineer').trim();
+    const category = (document.getElementById('slide-category')?.value || 'Cost Savings').trim();
+    const overview = (document.getElementById('slide-overview')?.value || '').trim() || 'Engineered and deployed industrial process optimization resulting in confirmed recurring cost savings.';
+    const impactsRaw = (document.getElementById('slide-impacts')?.value || '').trim();
+    const impacts = impactsRaw 
+      ? impactsRaw.split('\n').map(l => l.trim()).filter(Boolean)
+      : ['Verified annual recurring financial cost saving', 'Process optimization implemented and confirmed in regular production'];
+    const monthly = parseFloat(document.getElementById('slide-calc-monthly')?.value) || 0;
+    const yearly = parseFloat(document.getElementById('slide-calc-yearly')?.value) || 0;
+    const onetime = parseFloat(document.getElementById('slide-calc-onetime')?.value) || 0;
+    const totYear1 = yearly + onetime;
+    const highlightStr = monthly > 0 ? `৳ ${monthly.toLocaleString()} / Mo (৳ ${(totYear1/100000).toFixed(1)} Lac / Yr)` : '';
+    const photoUrl = this.getSlidePhoto(taskId) || null;
+
+    const slideData = {
+      task_id: taskId,
+      month: this.selectedMonth,
+      slide_title: title,
+      raw_task_name: title,
+      description: overview,
+      impact: impacts,
+      engineer: engineer,
+      category: category,
+      photo_fit: 'blur',
+      status: 'Completed',
+      is_project: false,
+      is_cost_saving: true,
+      cost_saving_monthly: monthly,
+      cost_saving_yearly: yearly,
+      cost_saving_onetime: onetime,
+      cost_saving_amount: monthly,
+      cost_saving_highlight: highlightStr,
+      savings: monthly,
+      photo_before: photoUrl,
+      photo_after: null,
+      photo: photoUrl,
+      has_dual_photo: false
+    };
+
+    if (typeof SlideLayoutEngine !== 'undefined') {
+      const stageW = previewEl.clientWidth || 640;
+      const stageH = previewEl.clientHeight || 380;
+      const refW = 1040;
+      const refH = 585;
+      const scale = Math.min((stageW - 12) / refW, (stageH - 12) / refH, 1);
+      const scaledW = Math.round(refW * scale);
+      const scaledH = Math.round(refH * scale);
+
+      previewEl.innerHTML = `
+        <div class="relative flex items-center justify-center flex-shrink-0" style="width: ${scaledW}px; height: ${scaledH}px;">
+          <div style="width: ${refW}px; height: ${refH}px; transform: scale(${scale}); transform-origin: top left; position: absolute; top: 0; left: 0; box-shadow: 0 20px 45px rgba(0,0,0,0.6); border-radius: 12px; overflow: hidden;">
+            ${SlideLayoutEngine.renderTaskSlide(slideData, 1, 1)}
+          </div>
+        </div>
+      `;
+    } else {
+      previewEl.innerHTML = `<div class="p-6 text-center text-slate-400 font-mono text-xs">SlideLayoutEngine not available</div>`;
+    }
+  },
+
   openAddSlideModal(taskId = null) {
     let container = document.getElementById('cost-savings-entry-modal-container');
     if (!container) {
@@ -375,162 +448,211 @@ const CostSavingsView = {
     const engineers = (typeof MasterDataManager !== 'undefined' && MasterDataManager.getEngineers)
       ? MasterDataManager.getEngineers()
       : ((typeof MASTER_LISTS !== 'undefined' && MASTER_LISTS.ENGINEERS) ? MASTER_LISTS.ENGINEERS : []);
-    const defaultEng = engineers[0] ? engineers[0].display : "Sazzad (50463)";
+    const defaultEng = engineers[0] ? (engineers[0].display || engineers[0].name) : "Sazzad (50463)";
 
-    const existingTask = taskId && window.appState && window.appState.workbookMgr
-      ? window.appState.workbookMgr.getTask(this.selectedMonth, taskId)
-      : null;
+    const all = this._loadEngineerEntries();
+    const monthKey = this.selectedMonth.toUpperCase().trim();
+    const entries = Array.isArray(all[monthKey]) ? all[monthKey] : [];
+    const existingEntry = entries.find(e => String(e.task_id) === String(taskId) || String(e.id) === String(taskId));
+    const existingSlide = existingEntry?.slideObj || null;
+    const existingTask = existingSlide || existingEntry || (taskId && window.appState && window.appState.workbookMgr ? window.appState.workbookMgr.getTask(this.selectedMonth, taskId) : null);
 
-    const targetTaskId = taskId || `CS-2026-${Date.now().toString().slice(-4)}`;
+    const targetTaskId = taskId || (existingEntry ? existingEntry.task_id || existingEntry.id : `CS-2026-${Date.now().toString().slice(-4)}`);
     const isEdit = Boolean(existingTask);
 
-    const initTitle = existingTask ? (existingTask.task_name || '') : '';
+    const initTitle = existingTask ? (existingTask.slide_title || existingTask.task_name || existingTask.title || '') : '';
     const initEng = existingTask ? (existingTask.engineer || existingTask.assignee || defaultEng) : defaultEng;
-    const initDesc = existingTask ? (existingTask.overview || existingTask.task_details || '') : '';
+    const initDesc = existingTask ? (existingTask.description || existingTask.overview || existingTask.remarks || existingTask.task_details || '') : '';
     let initImpacts = "";
     if (existingTask) {
-      if (Array.isArray(existingTask.impact_bullets)) {
+      if (Array.isArray(existingTask.impact)) {
+        initImpacts = existingTask.impact.join("\n");
+      } else if (Array.isArray(existingTask.impact_bullets)) {
         initImpacts = existingTask.impact_bullets.join("\n");
       } else if (existingTask.impact) {
-        initImpacts = Array.isArray(existingTask.impact) ? existingTask.impact.join("\n") : String(existingTask.impact);
+        initImpacts = String(existingTask.impact);
       }
     }
-    const initMonthly = existingTask ? (existingTask.cost_saving_monthly || existingTask.cost_saving_amount || existingTask.savings || '') : '';
-    const initYearly = existingTask ? (existingTask.cost_saving_yearly || (initMonthly ? initMonthly * 12 : '')) : '';
-    const initOnetime = existingTask ? (existingTask.cost_saving_onetime || '') : '';
+    const initMonthly = existingTask ? (existingTask.cost_saving_monthly || existingTask.cost_saving_amount || existingTask.amount || existingTask.savings || '') : '';
+    const initYearly = existingTask ? (existingTask.cost_saving_yearly || existingTask.yearly_amount || (initMonthly ? initMonthly * 12 : '')) : '';
+    const initOnetime = existingTask ? (existingTask.cost_saving_onetime || existingTask.onetime_amount || '') : '';
 
     container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in font-sans">
-        <div class="relative w-full max-w-3xl bg-white border border-slate-200 rounded-3xl shadow-2xl p-6 sm:p-8 text-slate-800 flex flex-col max-h-[92vh] overflow-y-auto">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in font-sans">
+        <div class="relative w-full max-w-6xl xl:max-w-7xl bg-white border border-slate-200 rounded-3xl shadow-2xl p-5 sm:p-6 text-slate-800 flex flex-col max-h-[94vh] overflow-hidden">
           
-          <div class="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
+          <!-- Header -->
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-shrink-0">
             <div class="flex items-center gap-3">
               <span class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center text-lg shadow-md shadow-emerald-500/25">
                 💰
               </span>
               <div>
                 <h3 class="text-base sm:text-lg font-black text-slate-800">${isEdit ? 'Edit' : 'Add'} Cost Saving Presentation Slide</h3>
-                <p class="text-xs text-slate-400 font-mono">Target Month: <span class="font-bold text-emerald-700">${this.selectedMonth}</span> &bull; Full Highlighted Presentation Deck Slide</p>
+                <p class="text-xs text-slate-400 font-mono">Target Month: <span class="font-bold text-emerald-700">${this.selectedMonth}</span> &bull; 16:9 Presentation Deck Slide Preview</p>
               </div>
             </div>
-            <button onclick="CostSavingsView.closeModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">&times;</button>
+            <button onclick="CostSavingsView.closeModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer">&times;</button>
           </div>
 
-          <form onsubmit="CostSavingsView.handleSlideSubmit(event)" class="space-y-4 pt-4 text-xs">
-            <input type="hidden" id="slide-task-id" value="${targetTaskId}">
-            <input type="hidden" id="slide-is-edit" value="${isEdit ? 'true' : 'false'}">
+          <!-- Body: Split 2-Column (Controls on Left: 5 cols, Real-Time Preview on Right: 7 cols) -->
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 pt-3 flex-1 min-h-0 items-stretch overflow-hidden">
+            
+            <!-- Left: Controls & Financial Form (5 Columns) -->
+            <form onsubmit="CostSavingsView.handleSlideSubmit(event)" class="xl:col-span-5 flex flex-col justify-between overflow-y-auto space-y-3 pr-2 min-h-0 text-xs">
+              <input type="hidden" id="slide-task-id" value="${targetTaskId}">
+              <input type="hidden" id="slide-is-edit" value="${isEdit ? 'true' : 'false'}">
 
-            <!-- Title -->
-            <div>
-              <label class="block font-bold text-slate-700 mb-1">Cost Saving Initiative / Slide Title <span class="text-red-500">*</span></label>
-              <input type="text" id="slide-title" required value="${HELPERS.escapeHtml(initTitle)}"
-                     placeholder="e.g. Copper Tube Diameter Optimization for Inverter AC"
-                     class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 shadow-xs" />
-            </div>
-
-            <!-- Engineer & Category -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <!-- Title -->
               <div>
-                <label class="block font-bold text-slate-700 mb-1">Concern Engineer <span class="text-red-500">*</span></label>
-                <select id="slide-engineer" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-emerald-500">
-                  ${engineers.map(e => `
-                    <option value="${e.display}" ${initEng === e.display || initEng === e.name ? 'selected' : ''}>
-                      ${e.display}
-                    </option>
-                  `).join('')}
-                </select>
+                <label class="block font-bold text-slate-700 mb-1">Cost Saving Initiative / Slide Title <span class="text-red-500">*</span></label>
+                <input type="text" id="slide-title" required value="${HELPERS.escapeHtml(initTitle)}"
+                       oninput="CostSavingsView.debouncedLiveSlidePreview('${targetTaskId}')"
+                       placeholder="e.g. Copper Tube Diameter Optimization for Inverter AC"
+                       class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-emerald-500 shadow-xs" />
               </div>
 
+              <!-- Engineer & Category -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Concern Engineer <span class="text-red-500">*</span></label>
+                  <select id="slide-engineer" required 
+                          onchange="CostSavingsView.debouncedLiveSlidePreview('${targetTaskId}')"
+                          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:border-emerald-500">
+                    ${engineers.map(e => `
+                      <option value="${e.display || e.name}" ${(initEng === e.display || initEng === e.name) ? 'selected' : ''}>
+                        ${e.display || e.name}
+                      </option>
+                    `).join('')}
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Category <span class="text-red-500">*</span></label>
+                  <select id="slide-category" required 
+                          onchange="CostSavingsView.debouncedLiveSlidePreview('${targetTaskId}')"
+                          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:border-emerald-500">
+                    <option value="Cost Savings" selected>Cost Savings (Major Developments)</option>
+                    ${this.CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+
+              <!-- Photo Upload Dropzone -->
               <div>
-                <label class="block font-bold text-slate-700 mb-1">Category <span class="text-red-500">*</span></label>
-                <select id="slide-category" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 font-medium focus:outline-none focus:border-emerald-500">
-                  <option value="Cost Savings" selected>Cost Savings (Major Developments)</option>
-                  ${this.CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
-                </select>
-              </div>
-            </div>
-
-            <!-- Photo Upload Dropzone -->
-            <div>
-              <label class="block font-bold text-slate-700 mb-1">Slide Implementation Photo (Drag &amp; Drop, Browse or Paste Ctrl+V)</label>
-              <div id="slide-photo-slot-container"></div>
-            </div>
-
-            <!-- Project Overview / Description -->
-            <div>
-              <label class="block font-bold text-slate-700 mb-1">Project Overview / Implementation Details <span class="text-red-500">*</span></label>
-              <textarea id="slide-overview" rows="3" required placeholder="Describe the technical background, design adjustments, testing validation, and process changes made to achieve savings..."
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 resize-none shadow-xs">${HELPERS.escapeHtml(initDesc)}</textarea>
-            </div>
-
-            <!-- Key Impact & Deliverables -->
-            <div>
-              <label class="block font-bold text-slate-700 mb-1">Key Impact &amp; Deliverables (Enter bullet points, one per line)</label>
-              <textarea id="slide-impacts" rows="3" placeholder="• Reduced raw material thickness with 100% burst test compliance&#10;• Annual recurring cost saving verified by finance&#10;• Zero negative effect on thermal cooling performance"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 resize-none shadow-xs">${HELPERS.escapeHtml(initImpacts)}</textarea>
-            </div>
-
-            <!-- HIGHLIGHTED COST SAVING CALCULATION BOX -->
-            <div class="p-4 rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50/80 via-teal-50/50 to-emerald-50/80 space-y-3">
-              <div class="flex items-center gap-2">
-                <span class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-black">৳</span>
-                <span class="text-xs font-black text-emerald-900 uppercase tracking-wider">Cost Saving Calculation Engine</span>
+                <label class="block font-bold text-slate-700 mb-1">Slide Implementation Photo (Drag &amp; Drop, Browse or Paste Ctrl+V)</label>
+                <div id="slide-photo-slot-container"></div>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label class="block font-bold text-slate-700 mb-1">Yearly Saving (BDT)</label>
-                  <input type="number" id="slide-calc-yearly" value="${initYearly}" step="1" min="0" placeholder="e.g. 1200000 (12 Lac)"
-                         oninput="CostSavingsView.onCalcChange('yearly', 'slide')"
-                         class="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-emerald-600" />
+              <!-- Description -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block font-bold text-slate-700">Description <span class="text-red-500">*</span></label>
+                  <span class="text-[9.5px] text-slate-400 font-mono">Narrative sentences</span>
+                </div>
+                <textarea id="slide-overview" rows="3" required 
+                          oninput="CostSavingsView.debouncedLiveSlidePreview('${targetTaskId}')"
+                          placeholder="Describe technical background, design adjustments, testing validation, and process changes made..."
+                          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 resize-none shadow-xs">${HELPERS.escapeHtml(initDesc)}</textarea>
+              </div>
+
+              <!-- Key Impact -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block font-bold text-slate-700">Key Impact <span class="font-normal text-slate-400">(Bullets, 1 per line)</span></label>
+                  <span class="text-[9.5px] text-slate-400 font-mono">1 bullet / line</span>
+                </div>
+                <textarea id="slide-impacts" rows="3" 
+                          oninput="CostSavingsView.debouncedLiveSlidePreview('${targetTaskId}')"
+                          placeholder="• Reduced raw material thickness with 100% burst test compliance&#10;• Annual recurring cost saving verified by finance&#10;• Zero negative effect on thermal cooling performance"
+                          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 resize-none shadow-xs">${HELPERS.escapeHtml(initImpacts)}</textarea>
+              </div>
+
+              <!-- HIGHLIGHTED COST SAVING CALCULATION BOX -->
+              <div class="p-3.5 rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50/80 via-teal-50/50 to-emerald-50/80 space-y-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-black">৳</span>
+                  <span class="text-[11px] font-black text-emerald-900 uppercase tracking-wider">Cost Saving Calculation Engine</span>
                 </div>
 
-                <div>
-                  <label class="block font-bold text-slate-700 mb-1">One-Time Saving (BDT)</label>
-                  <input type="number" id="slide-calc-onetime" value="${initOnetime}" step="1" min="0" placeholder="e.g. 500000 (5 Lac)"
-                         oninput="CostSavingsView.onCalcChange('onetime', 'slide')"
-                         class="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-emerald-600" />
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-0.5 text-[10px]">Yearly Saving (BDT)</label>
+                    <input type="number" id="slide-calc-yearly" value="${initYearly}" step="1" min="0" placeholder="e.g. 1200000"
+                           oninput="CostSavingsView.onCalcChange('yearly', 'slide')"
+                           class="w-full bg-white border border-emerald-300 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-emerald-600" />
+                  </div>
+
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-0.5 text-[10px]">One-Time Saving (BDT)</label>
+                    <input type="number" id="slide-calc-onetime" value="${initOnetime}" step="1" min="0" placeholder="e.g. 500000"
+                           oninput="CostSavingsView.onCalcChange('onetime', 'slide')"
+                           class="w-full bg-white border border-emerald-300 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-emerald-600" />
+                  </div>
+
+                  <div>
+                    <label class="block font-bold text-emerald-900 mb-0.5 text-[10px]">Monthly Impact (BDT) <span class="text-red-500">*</span></label>
+                    <input type="number" id="slide-calc-monthly" required value="${initMonthly}" step="1" min="0" placeholder="e.g. 141667"
+                           oninput="CostSavingsView.onCalcChange('monthly', 'slide')"
+                           class="w-full bg-white border-2 border-emerald-500 rounded-xl px-2.5 py-1.5 text-xs font-mono font-black text-emerald-700 focus:outline-none focus:border-emerald-600 shadow-sm" />
+                  </div>
                 </div>
 
-                <div>
-                  <label class="block font-bold text-emerald-900 mb-1">Monthly Impact (BDT) <span class="text-red-500">*</span></label>
-                  <input type="number" id="slide-calc-monthly" required value="${initMonthly}" step="1" min="0" placeholder="e.g. 141667"
-                         oninput="CostSavingsView.onCalcChange('monthly', 'slide')"
-                         class="w-full bg-white border-2 border-emerald-500 rounded-xl px-3 py-2 text-xs font-mono font-black text-emerald-700 focus:outline-none focus:border-emerald-600 shadow-sm" />
+                <!-- Live Formula & Output Summary -->
+                <div id="slide-calc-summary" class="p-2.5 rounded-xl bg-white/90 border border-emerald-200">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-emerald-900 font-bold">Monthly Financial Impact:</span>
+                    <span class="font-mono font-black text-emerald-700 text-sm">৳ ${(parseFloat(initMonthly) || 0).toLocaleString()} BDT / Month</span>
+                  </div>
+                  <div class="text-[10px] text-slate-600 mt-1 flex flex-wrap items-center justify-between gap-1">
+                    <span>Formula: (Yearly + One-Time) ÷ 12</span>
+                    <span class="font-bold text-emerald-800">Total Year 1: ৳ ${((parseFloat(initYearly) || 0) + (parseFloat(initOnetime) || 0)).toLocaleString()} BDT</span>
+                  </div>
+                </div>
+
+                <!-- 1 Year Carryover Option -->
+                <div class="flex items-start gap-2 pt-0.5">
+                  <input type="checkbox" id="slide-carry-1year" checked class="mt-0.5 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
+                  <label for="slide-carry-1year" class="text-[11px] font-bold text-slate-700 cursor-pointer">
+                    Carry forward this monthly cost saving across 12 calendar months for 1 full rolling year
+                  </label>
                 </div>
               </div>
 
-              <!-- Live Formula & Output Summary -->
-              <div id="slide-calc-summary" class="p-3 rounded-xl bg-white/90 border border-emerald-200">
-                <div class="flex items-center justify-between text-xs">
-                  <span class="text-emerald-900 font-bold">Monthly Financial Impact:</span>
-                  <span class="font-mono font-black text-emerald-700 text-sm">৳ ${(parseFloat(initMonthly) || 0).toLocaleString()} BDT / Month</span>
-                </div>
-                <div class="text-[11px] text-slate-600 mt-1 flex flex-wrap items-center justify-between gap-1">
-                  <span>Formula: (Yearly + One-Time) ÷ 12 = Monthly Impact</span>
-                  <span class="font-bold text-emerald-800">Total Year 1: ৳ ${((parseFloat(initYearly) || 0) + (parseFloat(initOnetime) || 0)).toLocaleString()} BDT</span>
-                </div>
-              </div>
-
-              <!-- 1 Year Carryover Option -->
-              <div class="flex items-start gap-2 pt-1">
-                <input type="checkbox" id="slide-carry-1year" checked class="mt-0.5 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer" />
-                <label for="slide-carry-1year" class="text-xs font-bold text-slate-700 cursor-pointer">
-                  Carry forward this monthly cost saving across 12 calendar months for 1 full rolling year
-                </label>
-              </div>
-            </div>
-
-            <div class="flex items-center justify-between pt-4 border-t border-slate-100 flex-shrink-0">
-              <span class="text-[11px] text-slate-400">Slide will be highlighted in presentation with emerald branding &amp; financial badges.</span>
-              <div class="flex items-center gap-2">
-                <button type="button" onclick="CostSavingsView.closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold transition">Cancel</button>
+              <!-- Action buttons -->
+              <div class="flex items-center justify-between pt-3 border-t border-slate-100 flex-shrink-0">
+                <button type="button" onclick="CostSavingsView.closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold transition cursor-pointer">Cancel</button>
                 <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black shadow-md shadow-emerald-500/25 transition flex items-center gap-1.5 cursor-pointer">
                   <span>💾</span> <span>Save Cost Saving Slide</span>
                 </button>
               </div>
+            </form>
+
+            <!-- Right: Real-Time 16:9 Presentation Canvas Preview (7 Columns) -->
+            <div class="xl:col-span-7 bg-slate-950 rounded-2xl p-3 border border-slate-800 flex flex-col justify-between shadow-2xl overflow-hidden min-h-[360px]">
+              <div class="flex items-center justify-between pb-2 border-b border-slate-800/80 text-xs">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span class="font-bold text-slate-200 font-mono text-[11px]">Real-Time Slide Preview</span>
+                  <span class="px-2 py-0.5 rounded text-[9.5px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800/60">
+                    Walton Executive Widescreen 16:9
+                  </span>
+                </div>
+                <span class="text-[10px] text-slate-400 font-mono">Cost Optimization Layout</span>
+              </div>
+
+              <!-- Presentation Stage Area -->
+              <div id="cost-slide-modal-preview" class="flex-1 flex items-center justify-center min-h-0 w-full overflow-hidden my-2">
+                <!-- Injected via renderModalLiveSlidePreview -->
+              </div>
+
+              <div class="pt-1.5 text-[10px] text-slate-400 flex items-center justify-between font-mono flex-shrink-0">
+                <span>Highlight badge and financial metrics update as you type</span>
+                <span class="text-emerald-400 font-bold">✨ Real-time synced</span>
+              </div>
             </div>
-          </form>
+
+          </div>
 
         </div>
       </div>
@@ -539,7 +661,8 @@ const CostSavingsView = {
     setTimeout(() => {
       this.renderModalPhotoSlot(targetTaskId);
       this.onCalcChange('yearly', 'slide');
-    }, 10);
+      this.renderModalLiveSlidePreview(targetTaskId);
+    }, 20);
   },
 
   async handleSlideSubmit(event) {
@@ -570,14 +693,11 @@ const CostSavingsView = {
     const totYear1 = yearly + onetime;
     const highlightStr = `৳ ${monthly.toLocaleString()} / Mo (৳ ${(totYear1/100000).toFixed(1)} Lac / Yr)`;
 
-    // 1. Save Slide to MonthWorkbookManager under category "Cost Savings"
-    const workbookMgr = window.appState && window.appState.workbookMgr
-      ? window.appState.workbookMgr
-      : new MonthWorkbookManager();
-
+    // 1. Build Isolated Slide Object (Stored in Cost Savings ONLY - Never touches MonthWorkbookManager tasks!)
     const slideObj = {
       task_id: taskId,
       task_name: title,
+      slide_title: title,
       assignee: engineer,
       engineer: engineer,
       category: category || "Cost Savings",
@@ -599,23 +719,7 @@ const CostSavingsView = {
       last_updated: new Date().toISOString()
     };
 
-    if (isEdit) {
-      workbookMgr.updateTask(this.selectedMonth, taskId, slideObj);
-    } else {
-      workbookMgr.addTask(
-        this.selectedMonth,
-        engineer,
-        title,
-        "YES",
-        overview,
-        category || "Cost Savings",
-        "",
-        "",
-        slideObj
-      );
-    }
-
-    // 2. Save into CostSavingsView initiatives list
+    // 2. Save into CostSavingsView initiatives list (isolated from Monthly Input)
     const all = this._loadEngineerEntries();
     const monthKey = this.selectedMonth.toUpperCase().trim();
     if (!Array.isArray(all[monthKey])) all[monthKey] = [];
@@ -632,6 +736,7 @@ const CostSavingsView = {
       yearly_amount: yearly,
       onetime_amount: onetime,
       remarks: overview,
+      slideObj: slideObj,
       last_updated: new Date().toISOString()
     };
 
@@ -652,17 +757,19 @@ const CostSavingsView = {
       }
     }
 
-    // 4. Cloud sync
-    if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.broadcastWorkbookSync) {
-      FirebaseSyncService.broadcastWorkbookSync(this.selectedMonth, workbookMgr.getTasksForMonth(this.selectedMonth));
-    }
-    if (window.appState && window.appState.syncEngine) {
-      await window.appState.syncEngine.syncMonth(this.selectedMonth);
+    // 4. Cloud sync to Firebase
+    if (typeof FirebaseSyncService !== 'undefined') {
+      if (FirebaseSyncService.broadcastCostSavingsUpdate) {
+        FirebaseSyncService.broadcastCostSavingsUpdate(all);
+      }
+      if (FirebaseSyncService.broadcastCostTrackerUpdate && typeof CostSavingTracker !== 'undefined') {
+        FirebaseSyncService.broadcastCostTrackerUpdate(CostSavingTracker._loadSavings());
+      }
     }
 
     this.closeModal();
     if (typeof window.showToast === 'function') {
-      window.showToast(`💰 Saved Cost Saving Slide: ${title} (Carried forward across year)`, "success");
+      window.showToast(`💰 Saved Cost Saving Slide: ${title}`, "success");
     }
     await this.render();
   },
@@ -907,8 +1014,115 @@ const CostSavingsView = {
       if (typeof window.showToast === 'function') {
         window.showToast("Initiative deleted.", "info");
       }
+
+      // Sync with Firebase
+      if (typeof FirebaseSyncService !== 'undefined') {
+        FirebaseSyncService.broadcastCostSavingsUpdate(all);
+        if (typeof CostSavingTracker !== 'undefined') {
+          FirebaseSyncService.broadcastCostTrackerUpdate(CostSavingTracker._loadSavings());
+        }
+      }
+
       await this.render();
     }
+  },
+
+  async deleteSlide(taskId) {
+    if (!confirm("Are you sure you want to delete this Cost Saving presentation slide?")) return;
+    const all = this._loadEngineerEntries();
+    const monthKey = this.selectedMonth.toUpperCase().trim();
+    if (Array.isArray(all[monthKey])) {
+      all[monthKey] = all[monthKey].filter(e => String(e.task_id) !== String(taskId) && String(e.id) !== String(taskId));
+      this._saveEngineerEntries(all);
+
+      const newSum = all[monthKey].reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+      if (typeof CostSavingTracker !== 'undefined' && CostSavingTracker.setMonthSaving) {
+        CostSavingTracker.setMonthSaving(this.selectedMonth, newSum, this.selectedYear);
+      }
+
+      if (typeof FirebaseSyncService !== 'undefined') {
+        FirebaseSyncService.broadcastCostSavingsUpdate(all);
+        if (typeof CostSavingTracker !== 'undefined') {
+          FirebaseSyncService.broadcastCostTrackerUpdate(CostSavingTracker._loadSavings());
+        }
+      }
+
+      if (typeof window.showToast === 'function') {
+        window.showToast("Cost Saving slide removed.", "info");
+      }
+      await this.render();
+    }
+  },
+
+  previewSlideEntry(id) {
+    const all = this._loadEngineerEntries();
+    const monthKey = this.selectedMonth.toUpperCase().trim();
+    const entries = Array.isArray(all[monthKey]) ? all[monthKey] : [];
+    const item = entries.find(e => String(e.task_id) === String(id) || String(e.id) === String(id));
+    if (!item) return;
+
+    const monthlyAmt = parseFloat(item.amount) || parseFloat(item.slideObj?.cost_saving_monthly) || 0;
+    const yearlyAmt = parseFloat(item.yearly_amount) || parseFloat(item.slideObj?.cost_saving_yearly) || (monthlyAmt * 12);
+    const onetimeAmt = parseFloat(item.onetime_amount) || parseFloat(item.slideObj?.cost_saving_onetime) || 0;
+    const totYear1 = yearlyAmt + onetimeAmt;
+    const photo = item.slideObj?.photo_1 || item.slideObj?.photo || this.getSlidePhoto(item.task_id || item.id);
+    const impacts = Array.isArray(item.slideObj?.impact) 
+      ? item.slideObj.impact 
+      : (Array.isArray(item.slideObj?.impact_bullets) 
+          ? item.slideObj.impact_bullets 
+          : ["Verified annual recurring financial cost saving", "Process optimization implemented and confirmed in regular production"]);
+
+    const slideData = {
+      task_id: item.task_id || item.id,
+      month: this.selectedMonth,
+      slide_title: item.title || item.slideObj?.slide_title || 'Cost Optimization Initiative',
+      raw_task_name: item.title || item.slideObj?.slide_title || 'Cost Optimization Initiative',
+      description: item.slideObj?.description || item.remarks || 'Process development cost optimization initiative.',
+      impact: impacts,
+      engineer: item.engineer || 'Concern Engineer',
+      category: item.category || 'Cost Savings',
+      photo_fit: 'blur',
+      status: 'Completed',
+      is_project: false,
+      is_cost_saving: true,
+      cost_saving_monthly: monthlyAmt,
+      cost_saving_yearly: yearlyAmt,
+      cost_saving_onetime: onetimeAmt,
+      cost_saving_amount: monthlyAmt,
+      cost_saving_highlight: `৳ ${monthlyAmt.toLocaleString()} / Mo (৳ ${(totYear1/100000).toFixed(1)} Lac / Yr)`,
+      savings: monthlyAmt,
+      photo_before: photo,
+      photo_after: null,
+      photo: photo,
+      has_dual_photo: false
+    };
+
+    if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.openSingle) {
+      SlidePreviewModal.openSingle(slideData);
+    }
+  },
+
+  async updateMonthValue(monthCode, value) {
+    const num = Math.max(0, parseFloat(value) || 0);
+    const year = (typeof CostSavingTracker !== 'undefined' && CostSavingTracker.extractYear)
+      ? CostSavingTracker.extractYear(monthCode)
+      : this.selectedYear;
+    
+    if (typeof CostSavingTracker !== 'undefined' && CostSavingTracker.setMonthSaving) {
+      CostSavingTracker.setMonthSaving(monthCode, num, year);
+    }
+    
+    if (typeof FirebaseSyncService !== 'undefined') {
+      if (typeof CostSavingTracker !== 'undefined') {
+        FirebaseSyncService.broadcastCostTrackerUpdate(CostSavingTracker._loadSavings());
+      }
+    }
+
+    if (typeof window.showToast === 'function') {
+      window.showToast(`💰 Updated ${monthCode} Cost Saving: ৳ ${num.toLocaleString()} BDT`, "success");
+    }
+
+    await this.render();
   },
 
   async render(containerId = 'cost-savings-view-container') {
@@ -928,6 +1142,7 @@ const CostSavingsView = {
       : ((typeof MASTER_LISTS !== 'undefined' && MASTER_LISTS.ENGINEERS) ? MASTER_LISTS.ENGINEERS : []);
 
     const allEntries = this.getEntriesForMonth(month);
+    const slideEntries = allEntries.filter(e => e.has_slide || e.slideObj || (e.amount && parseFloat(e.amount) > 0));
     const filteredEntries = this.activeFilterEngineer
       ? allEntries.filter(e => (e.engineer || '').includes(this.activeFilterEngineer))
       : allEntries;
@@ -1101,6 +1316,132 @@ const CostSavingsView = {
               Use Sum (৳ ${engineerSum.toLocaleString()})
             </button>
           </form>
+        </div>
+
+        <!-- Cost Saving Presentation Slides Section (Requirement 9: live preview cards like monthly input) -->
+        <div class="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center text-sm shadow-sm">
+                  📊
+                </span>
+                <h3 class="text-base font-bold text-slate-800">
+                  Cost Saving Presentation Slides (${month})
+                </h3>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  ${slideEntries.length} ${slideEntries.length === 1 ? 'Slide' : 'Slides'}
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">
+                High-impact financial presentation slides with Walton emerald styling and verified cost savings.
+              </p>
+            </div>
+            
+            <div class="flex items-center gap-2.5">
+              <button onclick="CostSavingsView.openAddSlideModal()" 
+                      class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs shadow-md shadow-emerald-500/20 transition flex items-center gap-1.5 cursor-pointer">
+                <span>➕</span> <span>Add Cost Saving Slide</span>
+              </button>
+            </div>
+          </div>
+
+          ${slideEntries.length === 0 ? `
+            <div class="py-10 border-2 border-dashed border-emerald-200 rounded-2xl bg-emerald-50/20 flex flex-col items-center justify-center text-center p-6 my-4">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl mb-2.5 shadow-inner">
+                💰
+              </div>
+              <div class="text-sm font-bold text-slate-800">No Cost Saving Presentation Slides for ${month}</div>
+              <p class="text-xs text-slate-500 max-w-md mt-1">
+                Create a dedicated 16:9 cost optimization slide with before/after photos and verified savings.
+              </p>
+              <button onclick="CostSavingsView.openAddSlideModal()" 
+                      class="mt-3.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow">
+                <span>➕</span> <span>Create Slide Now</span>
+              </button>
+            </div>
+          ` : `
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-5">
+              ${slideEntries.map((item, sIdx) => {
+                const photo = item.slideObj?.photo_1 || item.slideObj?.photo || this.getSlidePhoto(item.task_id || item.id);
+                const monthlyAmt = parseFloat(item.amount) || parseFloat(item.slideObj?.cost_saving_monthly) || 0;
+                const yearlyAmt = parseFloat(item.yearly_amount) || parseFloat(item.slideObj?.cost_saving_yearly) || (monthlyAmt * 12);
+                const onetimeAmt = parseFloat(item.onetime_amount) || parseFloat(item.slideObj?.cost_saving_onetime) || 0;
+                const totYear1 = yearlyAmt + onetimeAmt;
+                const descText = item.slideObj?.description || item.remarks || item.slideObj?.overview || 'Process development cost optimization initiative.';
+
+                return `
+                <div class="bg-gradient-to-b from-white to-slate-50/60 border-2 border-emerald-300/80 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between group">
+                  <div>
+                    <!-- Header bar of card -->
+                    <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                      <span class="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
+                        Slide #${sIdx + 1} &bull; Cost Saving
+                      </span>
+                      <span class="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono font-bold text-xs">
+                        ৳ ${monthlyAmt.toLocaleString()} / Mo
+                      </span>
+                    </div>
+
+                    <!-- 16:9 Thumbnail / Photo Preview -->
+                    <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 my-3 border border-slate-200 shadow-inner flex items-center justify-center">
+                      ${photo ? `
+                        <img src="${photo}" alt="" class="absolute inset-0 w-full h-full object-cover filter blur-sm brightness-50 opacity-60" />
+                        <img src="${photo}" alt="Slide Photo" class="relative z-10 max-w-full max-h-full object-contain" />
+                      ` : `
+                        <div class="flex flex-col items-center justify-center p-3 text-center text-slate-500">
+                          <span class="text-3xl text-emerald-400 mb-1">💰</span>
+                          <span class="text-[11px] font-bold text-slate-300">Walton Cost Optimization</span>
+                          <span class="text-[9.5px] text-slate-500">16:9 Presentation Ready</span>
+                        </div>
+                      `}
+                      <div class="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold font-mono">
+                        ${HELPERS.escapeHtml(item.engineer || 'Concern Engineer')}
+                      </div>
+                    </div>
+
+                    <!-- Title & Category -->
+                    <h4 class="text-sm font-extrabold text-slate-900 group-hover:text-emerald-700 transition line-clamp-2 leading-snug">
+                      ${HELPERS.escapeHtml(item.title || item.slideObj?.slide_title || 'Untitled Initiative')}
+                    </h4>
+                    <div class="text-[11px] font-semibold text-emerald-700 mt-1">
+                      ${HELPERS.escapeHtml(item.category || 'Cost Savings')}
+                    </div>
+
+                    <!-- Financial Summary Pill -->
+                    <div class="mt-2.5 p-2 rounded-xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between text-xs">
+                      <span class="text-slate-600 font-medium">Year 1 Total:</span>
+                      <span class="font-mono font-extrabold text-emerald-800">৳ ${totYear1.toLocaleString()} BDT</span>
+                    </div>
+
+                    <!-- Description excerpt -->
+                    <p class="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed">
+                      ${HELPERS.escapeHtml(descText)}
+                    </p>
+                  </div>
+
+                  <!-- Card Actions -->
+                  <div class="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <button onclick="CostSavingsView.previewSlideEntry('${item.task_id || item.id}')"
+                            class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                      <span>👁️</span> <span>Preview</span>
+                    </button>
+                    <div class="flex items-center gap-1.5">
+                      <button onclick="CostSavingsView.openAddSlideModal('${item.task_id || item.id}')"
+                              class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                        <span>✏️</span> <span>Edit</span>
+                      </button>
+                      <button onclick="CostSavingsView.deleteSlide('${item.task_id || item.id}')"
+                              class="p-1.5 rounded-xl hover:bg-rose-50 text-rose-600 text-xs transition cursor-pointer" title="Delete Slide">
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                `;
+              }).join('')}
+            </div>
+          `}
         </div>
 
         <!-- Main Content Grid: Engineer Table & Contribution Visuals -->
@@ -1277,19 +1618,33 @@ const CostSavingsView = {
 
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5 mt-5">
             ${monthlySummary.map(m => `
-              <div onclick="CostSavingsView.handleMonthChange('${m.code}')"
-                   class="p-4 rounded-2xl border ${m.isCurrent ? 'border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-500/20' : 'border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50/50'} cursor-pointer transition shadow-xs flex flex-col justify-between">
+              <div class="p-3.5 rounded-2xl border ${m.isCurrent ? 'border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-500/20 shadow-sm' : 'border-slate-200/90 bg-white hover:border-slate-300'} transition shadow-xs flex flex-col justify-between">
                 <div>
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-black ${m.isCurrent ? 'text-emerald-700' : 'text-slate-700'}">${m.short}</span>
-                    ${m.isCurrent ? '<span class="w-2 h-2 rounded-full bg-emerald-500"></span>' : ''}
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-black ${m.isCurrent ? 'text-emerald-800' : 'text-slate-800'}">${m.short}</span>
+                    ${m.isCurrent ? '<span class="px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase bg-emerald-600 text-white">Active</span>' : ''}
                   </div>
-                  <div class="text-sm font-mono font-bold text-slate-900 mt-2">
-                    ${m.amount > 0 ? `৳ ${m.amount.toLocaleString()}` : '<span class="text-slate-300 font-normal">৳ 0</span>'}
+                  <div class="space-y-1">
+                    <label class="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider block">Savings Value (BDT)</label>
+                    <div class="relative">
+                      <span class="absolute left-2.5 top-2 text-xs text-slate-400 font-mono font-bold">৳</span>
+                      <input type="number" 
+                             value="${m.amount || 0}" 
+                             step="1000"
+                             min="0"
+                             placeholder="0"
+                             onfocus="event.stopPropagation()"
+                             onclick="event.stopPropagation()"
+                             onchange="CostSavingsView.updateMonthValue('${m.code}', this.value)"
+                             class="w-full pl-6 pr-2 py-1.5 bg-slate-50 hover:bg-white focus:bg-white text-xs font-mono font-black text-slate-800 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl transition shadow-2xs" />
+                    </div>
                   </div>
                 </div>
-                <div class="mt-3 pt-2 border-t ${m.isCurrent ? 'border-emerald-200/60' : 'border-slate-100'} text-[10px] ${m.isCurrent ? 'text-emerald-700 font-bold' : 'text-slate-400'}">
-                  ${m.isCurrent ? 'Active Selection' : 'Click to View'}
+                <div class="mt-3 pt-2 border-t ${m.isCurrent ? 'border-emerald-200/60' : 'border-slate-100'} flex items-center justify-between text-[10px]">
+                  <button type="button" onclick="CostSavingsView.handleMonthChange('${m.code}')" class="font-bold text-emerald-700 hover:text-emerald-900 transition flex items-center gap-1 cursor-pointer">
+                    <span>View Month</span> <span>→</span>
+                  </button>
+                  <span class="text-slate-400 font-mono font-semibold">${(m.amount / 100000).toFixed(1)}L</span>
                 </div>
               </div>
             `).join('')}

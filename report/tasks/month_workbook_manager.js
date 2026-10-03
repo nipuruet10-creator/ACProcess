@@ -52,6 +52,65 @@ class MonthWorkbookManager {
       }
     }
 
+    // Isolate Project & Cost Saving tasks strictly from Monthly Input task tables (Requirement 1 & 2)
+    // Never allow projects or cost savings to pollute monthly task management sheets
+    Object.keys(this.workbooks).forEach(m => {
+      if (Array.isArray(this.workbooks[m])) {
+        const kept = [];
+        this.workbooks[m].forEach(t => {
+          if (!t) return;
+          const tid = String(t.task_id || '').toUpperCase();
+          const cat = String(t.category || '').toLowerCase();
+          const isProj = Boolean(t.is_project || tid.startsWith('PROJ-') || cat.includes('ongoing project') || cat.includes('completed project') || cat.includes('strategic project'));
+          const isCost = Boolean(t.is_cost_saving || tid.startsWith('CS-') || cat.includes('cost saving'));
+          
+          if (isProj) {
+            // Rescue any strategic project (e.g. RAC Assembly line relocation) into permanent strategic projects store
+            try {
+              if (typeof window !== 'undefined' && window.localStorage) {
+                const raw = localStorage.getItem("walton_strategic_projects_permanent_v1");
+                let list = raw ? JSON.parse(raw) : [];
+                if (!Array.isArray(list)) list = [];
+                if (!list.some(p => p.task_id === t.task_id || (p.task_name && p.task_name.trim().toLowerCase() === String(t.task_name || '').trim().toLowerCase()))) {
+                  list.push({
+                    task_id: t.task_id || `PROJ-2026-${Date.now().toString().slice(-4)}`,
+                    task_name: t.task_name,
+                    category: cat.includes('complete') ? "Completed Projects" : "Ongoing Projects",
+                    status: cat.includes('complete') ? "Completed" : "Ongoing",
+                    project_status: cat.includes('complete') ? "Completed" : "Ongoing",
+                    deadline: t.deadline || "4-5 Months",
+                    overview: t.overview || t.description || t.task_details || "",
+                    description: t.overview || t.description || t.task_details || "",
+                    task_details: t.task_details || "",
+                    assignee: t.assignee || t.engineer || "Kamrul (44819)",
+                    engineer: t.assignee || t.engineer || "Kamrul (44819)",
+                    photo_1: t.photo_1 || t.photo || "",
+                    photo: t.photo_1 || t.photo || "",
+                    before_photo: t.before_photo || "",
+                    is_project: true,
+                    created_at: t.created_at || new Date().toISOString(),
+                    last_updated: new Date().toISOString()
+                  });
+                  localStorage.setItem("walton_strategic_projects_permanent_v1", JSON.stringify(list));
+                  if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.broadcastProjectUpdate) {
+                    FirebaseSyncService.broadcastProjectUpdate(list);
+                  }
+                }
+              }
+            } catch(e) {}
+            return; // Omit from monthly tasks!
+          }
+
+          if (isCost) {
+            return; // Omit from monthly tasks!
+          }
+
+          kept.push(t);
+        });
+        this.workbooks[m] = kept;
+      }
+    });
+
     // SEP-2026 initialized if missing
     if (!this.workbooks["SEP-2026"] || !Array.isArray(this.workbooks["SEP-2026"])) {
       this.workbooks["SEP-2026"] = [];
@@ -1228,7 +1287,16 @@ class MonthWorkbookManager {
     if (!this.workbooks[m]) {
       this.workbooks[m] = [];
     }
-    return [...this.workbooks[m]];
+    // Strict Project & Cost Saving Isolation (Requirement 1 & 2)
+    return this.workbooks[m].filter(t => {
+      if (!t) return false;
+      if (t.is_project === true || t.is_cost_saving === true) return false;
+      const tid = String(t.task_id || '').toUpperCase();
+      if (tid.startsWith('PROJ-') || tid.startsWith('CS-')) return false;
+      const cat = String(t.category || '').toLowerCase();
+      if (cat.includes('ongoing project') || cat.includes('completed project') || cat.includes('strategic project') || cat.includes('cost saving')) return false;
+      return true;
+    });
   }
 
   getTask(month, taskId) {
