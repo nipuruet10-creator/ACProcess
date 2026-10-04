@@ -48,13 +48,9 @@ const App = {
       await db.init();
     }
 
-    // Initialize & Synchronize Photo Manager with Hostinger Server Storage
+    // Initialize & Synchronize Photo Manager in background (Non-blocking instant startup)
     if (typeof photoManager !== 'undefined' && photoManager.init) {
-      try {
-        await photoManager.init();
-      } catch (err) {
-        console.warn("PhotoManager init notice:", err);
-      }
+      photoManager.init().catch(err => console.warn("PhotoManager init notice:", err));
     }
 
     // Instantiate Central State

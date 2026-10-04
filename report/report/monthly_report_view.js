@@ -154,9 +154,31 @@ const MonthlyReportView = {
   filterEngineer: "",
   filterCategory: "",
   searchQuery: "",
+  currentPage: 1,
+  pageSize: 12,
+  viewMode: 'grid',
+
+  setPage(page) {
+    this.currentPage = Math.max(1, page);
+    this.render();
+    const el = document.getElementById('monthly-report-cards-grid') || document.getElementById('monthly-report-table-container');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+
+  setPageSize(sz) {
+    this.pageSize = (sz === 'all') ? 'all' : (Number(sz) || 12);
+    this.currentPage = 1;
+    this.render();
+  },
+
+  setViewMode(mode) {
+    this.viewMode = mode;
+    this.render();
+  },
 
   handleMonthSelect(month) {
     this.selectedMonth = month;
+    this.currentPage = 1;
     if (typeof FinalEditorView !== 'undefined') FinalEditorView.selectedMonth = month;
     if (typeof MonthlyInputView !== 'undefined') MonthlyInputView.selectedMonth = month;
     this.render();
@@ -2050,6 +2072,66 @@ const MonthlyReportView = {
     const hasWorkshopSlide = (typeof WorkshopCostManager !== 'undefined' && WorkshopCostManager.hasWorkshopData && WorkshopCostManager.hasWorkshopData(this.selectedMonth));
     const totalPresentationSlides = activeSlides.length + (hasWorkshopSlide ? 6 : 5);
 
+    const totalMatchingSlides = displayedSlides.length;
+    let paginatedSlides = displayedSlides;
+    let totalPages = 1;
+    const ps = (this.pageSize === 'all') ? totalMatchingSlides : (Number(this.pageSize) || 12);
+    if (this.pageSize !== 'all') {
+      totalPages = Math.max(1, Math.ceil(totalMatchingSlides / ps));
+      if (this.currentPage > totalPages) this.currentPage = totalPages;
+      if (this.currentPage < 1) this.currentPage = 1;
+      const startIdx = (this.currentPage - 1) * ps;
+      paginatedSlides = displayedSlides.slice(startIdx, startIdx + ps);
+    }
+
+    const renderPaginationControls = () => {
+      if (totalPages <= 1 && totalMatchingSlides <= 12) return '';
+      let pageNums = [];
+      for (let p = 1; p <= totalPages; p++) {
+        if (p === 1 || p === totalPages || (p >= this.currentPage - 2 && p <= this.currentPage + 2)) {
+          pageNums.push(p);
+        } else if (pageNums[pageNums.length - 1] !== '...') {
+          pageNums.push('...');
+        }
+      }
+      return `
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-2.5 py-2.5 px-3 bg-slate-50 border border-slate-200 rounded-xl my-2 shadow-2xs">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-mono font-bold text-slate-600">
+              ${(this.pageSize === 'all') ? `Showing All ${totalMatchingSlides}` : `Showing ${Math.min((this.currentPage - 1) * ps + 1, totalMatchingSlides)}-${Math.min(this.currentPage * ps, totalMatchingSlides)} of ${totalMatchingSlides}`} slides
+            </span>
+            <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 text-xs">
+              <button type="button" onclick="MonthlyReportView.setPageSize(12)" class="px-2 py-0.5 rounded text-[10.5px] font-bold transition cursor-pointer ${this.pageSize === 12 ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}">12</button>
+              <button type="button" onclick="MonthlyReportView.setPageSize(24)" class="px-2 py-0.5 rounded text-[10.5px] font-bold transition cursor-pointer ${this.pageSize === 24 ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}">24</button>
+              <button type="button" onclick="MonthlyReportView.setPageSize('all')" class="px-2 py-0.5 rounded text-[10.5px] font-bold transition cursor-pointer ${this.pageSize === 'all' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}">All</button>
+            </div>
+          </div>
+          ${totalPages > 1 ? `
+            <div class="flex items-center gap-1 flex-wrap">
+              <button type="button" onclick="MonthlyReportView.setPage(${this.currentPage - 1})" ${this.currentPage <= 1 ? 'disabled' : ''} 
+                      class="px-2.5 py-1 rounded-lg border text-xs font-bold transition ${this.currentPage <= 1 ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 cursor-pointer'}">
+                « Prev
+              </button>
+              ${pageNums.map(p => {
+                if (p === '...') return `<span class="px-1 text-slate-400 font-bold text-xs">...</span>`;
+                const isCur = (p === this.currentPage);
+                return `
+                  <button type="button" onclick="MonthlyReportView.setPage(${p})" 
+                          class="w-7 h-7 rounded-lg text-xs font-mono font-bold transition cursor-pointer flex items-center justify-center ${isCur ? 'bg-blue-600 text-white shadow-xs' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}">
+                    ${p}
+                  </button>
+                `;
+              }).join('')}
+              <button type="button" onclick="MonthlyReportView.setPage(${this.currentPage + 1})" ${this.currentPage >= totalPages ? 'disabled' : ''} 
+                      class="px-2.5 py-1 rounded-lg border text-xs font-bold transition ${this.currentPage >= totalPages ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 cursor-pointer'}">
+                Next »
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    };
+
     container.innerHTML = `
       <!-- Single Unified Executive Container for Monthly Report (Immediate slide edit visibility) -->
       <div class="bg-white border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 shadow-xs space-y-2.5">
@@ -2077,10 +2159,22 @@ const MonthlyReportView = {
             </div>
           </div>
 
-          <!-- Right: Export & Presentation Buttons -->
+          <!-- Right: View Mode Toggle & Export Buttons -->
           <div class="flex items-center gap-1.5 flex-wrap">
+            <!-- Alternative View Mode Switcher (Grid vs Fast Table) -->
+            <div class="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 shadow-2xs">
+              <button type="button" onclick="MonthlyReportView.setViewMode('grid')" 
+                      class="px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${this.viewMode === 'grid' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}">
+                🎴 Card Grid
+              </button>
+              <button type="button" onclick="MonthlyReportView.setViewMode('table')" 
+                      class="px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${this.viewMode === 'table' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}">
+                📋 Fast Table
+              </button>
+            </div>
+
             <button onclick="MonthlyReportView.previewFullDeck()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-800 border border-slate-300 transition flex items-center gap-1.5 shadow-2xs cursor-pointer">
-              <span>👁️</span> <span>Preview Full Deck</span>
+              <span>👁️</span> <span>Preview Deck</span>
             </button>
             <button onclick="ExportController.exportPPTX('${month}')" title="100% Native Editable PPTX" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-xs font-black text-white shadow-xs transition flex items-center gap-1 cursor-pointer">
               <span>📊</span> <span>Download PPTX</span>
@@ -2111,7 +2205,7 @@ const MonthlyReportView = {
                 <span>🏆 Top 5 Projects Summary</span> <span class="text-[10px]">✏️</span>
               </button>
               <button onclick="MonthlyReportView.previewTop5Slide()" title="Preview Slide #Summary: Top 5 Completed &amp; Ongoing Summary"
-                      class="px-2 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                      class="px-2.5 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
                 <span>👁️</span>
               </button>
               <button onclick="MonthlyReportView.previewClosingSlide()" title="Slide #Closing: Thank You &amp; Conclusion"
@@ -2161,12 +2255,84 @@ const MonthlyReportView = {
         </div>
       </div>
 
-        <!-- 3. TASK PRESENTATION SLIDES GRID (Starts IMMEDIATELY right at top, Requirement 1) -->
+      ${this.viewMode === 'table' ? `
+        <!-- ALTERNATIVE MODE: ULTRA-FAST HIGH PERFORMANCE PRESENTATION TABLE -->
+        <div id="monthly-report-table-container" class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs my-2">
+          <div class="px-4 py-3 bg-slate-900 text-white flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-sm">📋</span>
+              <span class="font-black text-xs sm:text-sm">Fast Presentation Table (${displayedSlides.length} Slides)</span>
+            </div>
+            <span class="text-[11px] font-mono text-slate-400">Zero-lag instant editor mode</span>
+          </div>
+          <div class="overflow-x-auto max-h-[70vh] scrollbar-thin">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="sticky top-0 bg-slate-100 z-10 border-b border-slate-200 shadow-2xs">
+                <tr class="text-[10.5px] font-mono font-black text-slate-600 uppercase">
+                  <th class="py-2.5 px-3">Slide #</th>
+                  <th class="py-2.5 px-3">Task ID</th>
+                  <th class="py-2.5 px-3">Concern Engineer</th>
+                  <th class="py-2.5 px-3">Category</th>
+                  <th class="py-2.5 px-3">Slide Title & Details</th>
+                  <th class="py-2.5 px-3 text-center">Photo Status</th>
+                  <th class="py-2.5 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                ${displayedSlides.map((s, idx) => {
+                  const hasPhoto = Boolean(s.photo_before || s.photo_after || s.photo);
+                  const isOverridden = Boolean(s.has_manual_override);
+                  return `
+                    <tr id="slide-row-${s.task_id}" class="hover:bg-blue-50/40 transition">
+                      <td class="py-2 px-3 font-mono font-black text-blue-700 whitespace-nowrap">Slide #${idx + 3}</td>
+                      <td class="py-2 px-3 font-mono text-slate-500 font-bold whitespace-nowrap">${s.task_id}</td>
+                      <td class="py-2 px-3 font-bold text-slate-800 whitespace-nowrap">👤 ${HELPERS.escapeHtml(s.engineer)}</td>
+                      <td class="py-2 px-3 whitespace-nowrap">
+                        <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-medium border border-slate-200">
+                          ${HELPERS.escapeHtml(s.category || 'Process')}
+                        </span>
+                      </td>
+                      <td class="py-2 px-3 max-w-md">
+                        <div class="font-bold text-slate-900 line-clamp-1" title="${HELPERS.escapeHtml(s.slide_title)}">${HELPERS.escapeHtml(s.slide_title)}</div>
+                        <div class="text-[10.5px] text-slate-400 line-clamp-1">${HELPERS.escapeHtml(s.description || '')}</div>
+                      </td>
+                      <td class="py-2 px-3 text-center whitespace-nowrap">
+                        ${hasPhoto ? `
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            📷 Photo Attached
+                          </span>
+                        ` : `
+                          <button type="button" onclick="MonthlyReportView.selectSlideCard('${s.task_id}'); MonthlyReportView.pasteFromClipboard('${s.task_id}', 'after_photo');" 
+                                  class="px-2 py-0.5 rounded bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 text-[10px] font-bold border border-slate-200 transition cursor-pointer">
+                            + Paste Photo
+                          </button>
+                        `}
+                      </td>
+                      <td class="py-2 px-3 text-right whitespace-nowrap">
+                        <div class="flex items-center justify-end gap-1.5">
+                          <button type="button" onclick="MonthlyReportView.openModal('${s.task_id}')" 
+                                  class="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-2xs transition cursor-pointer">
+                            Customize
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : `
+        <!-- 3. TASK PRESENTATION SLIDES GRID (Paginated & Zero-Freeze GPU Accelerated) -->
+        ${renderPaginationControls()}
+
         <div id="monthly-report-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
           <div id="monthly-report-no-slides-msg" style="${displayedSlides.length === 0 ? '' : 'display: none;'}" class="col-span-full py-12 text-center bg-slate-50 border border-slate-200 rounded-2xl text-slate-400 text-xs font-mono">
             No active slides match the current filter in ${month}.
           </div>
-          ${activeSlides.map((s, idx) => {
+          ${paginatedSlides.map((s, pIdx) => {
+            const globalIdx = (this.pageSize === 'all') ? pIdx : ((this.currentPage - 1) * ps + pIdx);
             const initialEngMatch = !this.filterEngineer || isEngMatch(s.engineer);
             const initialCatMatch = isCatMatch(s.category, s);
             const initialVisible = initialEngMatch && initialCatMatch;
@@ -2180,10 +2346,6 @@ const MonthlyReportView = {
             } else if (photoDisplaySrc && (photoDisplaySrc.startsWith('uploads/') || photoDisplaySrc.startsWith('/uploads/'))) {
               const rel = photoDisplaySrc.startsWith('/') ? photoDisplaySrc.slice(1) : photoDisplaySrc;
               photoDisplaySrc = 'https://acprocess.com/report/' + rel;
-            }
-            if (photoDisplaySrc && (photoDisplaySrc.startsWith('http') || photoDisplaySrc.startsWith('uploads/') || photoDisplaySrc.startsWith('/uploads/'))) {
-              const cleanUrl = photoDisplaySrc.split('?')[0];
-              photoDisplaySrc = `${cleanUrl}?t=${Date.now()}`;
             }
             const isSelected = (this._selectedCardTaskId === s.task_id);
             const isCover = (s.photo_fit === 'cover' || s.photo_fit === 'fill');
@@ -2204,7 +2366,7 @@ const MonthlyReportView = {
                   <!-- Slide Top Indicator -->
                   <div class="flex items-center justify-between pb-2 border-b border-slate-100">
                     <span class="text-[10px] font-mono font-black text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
-                      Slide #${idx + 3}
+                      Slide #${globalIdx + 3}
                     </span>
                     <div class="flex items-center gap-1.5">
                       ${s.is_project ? `
@@ -2241,9 +2403,8 @@ const MonthlyReportView = {
                   <!-- Photo Preview / Quick Drop Zone (Direct photo paste in monthly report section) -->
                   <div class="slide-card-photo-container mt-2.5">
                     ${hasPhoto ? `
-                      <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200 shadow-2xs group/img">
-                        <img src="${photoDisplaySrc}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" onerror="this.style.display='none';" />
-                        <img src="${photoDisplaySrc}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${s.task_id}', '${s.photo_after ? 'after_photo' : 'before_photo'}');" />
+                      <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-contain'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center border border-slate-200 shadow-2xs group/img">
+                        <img src="${photoDisplaySrc}" loading="lazy" decoding="async" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${s.task_id}', '${s.photo_after ? 'after_photo' : 'before_photo'}');" />
                         <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
                           <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
                             ${s.photo_after && s.photo_before ? 'Dual Photo' : (s.photo_after ? 'After Photo' : 'Before Photo')}
@@ -2315,6 +2476,8 @@ const MonthlyReportView = {
           }).join('')}
         </div>
 
+        ${renderPaginationControls()}
+      `}
         <!-- 4. BOTTOM SPECIAL SLIDES CARDS (Summary & Concluding Deck Slides) -->
         <div class="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-3">
           
