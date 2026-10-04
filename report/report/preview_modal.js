@@ -53,6 +53,19 @@ const SlidePreviewModal = {
         s.has_dual_photo = Boolean(p.before_photo && p.after_photo);
       }
 
+      // Re-fetch saved photo_fit mode
+      if (s.task_id) {
+        const savedFit = localStorage.getItem('walton_photo_fit_' + s.task_id);
+        if (savedFit) {
+          s.photo_fit = savedFit;
+        } else if (typeof window !== 'undefined' && window.appState && window.appState.syncEngine) {
+          const ovr = window.appState.syncEngine.getManualOverride(s.task_id);
+          if (ovr && ovr.photo_fit) {
+            s.photo_fit = ovr.photo_fit;
+          }
+        }
+      }
+
       const cat = (s.category || '').toLowerCase();
       const title = (s.slide_title || s.raw_task_name || s.task_name || '').toLowerCase();
       const status = (s.status || s.project_status || '').toLowerCase();
@@ -119,6 +132,17 @@ const SlidePreviewModal = {
         slideData.photo_after = p.after_photo || null;
         slideData.photo = p.before_photo || p.after_photo || slideData.photo || null;
         slideData.has_dual_photo = Boolean(p.before_photo && p.after_photo);
+      }
+    }
+    if (slideData.task_id) {
+      const savedFit = localStorage.getItem('walton_photo_fit_' + slideData.task_id);
+      if (savedFit) {
+        slideData.photo_fit = savedFit;
+      } else if (typeof window !== 'undefined' && window.appState && window.appState.syncEngine) {
+        const ovr = window.appState.syncEngine.getManualOverride(slideData.task_id);
+        if (ovr && ovr.photo_fit) {
+          slideData.photo_fit = ovr.photo_fit;
+        }
       }
     }
     this.activeSlides = [slideData];
@@ -302,23 +326,26 @@ const SlidePreviewModal = {
 
             <div class="flex items-center gap-2">
               ${currentTask ? `
-                <button onclick="SlidePreviewModal.editCurrentSlide()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700">
+                <button onclick="SlidePreviewModal.saveCurrentSlide()" title="Save Slide & Photo Adjustments permanently" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white shadow flex items-center gap-1 cursor-pointer">
+                  <span>💾</span> <span>Save Slide</span>
+                </button>
+                <button onclick="SlidePreviewModal.editCurrentSlide()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 cursor-pointer">
                   ✏️ Edit Slide
                 </button>
-                <button onclick="SlidePreviewModal.uploadPhotoCurrent()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow">
+                <button onclick="SlidePreviewModal.uploadPhotoCurrent()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow cursor-pointer">
                   📸 Upload Photo
                 </button>
               ` : ''}
 
               <!-- Discrete Quick Export Actions -->
-              <button onclick="ExportController.exportPPTX('${this.currentMonth}')" title="Download 100% Editable PowerPoint" class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-xs font-bold text-white shadow flex items-center gap-1">
+              <button onclick="ExportController.exportPPTX('${this.currentMonth}')" title="Download 100% Editable PowerPoint" class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-xs font-bold text-white shadow flex items-center gap-1 cursor-pointer">
                 <span>📊</span> <span>PPTX</span>
               </button>
-              <button onclick="ExportController.exportPDF('${this.currentMonth}')" title="Vector Print & Save as PDF" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 flex items-center gap-1">
+              <button onclick="ExportController.exportPDF('${this.currentMonth}')" title="Vector Print & Save as PDF" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 flex items-center gap-1 cursor-pointer">
                 <span>🖨</span> <span>PDF</span>
               </button>
 
-              <button onclick="SlidePreviewModal.close()" class="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-semibold">
+              <button onclick="SlidePreviewModal.close()" class="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-semibold cursor-pointer">
                 Close
               </button>
             </div>
@@ -327,6 +354,96 @@ const SlidePreviewModal = {
         </div>
       </div>
     `;
+  },
+
+  saveCurrentSlide() {
+    let task = null;
+    if (this.isDeckMode) {
+      if (this.currentSlideIndex >= 3 && this.currentSlideIndex < 3 + this.activeSlides.length) {
+        task = this.activeSlides[this.currentSlideIndex - 3];
+      }
+    } else {
+      task = this.activeSlides[this.currentSlideIndex];
+    }
+
+    if (!task || !task.task_id) {
+      if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+        window.showToast('ℹ️ Non-task slide has no custom overrides to save.', 'info');
+      } else {
+        alert('Non-task slide has no custom overrides to save.');
+      }
+      return;
+    }
+
+    const taskId = task.task_id;
+    const month = this.currentMonth || (task.month || 'SEP-2026');
+
+    // Detect current fit mode from DOM or task
+    let currentFit = task.photo_fit || 'blur';
+    const modalContainer = document.getElementById('slide-preview-modal-container');
+    if (modalContainer) {
+      const wrapper = modalContainer.querySelector('.photo-fit-wrapper');
+      if (wrapper) {
+        currentFit = wrapper.classList.contains('photo-fit-cover') ? 'cover' : 'blur';
+      }
+    }
+
+    task.photo_fit = currentFit;
+    if (!task.overrides) task.overrides = {};
+    task.overrides.photo_fit = currentFit;
+
+    // 1. Persist to localStorage
+    try {
+      localStorage.setItem('walton_photo_fit_' + taskId, currentFit);
+    } catch (e) {}
+
+    // 2. Persist to SyncEngine & WorkbookManager
+    try {
+      if (window.appState && window.appState.syncEngine) {
+        window.appState.syncEngine.saveManualOverride(taskId, { photo_fit: currentFit }, month);
+      }
+      if (window.appState && window.appState.workbookMgr) {
+        window.appState.workbookMgr.updateTask(month, taskId, { photo_fit: currentFit });
+      }
+    } catch (e) {}
+
+    // 3. Realtime Cloud Sync to Firebase
+    try {
+      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+        FirebaseSyncService.db.ref(`walton_monthly_report/slide_overrides/${month}/${taskId}`).update({
+          photo_fit: currentFit,
+          updated_at: new Date().toISOString()
+        }).catch(() => {});
+        FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${month}/tasks/${taskId}`).update({
+          photo_fit: currentFit
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    // 4. Hostinger API Sync
+    try {
+      fetch('api/sync_overrides.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId: taskId,
+          month: month,
+          overrides: { photo_fit: currentFit }
+        })
+      }).catch(() => {});
+    } catch (e) {}
+
+    // Re-render slide inside deckHtmlList if in deck mode so it stays perfectly synced
+    if (this.isDeckMode && this.deckHtmlList && typeof SlideLayoutEngine !== 'undefined') {
+      const total = this.deckHtmlList.length;
+      this.deckHtmlList[this.currentSlideIndex] = SlideLayoutEngine.renderTaskSlide(task, this.currentSlideIndex + 1, total);
+    }
+
+    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+      window.showToast(`✅ Slide saved successfully (${taskId})!`, 'success');
+    } else {
+      alert(`✅ Slide saved successfully!`);
+    }
   },
 
   editCurrentSlide() {

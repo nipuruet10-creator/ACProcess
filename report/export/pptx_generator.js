@@ -2276,7 +2276,7 @@ class PPTXGenerator {
       const cx = leftX + 0.15 + chipCol * 2.85;
       const cy = 5.12 + chipRow * 0.27;
 
-      slide.addShape(pptx.ShapeType.oval, {
+      slide.addShape(pptx.ShapeType.ellipse, {
         x: cx, y: cy + 0.05, w: 0.12, h: 0.12,
         fill: { color: (c.color || "1D4ED8").replace('#', '') }, line: { color: (c.color || "1D4ED8").replace('#', '') }
       });

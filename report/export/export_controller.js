@@ -604,10 +604,32 @@ const ExportController = {
   async handleDownloadAll(selectedMonth) {
     const btn = document.getElementById('btn-export-all');
     if (btn) btn.innerHTML = '<span>⌛</span> <span>Generating PPT & PDF...</span>';
+    let pptSuccess = false;
+    let pdfSuccess = false;
+    let errors = [];
     try {
-      await this.exportPPTX(selectedMonth, this.selectedTemplate);
-      await this.exportPDF(selectedMonth, this.selectedTemplate);
-      if (btn) btn.innerHTML = '<span>✔</span> <span>PPT & PDF Generated!</span>';
+      try {
+        const pptRes = await this.exportPPTX(selectedMonth, this.selectedTemplate);
+        if (pptRes) pptSuccess = true;
+      } catch (errPpt) {
+        console.error("PPTX export in batch failed:", errPpt);
+        errors.push("PPTX: " + errPpt.message);
+      }
+      try {
+        const pdfRes = await this.exportPDF(selectedMonth, this.selectedTemplate);
+        if (pdfRes) pdfSuccess = true;
+      } catch (errPdf) {
+        console.error("PDF export in batch failed:", errPdf);
+        errors.push("PDF: " + errPdf.message);
+      }
+      if (pptSuccess && pdfSuccess) {
+        if (btn) btn.innerHTML = '<span>✔</span> <span>PPT & PDF Generated!</span>';
+      } else if (pptSuccess || pdfSuccess) {
+        if (btn) btn.innerHTML = `<span>✔</span> <span>${pptSuccess ? 'PPT' : 'PDF'} Generated</span>`;
+        if (errors.length > 0) alert("Notice: " + errors.join("; "));
+      } else {
+        throw new Error(errors.join("; ") || "Could not generate reports.");
+      }
     } catch (e) {
       alert("Export failed: " + e.message);
       if (btn) btn.innerHTML = '<span>🚀</span> <span>Download Both (PPT + PDF)</span>';

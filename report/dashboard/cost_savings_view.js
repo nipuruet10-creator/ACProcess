@@ -127,9 +127,30 @@ const CostSavingsView = {
   _stagedPhotos: {},
 
   getSlidePhoto(taskId) {
-    if (this._stagedPhotos[taskId]) {
+    if (!taskId) return null;
+    if (this._stagedPhotos && this._stagedPhotos[taskId]) {
       return this._stagedPhotos[taskId];
     }
+    // Check entries in _loadEngineerEntries()
+    try {
+      const all = this._loadEngineerEntries();
+      const monthKey = (this.selectedMonth || 'SEP-2026').toUpperCase().trim();
+      const monthList = (all && all[monthKey]) ? all[monthKey] : [];
+      let entry = monthList.find(e => String(e.task_id) === String(taskId) || String(e.id) === String(taskId));
+      if (!entry && all) {
+        for (const list of Object.values(all)) {
+          if (Array.isArray(list)) {
+            entry = list.find(e => String(e.task_id) === String(taskId) || String(e.id) === String(taskId));
+            if (entry) break;
+          }
+        }
+      }
+      if (entry) {
+        const p = (entry.slideObj && (entry.slideObj.photo_1 || entry.slideObj.photo || entry.slideObj.before_photo || entry.slideObj.after_photo)) || entry.photo || entry.photo_1;
+        if (p) return p;
+      }
+    } catch(e) {}
+
     if (typeof photoManager !== 'undefined' && photoManager.getTaskPhotos) {
       const p = photoManager.getTaskPhotos(taskId, this.selectedMonth);
       if (p) {
@@ -166,16 +187,40 @@ const CostSavingsView = {
       if (!base64Url) return;
       this._stagedPhotos[taskId] = base64Url;
 
+      // Persist to photoManager
       if (typeof photoManager !== 'undefined') {
         if (photoManager.setTaskPhoto) {
           await photoManager.setTaskPhoto(taskId, 'before_photo', base64Url, null, this.selectedMonth);
           await photoManager.setTaskPhoto(taskId, 'photo_1', base64Url, null, this.selectedMonth);
+          await photoManager.setTaskPhoto(taskId, 'after_photo', base64Url, null, this.selectedMonth);
         } else if (photoManager.savePhoto) {
           await photoManager.savePhoto(taskId, 'before_photo', base64Url, this.selectedMonth);
         }
       }
 
+      // Immediately save into engineer entries & Firebase!
+      const all = this._loadEngineerEntries();
+      const monthKey = (this.selectedMonth || 'SEP-2026').toUpperCase().trim();
+      if (all && all[monthKey]) {
+        const entry = all[monthKey].find(e => String(e.task_id) === String(taskId) || String(e.id) === String(taskId));
+        if (entry) {
+          if (!entry.slideObj) entry.slideObj = {};
+          entry.slideObj.photo_1 = base64Url;
+          entry.slideObj.photo = base64Url;
+          entry.slideObj.before_photo = base64Url;
+          entry.photo = base64Url;
+          entry.photo_1 = base64Url;
+          entry.last_updated = new Date().toISOString();
+          this._saveEngineerEntries(all);
+
+          if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.broadcastCostSavingsUpdate) {
+            FirebaseSyncService.broadcastCostSavingsUpdate(all);
+          }
+        }
+      }
+
       this.renderModalPhotoSlot(taskId);
+      this.renderModalLiveSlidePreview(taskId);
       if (typeof window.showToast === 'function') {
         window.showToast("📷 Photo attached to Cost Saving slide!", "success");
       }
@@ -241,9 +286,29 @@ const CostSavingsView = {
       try {
         await photoManager.removePhoto(taskId, 'before_photo', this.selectedMonth);
         await photoManager.removePhoto(taskId, 'photo_1', this.selectedMonth);
+        await photoManager.removePhoto(taskId, 'after_photo', this.selectedMonth);
       } catch (e) {}
     }
+    const all = this._loadEngineerEntries();
+    const monthKey = (this.selectedMonth || 'SEP-2026').toUpperCase().trim();
+    if (all && all[monthKey]) {
+      const entry = all[monthKey].find(e => String(e.task_id) === String(taskId) || String(e.id) === String(taskId));
+      if (entry) {
+        if (entry.slideObj) {
+          entry.slideObj.photo_1 = "";
+          entry.slideObj.photo = "";
+          entry.slideObj.before_photo = "";
+        }
+        entry.photo = "";
+        entry.photo_1 = "";
+        this._saveEngineerEntries(all);
+        if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.broadcastCostSavingsUpdate) {
+          FirebaseSyncService.broadcastCostSavingsUpdate(all);
+        }
+      }
+    }
     this.renderModalPhotoSlot(taskId);
+    this.renderModalLiveSlidePreview(taskId);
     if (typeof window.showToast === 'function') {
       window.showToast("Photo removed.", "info");
     }
@@ -458,6 +523,7 @@ const CostSavingsView = {
     const existingTask = existingSlide || existingEntry || (taskId && window.appState && window.appState.workbookMgr ? window.appState.workbookMgr.getTask(this.selectedMonth, taskId) : null);
 
     const targetTaskId = taskId || (existingEntry ? existingEntry.task_id || existingEntry.id : `CS-2026-${Date.now().toString().slice(-4)}`);
+    this.editingEntryId = existingEntry ? existingEntry.id : null;
     const isEdit = Boolean(existingTask);
 
     const initTitle = existingTask ? (existingTask.slide_title || existingTask.task_name || existingTask.title || '') : '';
@@ -719,7 +785,17 @@ const CostSavingsView = {
       ? impactsRaw.split("\n").map(l => l.trim()).filter(Boolean)
       : ["Verified annual recurring financial cost saving", "Process optimization implemented and confirmed in regular production"];
 
-    const photoUrl = this.getSlidePhoto(taskId) || "";
+    const all = this._loadEngineerEntries();
+    const monthKey = this.selectedMonth.toUpperCase().trim();
+    if (!Array.isArray(all[monthKey])) all[monthKey] = [];
+
+    const existingIdx = all[monthKey].findIndex(e => String(e.task_id) === String(taskId) || (isEdit && String(e.id) === String(this.editingEntryId)));
+    let photoUrl = this.getSlidePhoto(taskId) || "";
+    if (!photoUrl && existingIdx !== -1) {
+      const existingEntry = all[monthKey][existingIdx];
+      photoUrl = (existingEntry.slideObj && (existingEntry.slideObj.photo_1 || existingEntry.slideObj.photo || existingEntry.slideObj.before_photo)) || existingEntry.photo || existingEntry.photo_1 || "";
+    }
+
     const totYear1 = yearly + onetime;
     const useCustom = document.getElementById('slide-use-custom-highlight')?.checked;
     const customHighlight = (document.getElementById('slide-custom-highlight')?.value || '').trim();
@@ -754,11 +830,6 @@ const CostSavingsView = {
     };
 
     // 2. Save into CostSavingsView initiatives list (isolated from Monthly Input)
-    const all = this._loadEngineerEntries();
-    const monthKey = this.selectedMonth.toUpperCase().trim();
-    if (!Array.isArray(all[monthKey])) all[monthKey] = [];
-
-    const existingIdx = all[monthKey].findIndex(e => String(e.task_id) === String(taskId) || (isEdit && String(e.id) === String(this.editingEntryId)));
     const entryData = {
       id: existingIdx !== -1 ? all[monthKey][existingIdx].id : ("cs_" + Date.now() + "_" + Math.floor(Math.random() * 1000)),
       task_id: taskId,
@@ -772,6 +843,8 @@ const CostSavingsView = {
       cost_saving_custom_highlight: useCustom ? customHighlight : "",
       cost_saving_highlight: highlightStr,
       remarks: overview,
+      photo: photoUrl,
+      photo_1: photoUrl,
       slideObj: slideObj,
       last_updated: new Date().toISOString()
     };

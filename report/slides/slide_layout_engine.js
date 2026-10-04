@@ -118,18 +118,15 @@ const SlideLayoutEngine = {
       <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
         <!-- Ambient Blurred Backdrop (Fills empty side/top bars with soft blur) -->
         <img src="${photoUrl}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none"
-             style="filter: blur(18px) brightness(0.65); opacity: 0.65; transition: opacity 0.25s;" />
+             style="filter: blur(18px) brightness(0.65); opacity: 0.65; transition: opacity 0.25s; ${isCover ? 'display: none;' : ''}" />
         <!-- Crisp Foreground Image (Preserves uncropped original aspect ratio) -->
         <img src="${photoUrl}" alt="${HELPERS.escapeHtml(altText || 'Process Photo')}" 
              class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} transition-all duration-200 drop-shadow-md"
-             onerror="this.src='assets/images/walton_red_reference_sample.jpg'; this.onerror=null;" />
+             onerror="this.style.display='none'; if(this.previousElementSibling) this.previousElementSibling.style.display='none'; this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center text-slate-400 p-4\\'><span class=\\'text-2xl mb-1\\'>📸</span><span class=\\'text-[10px] font-bold text-slate-300\\'>Image Unavailable</span></div>';" />
       </div>
     `;
   },
 
-  /**
-   * Toggles image fit mode between 'Blur-Fit' (original aspect + blurred background) and 'Fill (Crop)'
-   */
   /**
    * Toggles image fit mode between 'Blur-Fit' (original aspect + blurred background) and 'Fill (Crop)'
    */
@@ -198,7 +195,7 @@ const SlideLayoutEngine = {
     }
 
     // Persist newFit mode across reloads, active slides, and multi-device
-    const resolvedTaskId = taskId || (frame.dataset && frame.dataset.taskId);
+    const resolvedTaskId = taskId || (frame.dataset && frame.dataset.taskId) || (btn.dataset && btn.dataset.taskId);
     if (resolvedTaskId) {
       try {
         localStorage.setItem('walton_photo_fit_' + resolvedTaskId, newFit);
@@ -211,20 +208,43 @@ const SlideLayoutEngine = {
         MonthlyReportView._activeModalPhotoFit = newFit;
       }
 
+      // Update in-memory slide data in SlidePreviewModal if active
+      if (typeof SlidePreviewModal !== 'undefined' && Array.isArray(SlidePreviewModal.activeSlides)) {
+        const modalSlide = SlidePreviewModal.activeSlides.find(s => s && (s.task_id === resolvedTaskId || s.id === resolvedTaskId));
+        if (modalSlide) {
+          modalSlide.photo_fit = newFit;
+          if (!modalSlide.overrides) modalSlide.overrides = {};
+          modalSlide.overrides.photo_fit = newFit;
+        }
+      }
+
+      const m = (window.appState && window.appState.workbookMgr) ? (window.appState.workbookMgr.activeMonth || 'SEP-2026') : 'SEP-2026';
+
       // Persist to syncEngine and workbookMgr
       try {
         if (window.appState && window.appState.syncEngine) {
-          window.appState.syncEngine.saveManualOverride(resolvedTaskId, { photo_fit: newFit });
+          window.appState.syncEngine.saveManualOverride(resolvedTaskId, { photo_fit: newFit }, m);
         }
         if (window.appState && window.appState.workbookMgr) {
-          const m = window.appState.workbookMgr.activeMonth || 'SEP-2026';
           window.appState.workbookMgr.updateTask(m, resolvedTaskId, { photo_fit: newFit });
+        }
+      } catch (e) {}
+
+      // Realtime Cloud Sync via Firebase
+      try {
+        if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+          FirebaseSyncService.db.ref(`walton_monthly_report/slide_overrides/${m}/${resolvedTaskId}`).update({
+            photo_fit: newFit,
+            updated_at: new Date().toISOString()
+          }).catch(() => {});
+          FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${m}/tasks/${resolvedTaskId}`).update({
+            photo_fit: newFit
+          }).catch(() => {});
         }
       } catch (e) {}
 
       // Push to Hostinger overrides API
       try {
-        const m = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
         fetch('api/sync_overrides.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -588,7 +608,7 @@ const SlideLayoutEngine = {
         ${hasDualPhoto ? `
         <div class="col-span-6 grid grid-cols-2 gap-3 h-full items-stretch" style="min-height: 340px;">
           <!-- Left Subframe: Present Condition (Before) -->
-          <div class="flex flex-col h-full rounded-2xl overflow-hidden border border-slate-200 relative shadow-md bg-slate-950 slide-photo-frame group"
+          <div class="flex flex-col h-full rounded-2xl overflow-hidden border border-slate-200 relative shadow-md bg-slate-950 slide-photo-frame group" data-task-id="${slideData.task_id}"
                ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-amber-500', 'ring-inset');"
                ondragleave="this.classList.remove('ring-2', 'ring-amber-500', 'ring-inset');"
                ondrop="this.classList.remove('ring-2', 'ring-amber-500', 'ring-inset'); SlideLayoutEngine.handleImageDrop(event, '${slideData.task_id}', 'before_photo');">
@@ -598,15 +618,15 @@ const SlideLayoutEngine = {
             ${SlideLayoutEngine.renderPhotoContainerHtml(photoBefore, 'Present Condition', slideData.task_id, 'before_photo')}
             <!-- Floating Adjust Tool -->
             <div class="absolute top-2.5 right-2.5 z-30 opacity-0 group-hover:opacity-100 transition">
-              <button onclick="SlideLayoutEngine.togglePhotoFit(this)" title="Toggle Blur-Fit / Fill-Crop" 
-                      class="px-2 py-0.5 rounded-md bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[9px] font-mono border border-white/20 shadow">
+              <button onclick="SlideLayoutEngine.togglePhotoFit(this, '${slideData.task_id}')" title="Toggle Blur-Fit / Fill-Crop" 
+                      class="px-2 py-0.5 rounded-md bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[9px] font-mono border border-white/20 shadow cursor-pointer">
                 📐 <span class="mode-label">Fill (Crop)</span>
               </button>
             </div>
           </div>
 
           <!-- Right Subframe: Proposed Project (After) -->
-          <div class="flex flex-col h-full rounded-2xl overflow-hidden border border-slate-200 relative shadow-md bg-slate-950 slide-photo-frame group"
+          <div class="flex flex-col h-full rounded-2xl overflow-hidden border border-slate-200 relative shadow-md bg-slate-950 slide-photo-frame group" data-task-id="${slideData.task_id}"
                ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-red-500', 'ring-inset');"
                ondragleave="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset');"
                ondrop="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset'); SlideLayoutEngine.handleImageDrop(event, '${slideData.task_id}', 'after_photo');">
@@ -616,15 +636,15 @@ const SlideLayoutEngine = {
             ${SlideLayoutEngine.renderPhotoContainerHtml(photoAfter, 'Proposed Project', slideData.task_id, 'after_photo')}
             <!-- Floating Adjust Tool -->
             <div class="absolute top-2.5 right-2.5 z-30 opacity-0 group-hover:opacity-100 transition">
-              <button onclick="SlideLayoutEngine.togglePhotoFit(this)" title="Toggle Blur-Fit / Fill-Crop" 
-                      class="px-2 py-0.5 rounded-md bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[9px] font-mono border border-white/20 shadow">
+              <button onclick="SlideLayoutEngine.togglePhotoFit(this, '${slideData.task_id}')" title="Toggle Blur-Fit / Fill-Crop" 
+                      class="px-2 py-0.5 rounded-md bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[9px] font-mono border border-white/20 shadow cursor-pointer">
                 📐 <span class="mode-label">Fill (Crop)</span>
               </button>
             </div>
           </div>
         </div>
         ` : `
-        <div class="col-span-6 flex flex-col h-full rounded-2xl overflow-hidden border border-slate-200 relative shadow-md slide-photo-frame group" 
+        <div class="col-span-6 flex flex-col h-full rounded-2xl overflow-hidden border border-slate-200 relative shadow-md slide-photo-frame group" data-task-id="${slideData.task_id}"
              style="min-height: 340px; background: #020617;"
              ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-red-500', 'ring-inset');"
              ondragleave="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset');"
