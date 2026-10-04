@@ -100,17 +100,37 @@ const PhotoIndexedDB = {
   },
 
   async deleteTaskPhotos(taskId) {
+    return this.purgeAllTaskPhotos(taskId);
+  },
+
+  async purgeAllTaskPhotos(taskId) {
+    if (!taskId) return false;
     try {
       const db = await this.getDB();
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         const tx = db.transaction(this.storeName, "readwrite");
         const store = tx.objectStore(this.storeName);
-        const req = store.delete(taskId);
-        req.onsuccess = () => resolve(true);
-        req.onerror = (e) => reject(e.target.error);
+        const req = store.getAll();
+        req.onsuccess = (e) => {
+          const items = e.target.result || [];
+          const cleanTarget = String(taskId).toLowerCase();
+          const parts = cleanTarget.split('-');
+          const prefix = parts.length >= 3 ? `${parts[0]}-${parts[1]}-${parts[2]}` : cleanTarget;
+
+          items.forEach(item => {
+            if (item && item.taskId) {
+              const k = String(item.taskId).toLowerCase();
+              if (k === cleanTarget || k.includes(cleanTarget) || k.includes(prefix) || k.endsWith(cleanTarget)) {
+                store.delete(item.taskId);
+              }
+            }
+          });
+          resolve(true);
+        };
+        req.onerror = () => resolve(false);
       });
     } catch (err) {
-      console.warn("IndexedDB deleteTaskPhotos notice:", err);
+      console.warn("IndexedDB purgeAllTaskPhotos notice:", err);
       return false;
     }
   },

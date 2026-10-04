@@ -366,9 +366,16 @@ class SyncEngine {
             s.engineer = t.concern_engineer || t.engineer || t.assignee;
           }
           if (t.status) s.status = t.status;
+          if (t.user_edited) {
+            if (t.task_name) s.slide_title = t.task_name;
+            if (t.task_details || t.description) s.description = t.task_details || t.description;
+            if (t.impact) s.impact = Array.isArray(t.impact) ? t.impact : [t.impact];
+          }
 
-          // If not manually overridden, auto-derive domain description and impact based on title (Requirement 7)
-          if (!s.has_manual_override && typeof PROMPT_TEMPLATES !== 'undefined' && PROMPT_TEMPLATES.localFactualTransform) {
+          const hasOverride = Boolean(this.getManualOverride(s.task_id) || s.has_manual_override || t.user_edited || t.has_manual_override);
+
+          // If not manually overridden or user-edited, auto-derive domain description and impact based on title (Requirement 7)
+          if (!hasOverride && typeof PROMPT_TEMPLATES !== 'undefined' && PROMPT_TEMPLATES.localFactualTransform) {
             const domainData = PROMPT_TEMPLATES.localFactualTransform(t);
             if (domainData) {
               if (!s.description || s.description.includes("foil cutting") || s.description.includes("Standard operating procedure execution")) {

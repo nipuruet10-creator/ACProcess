@@ -1063,50 +1063,24 @@ const MonthlyReportView = {
     // Requirement: Description and impact auto generate tailored to title
     const generated = this.generateDetailsFromTitle(currentTitle, currentCategory);
 
-    let currentDesc = overrides.description || "";
-    const isGenericDesc = !currentDesc || currentDesc.trim() === '' || 
-      currentDesc.length < 35 ||
-      currentDesc.toLowerCase().includes("developed and implemented engineering") ||
-      currentDesc.toLowerCase().includes("1. concept design & layout analysis") ||
-      currentDesc.toLowerCase().includes("specialized process engineering mechanism") ||
-      currentDesc.toLowerCase().includes("concept layout feasibility study") ||
-      currentDesc.toLowerCase().includes("process requirement cad modeling") ||
-      currentDesc.toLowerCase().includes("standard operating procedure execution");
-
-    if (!overrides.description || isGenericDesc) {
+    let currentDesc = overrides.description || (task ? (task.task_details || task.description) : "") || (currentSlide ? currentSlide.description : "") || "";
+    if (!currentDesc || currentDesc.trim() === '') {
       currentDesc = generated.desc;
-    } else {
-      // Clean any legacy bullet marks into clean narrative sentences
-      const descParts = String(currentDesc)
-        .split(/(?:\r?\n|•|\s*;\s*)/)
-        .map(p => p.replace(/^([•\-\*\s]+|\d+[\.\)\:\-]\s*)+/, '').trim())
-        .filter(Boolean)
-        .map(p => {
-          let s = p.charAt(0).toUpperCase() + p.slice(1);
-          if (!/[.!?]$/.test(s)) s += '.';
-          return s;
-        });
-      if (descParts.length > 0) {
-        currentDesc = descParts.join(' ');
-      }
     }
 
-    // Auto-generate project impact & outcomes if empty or generic
+    // Auto-generate project impact & outcomes only if empty
     let currentImpact = "";
-    if (overrides.impact !== undefined && overrides.impact !== null) {
+    if (overrides.impact !== undefined && overrides.impact !== null && overrides.impact !== "") {
       currentImpact = Array.isArray(overrides.impact) ? overrides.impact.join("\n") : String(overrides.impact);
-    } else if (breakdown && Array.isArray(breakdown.ai_impact) && breakdown.ai_impact.length > 0) {
-      currentImpact = breakdown.ai_impact.join("\n");
     } else if (task && task.impact) {
       currentImpact = Array.isArray(task.impact) ? task.impact.join("\n") : String(task.impact);
+    } else if (currentSlide && currentSlide.impact) {
+      currentImpact = Array.isArray(currentSlide.impact) ? currentSlide.impact.join("\n") : String(currentSlide.impact);
+    } else if (breakdown && Array.isArray(breakdown.ai_impact) && breakdown.ai_impact.length > 0) {
+      currentImpact = breakdown.ai_impact.join("\n");
     }
 
-    const isGenericImp = !currentImpact || currentImpact.trim() === '' ||
-      currentImpact.toLowerCase().includes("process cycle time reduced and standardized across shifts") ||
-      (currentImpact.toLowerCase().includes("improved process accuracy and consistency") && currentImpact.toLowerCase().includes("increased production operational efficiency")) ||
-      currentImpact.toLowerCase().includes("zero defect manufacturing");
-
-    if (!overrides.impact || isGenericImp) {
+    if (!currentImpact || currentImpact.trim() === '') {
       currentImpact = generated.bullets.join("\n");
     }
 
@@ -1507,13 +1481,22 @@ const MonthlyReportView = {
     }
 
     // 2. Permanently sync changes to underlying workbook task
+    const now = Date.now();
     const taskPatch = {
       last_updated: new Date().toISOString(),
+      user_edited: true,
+      _lastTextEditTime: now,
       photo_fit: photoFit
     };
     if (newCategory) taskPatch.category = newCategory;
     if (newTitle) taskPatch.task_name = newTitle;
-    if (newDesc) taskPatch.task_details = newDesc;
+    if (newDesc) {
+      taskPatch.task_details = newDesc;
+      taskPatch.description = newDesc;
+    }
+    if (newImpact && newImpact.length > 0) {
+      taskPatch.impact = newImpact;
+    }
     if (newEngineer) {
       taskPatch.assignee = newEngineer;
       taskPatch.engineer = newEngineer;
@@ -1529,11 +1512,26 @@ const MonthlyReportView = {
     if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
       if (newCategory) FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'category', newCategory);
       if (newTitle) FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'task_name', newTitle);
-      if (newDesc) FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'task_details', newDesc);
+      if (newDesc) {
+        FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'task_details', newDesc);
+        FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'description', newDesc);
+      }
+      if (newImpact && newImpact.length > 0) {
+        FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'impact', newImpact);
+      }
+      FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'user_edited', true);
+      FirebaseSyncService.updateCell(this.selectedMonth, taskId, '_lastTextEditTime', now);
       if (photoFit) FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'photo_fit', photoFit);
       if (newEngineer) {
         FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'assignee', newEngineer);
         FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'engineer', newEngineer);
+      }
+      if (FirebaseSyncService.db) {
+        FirebaseSyncService.db.ref(`walton_monthly_report/slide_overrides/${this.selectedMonth}/${taskId}`).set({
+          ...overrides,
+          user_edited: true,
+          updated_at: new Date().toISOString()
+        }).catch(() => {});
       }
       const fullTask = window.appState && window.appState.workbookMgr ? window.appState.workbookMgr.getTask(this.selectedMonth, taskId) : null;
       if (fullTask) {

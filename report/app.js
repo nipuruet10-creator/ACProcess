@@ -133,6 +133,12 @@ const App = {
       FirebaseSyncService.init();
     }
 
+    // Hydrate server editorial overrides on startup across devices
+    if (this.syncEngine && typeof this.syncEngine.fetchServerOverrides === 'function') {
+      const initM = this.workbookMgr ? this.workbookMgr.activeMonth : 'SEP-2026';
+      this.syncEngine.fetchServerOverrides(initM).catch(() => {});
+    }
+
     // Auto-clean bloated stale history and cache to ensure buttery smooth performance
     try {
       const trimKeys = ['walton_pd_history_v1', 'walton_pd_audit_v1', 'walton_report_history', 'walton_audit_log'];

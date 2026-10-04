@@ -172,29 +172,48 @@ class PhotoManager {
         const data = await resp.json();
         if (data && data.success && data.photos) {
           let updatedCount = 0;
+          let delMap = {};
+          try {
+            delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+          } catch(e) {}
+
           for (const [tId, pData] of Object.entries(data.photos)) {
             if (!pData) continue;
+            const cleanT = String(tId).toLowerCase();
+            const pParts = cleanT.split('-');
+            const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+            const tombstone = delMap[tId] || delMap[cleanT] || delMap[pPrefix];
+
             const current = this.photoMap[tId] || {};
-            // Never let empty server fields wipe an actively loaded memory photo
+
+            let serverBefore = (pData.before_photo !== undefined && pData.before_photo !== null && pData.before_photo !== '') ? pData.before_photo : (current.before_photo || null);
+            let serverAfter = (pData.after_photo !== undefined && pData.after_photo !== null && pData.after_photo !== '') ? pData.after_photo : (current.after_photo || null);
+
+            // Respect permanent local and server deletion tombstones!
+            if (tombstone) {
+              if (tombstone.slot === 'all' || tombstone.slot === 'before_photo' || tombstone.slot === 'photo_1') {
+                serverBefore = null;
+              }
+              if (tombstone.slot === 'all' || tombstone.slot === 'after_photo' || tombstone.slot === 'photo_2') {
+                serverAfter = null;
+              }
+            }
+
             const merged = {
               ...current,
-              before_photo: (pData.before_photo !== undefined && pData.before_photo !== null && pData.before_photo !== '') ? pData.before_photo : (current.before_photo || null),
-              after_photo: (pData.after_photo !== undefined && pData.after_photo !== null && pData.after_photo !== '') ? pData.after_photo : (current.after_photo || null),
-              photo_1: (pData.photo_1 !== undefined && pData.photo_1 !== null && pData.photo_1 !== '') ? pData.photo_1 : (pData.before_photo || current.photo_1 || null),
-              photo_2: (pData.photo_2 !== undefined && pData.photo_2 !== null && pData.photo_2 !== '') ? pData.photo_2 : (pData.after_photo || current.photo_2 || null),
-              photo: (pData.after_photo || pData.photo || pData.before_photo || current.after_photo || current.before_photo || null)
+              before_photo: serverBefore,
+              after_photo: serverAfter,
+              photo_1: serverBefore,
+              photo_2: serverAfter,
+              photo: serverAfter || serverBefore || null
             };
             const hadPhoto = Boolean(current.before_photo || current.after_photo || current.photo);
             const hasPhotoNow = Boolean(merged.before_photo || merged.after_photo || merged.photo);
             const photoChanged = (merged.after_photo !== current.after_photo || merged.before_photo !== current.before_photo || (!hadPhoto && hasPhotoNow));
 
             this.photoMap[tId] = merged;
-            if (String(tId).includes('-')) {
-              const pParts = String(tId).split('-');
-              if (pParts.length >= 3) {
-                const pPrefix = `${pParts[0]}-${pParts[1]}-${pParts[2]}`;
-                this.photoMap[pPrefix] = { ...(this.photoMap[pPrefix] || {}), ...merged };
-              }
+            if (pParts.length >= 3) {
+              this.photoMap[pPrefix] = { ...(this.photoMap[pPrefix] || {}), ...merged };
             }
             if (month && month !== 'ALL') {
               const monthKey = `${month}_${tId}`;
@@ -218,18 +237,35 @@ class PhotoManager {
                 }
               }
               if (t) {
-                if (merged.before_photo) {
+                const isTaskDeletedAfter = Boolean(t.clear_photos || t._photoDeleted_after || (tombstone && (tombstone.slot === 'all' || tombstone.slot === 'after_photo')));
+                const isTaskDeletedBefore = Boolean(t.clear_photos || t._photoDeleted_before || (tombstone && (tombstone.slot === 'all' || tombstone.slot === 'before_photo')));
+
+                if (merged.before_photo && !isTaskDeletedBefore) {
                   t.photo_1 = merged.before_photo;
                   t.before_photo = merged.before_photo;
                   delete t._photoDeleted_before;
+                  delete t.clear_photos;
+                } else if (isTaskDeletedBefore) {
+                  t.photo_1 = "";
+                  t.before_photo = "";
+                  merged.before_photo = null;
+                  merged.photo_1 = null;
                 }
-                if (merged.after_photo) {
+
+                if (merged.after_photo && !isTaskDeletedAfter) {
                   t.photo_2 = merged.after_photo;
                   t.after_photo = merged.after_photo;
                   t.photo = merged.after_photo;
                   delete t._photoDeleted_after;
+                  delete t.clear_photos;
+                } else if (isTaskDeletedAfter) {
+                  t.photo_2 = "";
+                  t.after_photo = "";
+                  t.photo = "";
+                  merged.after_photo = null;
+                  merged.photo_2 = null;
+                  merged.photo = merged.before_photo || null;
                 }
-                delete t.clear_photos;
               }
             }
 
@@ -479,12 +515,10 @@ class PhotoManager {
       const wbMgr = window.appState.workbookMgr;
       t = m ? wbMgr.getTask(m, taskId) : wbMgr.getTask(wbMgr.activeMonth, taskId);
       if (t) {
-        // If task has real photo URLs, ensure clear_photos is cleared
-        if (t.photo_1 || t.photo_2 || t.photo || t.before_photo || t.after_photo) {
-          delete t.clear_photos;
+        if (!t.clear_photos) {
+          taskP1 = (!t._photoDeleted_before && (t.photo_1 || t.before_photo)) ? (t.photo_1 || t.before_photo) : null;
+          taskP2 = (!t._photoDeleted_after && (t.photo_2 || t.after_photo || t.photo)) ? (t.photo_2 || t.after_photo || t.photo) : null;
         }
-        taskP1 = (!t._photoDeleted_before && (t.photo_1 || t.before_photo)) ? (t.photo_1 || t.before_photo) : null;
-        taskP2 = (!t._photoDeleted_after && (t.photo_2 || t.after_photo || t.photo)) ? (t.photo_2 || t.after_photo || t.photo) : null;
       }
     }
 
@@ -508,16 +542,36 @@ class PhotoManager {
       p2 = taskP2;
     }
 
-    // Explicit deletion check: ONLY clear if explicit user deletion timestamp is newer than last edit
-    // AND neither memory nor server photo cache has an active valid photo
-    const hasActiveMemP1 = Boolean((memMonth && (memMonth.before_photo || memMonth.photo_1)) || (this.photoMap[taskId] && (this.photoMap[taskId].before_photo || this.photoMap[taskId].photo_1)));
-    const hasActiveMemP2 = Boolean((memMonth && (memMonth.after_photo || memMonth.photo_2)) || (this.photoMap[taskId] && (this.photoMap[taskId].after_photo || this.photoMap[taskId].photo_2)));
+    // Check local tombstones
+    let delMap = {};
+    try {
+      delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+    } catch(e) {}
+    const cleanT = String(taskId).toLowerCase();
+    const pParts = cleanT.split('-');
+    const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+    const tombstone = delMap[taskId] || delMap[cleanT] || delMap[pPrefix] || (monthKey && delMap[monthKey]);
 
-    if (t) {
-      if (t._photoDeleted_before && (!t._lastPhotoEditTime || t._photoDeleted_before > t._lastPhotoEditTime) && !hasActiveMemP1) {
+    if (tombstone) {
+      if (tombstone.slot === 'all' || tombstone.slot === 'before_photo' || tombstone.slot === 'photo_1') {
         p1 = null;
       }
-      if (t._photoDeleted_after && (!t._lastPhotoEditTime || t._photoDeleted_after > t._lastPhotoEditTime) && !hasActiveMemP2) {
+      if (tombstone.slot === 'all' || tombstone.slot === 'after_photo' || tombstone.slot === 'photo_2') {
+        p2 = null;
+      }
+    }
+
+    if (t) {
+      if (t.clear_photos) {
+        if (!t._photoDeleted_before && !t._photoDeleted_after) {
+          p1 = null;
+          p2 = null;
+        }
+      }
+      if (t._photoDeleted_before) {
+        p1 = null;
+      }
+      if (t._photoDeleted_after) {
         p2 = null;
       }
     }
@@ -730,9 +784,15 @@ class PhotoManager {
 
   purgeTaskPhotosMemory(taskId) {
     if (!taskId) return;
+    const cleanTarget = String(taskId).toLowerCase();
+    const parts = cleanTarget.split('-');
+    const prefix = parts.length >= 3 ? `${parts[0]}-${parts[1]}-${parts[2]}` : cleanTarget;
+
     delete this.photoMap[taskId];
+    delete this.photoMap[prefix];
     Object.keys(this.photoMap).forEach(k => {
-      if (k === taskId || k.endsWith(`_${taskId}`)) {
+      const lowerK = k.toLowerCase();
+      if (lowerK === cleanTarget || lowerK === prefix || lowerK.includes(cleanTarget) || lowerK.includes(prefix) || lowerK.endsWith(`_${cleanTarget}`)) {
         delete this.photoMap[k];
       }
     });
@@ -747,13 +807,25 @@ class PhotoManager {
     if (!m && typeof MonthlyInputView !== 'undefined' && MonthlyInputView.selectedMonth) {
       m = MonthlyInputView.selectedMonth;
     }
+    const cleanTarget = String(taskId).toLowerCase();
+    const parts = cleanTarget.split('-');
+    const prefix = parts.length >= 3 ? `${parts[0]}-${parts[1]}-${parts[2]}` : cleanTarget;
     const monthKey = m ? `${m}_${taskId}` : null;
     const isAll = (slot === 'all');
     const isBefore = isAll || (slot === 'before_photo' || slot === 'photo_1');
     const isAfter = isAll || (slot === 'after_photo' || slot === 'photo_2');
     const now = Date.now();
 
-    // 1. Clear MonthWorkbookManager FIRST so no fallback can resurrect stale photo!
+    // 1. Record Permanent Local Tombstone in LocalStorage
+    try {
+      const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+      delMap[taskId] = { timestamp: now, slot: slot, prefix: prefix };
+      delMap[prefix] = { timestamp: now, slot: slot };
+      if (monthKey) delMap[monthKey] = { timestamp: now, slot: slot };
+      localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
+    } catch(e) {}
+
+    // 2. Clear MonthWorkbookManager FIRST so no fallback can resurrect stale photo!
     let targetTask = null;
     let activeM = m || "SEP-2026";
     try {
@@ -785,7 +857,7 @@ class PhotoManager {
             }
             t._explicitUserPhotoDeleteTime = now;
             t._lastPhotoDeleteTime = now;
-            t._lastPhotoEditTime = now;
+            t._lastPhotoEditTime = 0; // Wipe edit time so delete timestamp is strictly newer
             t.last_updated = new Date().toISOString();
             if (mon === activeM) targetTask = t;
           }
@@ -796,63 +868,18 @@ class PhotoManager {
       console.warn("Workbook photo removal notice:", e);
     }
 
-    // 2. Purge In-Memory PhotoMap on BOTH canonical and alias keys with explicit NULL!
-    if (!this.photoMap[taskId]) this.photoMap[taskId] = {};
-    if (isBefore) {
-      this.photoMap[taskId].before_photo = null;
-      this.photoMap[taskId].photo_1 = null;
-    }
-    if (isAfter) {
-      this.photoMap[taskId].after_photo = null;
-      this.photoMap[taskId].photo_2 = null;
-    }
+    // 3. Purge In-Memory PhotoMap across ALL matching keys & prefixes
+    this.purgeTaskPhotosMemory(taskId);
 
-    if (monthKey) {
-      if (!this.photoMap[monthKey]) this.photoMap[monthKey] = {};
-      if (isBefore) {
-        this.photoMap[monthKey].before_photo = null;
-        this.photoMap[monthKey].photo_1 = null;
-      }
-      if (isAfter) {
-        this.photoMap[monthKey].after_photo = null;
-        this.photoMap[monthKey].photo_2 = null;
-      }
-    }
-
-    // Also purge any other keys matching `_${taskId}`
-    Object.keys(this.photoMap).forEach(k => {
-      if (k === taskId || k.endsWith(`_${taskId}`)) {
-        if (!this.photoMap[k]) this.photoMap[k] = {};
-        if (isBefore) {
-          this.photoMap[k].before_photo = null;
-          this.photoMap[k].photo_1 = null;
-        }
-        if (isAfter) {
-          this.photoMap[k].after_photo = null;
-          this.photoMap[k].photo_2 = null;
-        }
-      }
-    });
-
-    // 3. Persist deletion / nulls to IndexedDB (Gigabytes quota)
+    // 4. Persist deletion to IndexedDB across all matching task keys & prefixes
     if (typeof PhotoIndexedDB !== 'undefined') {
       try {
-        const remainingGlobal = this.photoMap[taskId];
-        if (remainingGlobal && !remainingGlobal.before_photo && !remainingGlobal.after_photo && !remainingGlobal.photo_1 && !remainingGlobal.photo_2) {
-          await PhotoIndexedDB.deleteTaskPhotos(taskId).catch(() => {});
-          delete this.photoMap[taskId];
-        } else if (remainingGlobal) {
-          await PhotoIndexedDB.saveTaskPhotos(taskId, remainingGlobal).catch(() => {});
-        }
-
-        if (monthKey) {
-          const remainingMonth = this.photoMap[monthKey];
-          if (remainingMonth && !remainingMonth.before_photo && !remainingMonth.after_photo && !remainingMonth.photo_1 && !remainingMonth.photo_2) {
-            await PhotoIndexedDB.deleteTaskPhotos(monthKey).catch(() => {});
-            delete this.photoMap[monthKey];
-          } else if (remainingMonth) {
-            await PhotoIndexedDB.saveTaskPhotos(monthKey, remainingMonth).catch(() => {});
-          }
+        if (typeof PhotoIndexedDB.purgeAllTaskPhotos === 'function') {
+          await PhotoIndexedDB.purgeAllTaskPhotos(taskId);
+          if (prefix && prefix !== taskId) await PhotoIndexedDB.purgeAllTaskPhotos(prefix);
+        } else if (typeof PhotoIndexedDB.deleteTaskPhotos === 'function') {
+          await PhotoIndexedDB.deleteTaskPhotos(taskId);
+          if (monthKey) await PhotoIndexedDB.deleteTaskPhotos(monthKey);
         }
       } catch (idbErr) {
         console.warn("IndexedDB photo delete notice:", idbErr);
@@ -916,39 +943,61 @@ class PhotoManager {
 
     // 6. Push real-time deletion broadcast to Firebase & Google Sheets!
     try {
-      const photoField = isBefore ? 'photo_1' : 'photo_2';
-      
-      // REAL-TIME FIREBASE BROADCAST DELETION:
       if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
         const deletePayload = {
           _explicitUserPhotoDeleteTime: now,
           _lastPhotoDeleteTime: now,
-          _lastPhotoEditTime: now
+          _lastPhotoEditTime: 0,
+          clear_photos: true
         };
         if (isBefore) {
-          deletePayload.photo_1 = "";
-          deletePayload.before_photo = "";
+          deletePayload.photo_1 = null;
+          deletePayload.before_photo = null;
           deletePayload._photoDeleted_before = now;
         }
         if (isAfter) {
-          deletePayload.photo_2 = "";
-          deletePayload.after_photo = "";
-          deletePayload.photo = "";
+          deletePayload.photo_2 = null;
+          deletePayload.after_photo = null;
+          deletePayload.photo = null;
           deletePayload._photoDeleted_after = now;
         }
         if (isAll) {
-          deletePayload.photo_1 = "";
-          deletePayload.photo_2 = "";
-          deletePayload.before_photo = "";
-          deletePayload.after_photo = "";
-          deletePayload.photo = "";
+          deletePayload.photo_1 = null;
+          deletePayload.photo_2 = null;
+          deletePayload.before_photo = null;
+          deletePayload.after_photo = null;
+          deletePayload.photo = null;
           deletePayload.clear_photos = true;
           deletePayload._photoDeleted_before = now;
           deletePayload._photoDeleted_after = now;
         }
         
         await FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}`).update(deletePayload).catch(() => {});
+        
+        // Atomically remove properties from Firebase node
+        if (isAll || isAfter) {
+          FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}/photo_2`).remove().catch(() => {});
+          FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}/after_photo`).remove().catch(() => {});
+          FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}/photo`).remove().catch(() => {});
+        }
+        if (isAll || isBefore) {
+          FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}/photo_1`).remove().catch(() => {});
+          FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}/before_photo`).remove().catch(() => {});
+        }
+
+        // Record persistent tombstone in Firebase so ALL devices permanently know this photo is deleted
+        FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${activeM}/${taskId}`).set({ timestamp: now, slot: slot }).catch(() => {});
+        if (prefix && prefix !== taskId) {
+          FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${activeM}/${prefix}`).set({ timestamp: now, slot: slot }).catch(() => {});
+        }
+
         if (targetTask) {
+          targetTask.photo_1 = null;
+          targetTask.photo_2 = null;
+          targetTask.before_photo = null;
+          targetTask.after_photo = null;
+          targetTask.photo = null;
+          targetTask.clear_photos = true;
           await FirebaseSyncService.pushTask(activeM, targetTask);
         }
       }

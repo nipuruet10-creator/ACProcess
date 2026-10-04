@@ -32,6 +32,15 @@ try {
             if (is_array($parsed)) $catalog = $parsed;
         }
 
+        // Read deleted tombstones to prevent resurrecting unlinked photos
+        $deletedFile = $baseUploadDir . '/deleted_photos_' . $cleanMonth . '.json';
+        $deletedMap = [];
+        if (file_exists($deletedFile)) {
+            $rawDel = @file_get_contents($deletedFile);
+            $parsedDel = json_decode($rawDel, true);
+            if (is_array($parsedDel)) $deletedMap = $parsedDel;
+        }
+
         // Reconcile with actual physical files on disk so index is never out of sync
         $photosDir = $baseUploadDir . '/photos/' . $cleanMonth;
         if (is_dir($photosDir)) {
@@ -43,6 +52,19 @@ try {
                 if (preg_match('/^(.+)_(before_photo|after_photo)\.(jpg|jpeg|png|webp)$/i', $f, $m)) {
                     $tId = $m[1];
                     $slot = $m[2];
+
+                    // Check tombstone
+                    $pParts = explode('-', $tId);
+                    $prefix = (count($pParts) >= 3) ? ($pParts[0] . '-' . $pParts[1] . '-' . $pParts[2]) : $tId;
+                    if (isset($deletedMap[$tId]) || isset($deletedMap[$prefix])) {
+                        // Task was explicitly deleted by user: purge from disk and skip!
+                        @unlink($photosDir . '/' . $f);
+                        if (isset($catalog[$tId])) unset($catalog[$tId]);
+                        if (isset($catalog[$prefix])) unset($catalog[$prefix]);
+                        $foundAny = true;
+                        continue;
+                    }
+
                     if (!isset($catalog[$tId]) || !is_array($catalog[$tId])) {
                         $catalog[$tId] = [
                             'taskId' => $tId,

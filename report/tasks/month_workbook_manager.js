@@ -1613,6 +1613,8 @@ class MonthWorkbookManager {
       ...updates,
       task_id: tasks[idx].task_id,
       month: m,
+      user_edited: true,
+      _lastTextEditTime: Date.now(),
       _lastFieldEditTime: Date.now(),
       updated_at: new Date().toISOString(),
       last_updated: new Date().toISOString()
@@ -2096,13 +2098,42 @@ class MonthWorkbookManager {
         } else {
           let needsCloudPushBack = false;
 
+          let isLocalTombstoned = false;
+          let tombstoneSlot = 'all';
+          try {
+            const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+            const cleanTId = String(rt.task_id).toLowerCase();
+            const pParts = cleanTId.split('-');
+            const pfx = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanTId;
+            const tb = delMap[rt.task_id] || delMap[cleanTId] || delMap[pfx];
+            if (tb) {
+              isLocalTombstoned = true;
+              tombstoneSlot = tb.slot || 'all';
+            }
+          } catch (e) {}
+
+          const isLocalDeletedBefore = Boolean(isLocalTombstoned && (tombstoneSlot === 'all' || tombstoneSlot === 'before_photo' || tombstoneSlot === 'photo_1')) ||
+                                       Boolean(lt.clear_photos || lt._photoDeleted_before);
+          const isLocalDeletedAfter = Boolean(isLocalTombstoned && (tombstoneSlot === 'all' || tombstoneSlot === 'after_photo' || tombstoneSlot === 'photo_2')) ||
+                                      Boolean(lt.clear_photos || lt._photoDeleted_after);
+
+          const isRemoteExplicitDelete = Boolean(rt.clear_photos || rt._explicitUserPhotoDeleteTime || rt._lastPhotoDeleteTime);
+
+          if (isRemoteExplicitDelete || isLocalDeletedAfter) {
+            lt.photo_2 = "";
+            lt.after_photo = "";
+            lt.photo = "";
+            lt.clear_photos = true;
+          }
+          if (isRemoteExplicitDelete || isLocalDeletedBefore) {
+            lt.photo_1 = "";
+            lt.before_photo = "";
+          }
+
           // If remote task has photos, hydrate them immediately across all devices!
           if (typeof photoManager !== 'undefined') {
-            const isRecentBeforeDelete = lt._photoDeleted_before && (Date.now() - lt._photoDeleted_before < 15000);
-            const isRecentAfterDelete = lt._photoDeleted_after && (Date.now() - lt._photoDeleted_after < 15000);
-
             const rP1 = rt.photo_1 || rt.before_photo;
-            if (rP1 && !isRecentBeforeDelete) {
+            if (rP1 && !isLocalDeletedBefore && !isRemoteExplicitDelete) {
               photoManager.setTaskPhoto(rt.task_id, 'before_photo', rP1, rP1, norm);
               lt.photo_1 = rP1;
               lt.before_photo = rP1;
@@ -2112,7 +2143,7 @@ class MonthWorkbookManager {
             }
 
             const rP2 = rt.photo_2 || rt.after_photo || rt.photo;
-            if (rP2 && !isRecentAfterDelete) {
+            if (rP2 && !isLocalDeletedAfter && !isRemoteExplicitDelete) {
               photoManager.setTaskPhoto(rt.task_id, 'after_photo', rP2, rP2, norm);
               lt.photo_2 = rP2;
               lt.after_photo = rP2;
@@ -2187,7 +2218,13 @@ class MonthWorkbookManager {
               }
 
               // 2. TEXT FIELDS PROTECTION: Never wipe non-empty task_name or task_details with empty or default placeholder strings
-              if (k === 'task_name' || k === 'task_details') {
+              if (k === 'task_name' || k === 'task_details' || k === 'category' || k === 'assignee' || k === 'engineer' || k === 'description' || k === 'impact') {
+                const localTextTime = lt._lastTextEditTime || lt._lastFieldEditTime || (lt.last_updated ? new Date(lt.last_updated).getTime() : 0);
+                const remoteTextTime = rt._lastTextEditTime || rt._lastFieldEditTime || (rt.last_updated ? new Date(rt.last_updated).getTime() : 0);
+                if (lt.user_edited && localTextTime >= remoteTextTime) {
+                  needsCloudPushBack = true;
+                  continue;
+                }
                 const rStr = (rVal !== undefined && rVal !== null) ? String(rVal).trim() : '';
                 const lStr = (lVal !== undefined && lVal !== null) ? String(lVal).trim() : '';
                 if (rStr === '' && lStr !== '') {
@@ -2201,31 +2238,34 @@ class MonthWorkbookManager {
                 if (isLocalStrictlyNewer && lStr !== '') {
                   continue;
                 }
-                if (lt._lastFieldEditTime && (Date.now() - lt._lastFieldEditTime < 15000) && lStr !== '') {
-                  continue; // User actively edited locally within last 15s
+                if (lt._lastFieldEditTime && (Date.now() - lt._lastFieldEditTime < 60000) && lStr !== '') {
+                  continue; // User actively edited locally within last 60s
                 }
               }
 
               // 3. PHOTOS PROTECTION:
               if (k === 'photo_1' || k === 'photo_2' || k === 'before_photo' || k === 'after_photo' || k === 'photo') {
                 const isBeforeSlot = (k === 'photo_1' || k === 'before_photo');
-                const isRecentDelete = isBeforeSlot
-                  ? (lt._photoDeleted_before && (Date.now() - lt._photoDeleted_before < 15000))
-                  : (lt._photoDeleted_after && (Date.now() - lt._photoDeleted_after < 15000));
-                const isRecentPhotoEdit = lt._lastPhotoEditTime && (Date.now() - lt._lastPhotoEditTime < 120000);
+                const isDeletedSlot = isBeforeSlot ? isLocalDeletedBefore : isLocalDeletedAfter;
+
+                if (isDeletedSlot || isRemoteExplicitDelete) {
+                  lt[k] = "";
+                  continue;
+                }
 
                 // If remote has photo: ADOPT IT across all peer PCs!
-                if (rVal && rVal !== "" && rVal !== "null" && !isRecentDelete) {
+                if (rVal && rVal !== "" && rVal !== "null") {
                   lt[k] = rVal;
                   delete lt.clear_photos;
                   if (isBeforeSlot) delete lt._photoDeleted_before;
                   else delete lt._photoDeleted_after;
                   continue;
                 }
+              }
 
-                // If local has photo and remote doesn't, but local was recent: keep local!
-                if (!rVal && lVal && isRecentPhotoEdit) {
-                  needsCloudPushBack = true;
+              if (k === 'clear_photos') {
+                if (rVal === true || isRemoteExplicitDelete || isLocalDeletedAfter || isLocalDeletedBefore) {
+                  lt.clear_photos = true;
                   continue;
                 }
               }

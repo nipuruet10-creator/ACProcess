@@ -11,6 +11,7 @@ const files = [
   'api/get_photos.php',
   'api/save_photo.php',
   'api/sync_top_works.php',
+  'api/sync_overrides.php',
   'ai/prompt_templates.js',
   'database/firebase_sync_service.js',
   'photos/photo_manager.js',
