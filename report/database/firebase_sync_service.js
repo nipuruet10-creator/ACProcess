@@ -104,6 +104,9 @@ const FirebaseSyncService = {
           // Hydrate master engineers and supervisors from cloud
           this.hydrateMasterPersonnel();
 
+          // Hydrate Top 5 Works from cloud
+          this.hydrateTopWorks();
+
           // Bind active month listeners
           const activeMonth = (window.appState && window.appState.workbookMgr)
             ? window.appState.workbookMgr.activeMonth
@@ -693,7 +696,58 @@ const FirebaseSyncService = {
       });
     }
 
+    // 12. Real-time Top 5 Summary (Completed & Ongoing Projects) Sync across all PCs
+    if (!this._topWorksBound) {
+      this._topWorksBound = true;
+      this.db.ref('walton_monthly_report/top_works').on('value', (snapshot) => {
+        const allTopWorks = snapshot.val();
+        if (allTopWorks && typeof allTopWorks === 'object') {
+          if (typeof TopWorksManager !== 'undefined' && TopWorksManager.applyRemoteStore) {
+            TopWorksManager.applyRemoteStore(allTopWorks);
+          }
+          const activeM = (window.appState && window.appState.workbookMgr)
+            ? window.appState.workbookMgr.activeMonth
+            : 'SEP-2026';
+          const curData = allTopWorks[activeM];
+          if (curData && typeof FinalEditorView !== 'undefined' && FinalEditorView.updateInPlace) {
+            FinalEditorView.updateInPlace(activeM, curData);
+          }
+          if (window.App && window.App.markTabDirty) {
+            window.App.markTabDirty('top5-summary');
+            window.App.markTabDirty('monthly-report');
+            window.App.markTabDirty('final-report');
+          }
+        }
+      });
+    }
+
     console.log(`🔥 Firebase listening to real-time changes for ${normMonth}`);
+  },
+
+  /**
+   * Hydrate Top 5 Works (Completed & Ongoing Projects) from cloud on connect
+   */
+  async hydrateTopWorks() {
+    if (!this.db) return;
+    try {
+      const snap = await this.db.ref('walton_monthly_report/top_works').once('value');
+      const val = snap.val();
+      if (val && typeof val === 'object') {
+        if (typeof TopWorksManager !== 'undefined' && TopWorksManager.applyRemoteStore) {
+          TopWorksManager.applyRemoteStore(val);
+        }
+        const activeM = (window.appState && window.appState.workbookMgr)
+          ? window.appState.workbookMgr.activeMonth
+          : 'SEP-2026';
+        const curData = val[activeM];
+        if (curData && typeof FinalEditorView !== 'undefined' && FinalEditorView.updateInPlace) {
+          FinalEditorView.updateInPlace(activeM, curData);
+        }
+        console.log("🔥 Firebase Hydrated: Loaded Top 5 Works & Projects from cloud.");
+      }
+    } catch(e) {
+      console.warn("Firebase hydrateTopWorks notice:", e);
+    }
   },
 
   /**

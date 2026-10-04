@@ -139,6 +139,12 @@ const App = {
       this.syncEngine.fetchServerOverrides(initM).catch(() => {});
     }
 
+    // Hydrate Top 5 Works (Completed & Ongoing) on startup across devices
+    if (typeof TopWorksManager !== 'undefined' && TopWorksManager.fetchFromServer) {
+      const initM = this.workbookMgr ? this.workbookMgr.activeMonth : 'SEP-2026';
+      TopWorksManager.fetchFromServer(initM).catch(() => {});
+    }
+
     // Auto-clean bloated stale history and cache to ensure buttery smooth performance
     try {
       const trimKeys = ['walton_pd_history_v1', 'walton_pd_audit_v1', 'walton_report_history', 'walton_audit_log'];
@@ -272,6 +278,10 @@ const App = {
     } else if (tabId === 'photo-manager') {
       await this.switchTab('monthly-report');
     } else if (tabId === 'top5-summary' || tabId === 'final-report') {
+      if (typeof TopWorksManager !== 'undefined' && TopWorksManager.fetchFromServer) {
+        const curM = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
+        await TopWorksManager.fetchFromServer(curM).catch(() => {});
+      }
       if (typeof FinalEditorView !== 'undefined') {
         const cId = document.getElementById('top5-summary-view-container') ? 'top5-summary-view-container' : 'final-report-view-container';
         await FinalEditorView.render(cId);

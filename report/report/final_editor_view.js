@@ -215,6 +215,131 @@ const FinalEditorView = {
     }
   },
 
+  _autoSaveTimer: null,
+
+  handleInputChange() {
+    // 1. Live update the slide preview immediately on keystroke
+    const previewContainer = document.getElementById('top5-live-slide-preview-container');
+    if (previewContainer && typeof SlideLayoutEngine !== 'undefined') {
+      try {
+        const completed = [];
+        for (let i = 0; i < 5; i++) {
+          const inp = document.getElementById(`top-completed-input-${i}`);
+          completed.push(inp ? inp.value.trim() : "");
+        }
+        const ongoing = [];
+        for (let i = 0; i < 5; i++) {
+          const nInp = document.getElementById(`top-ongoing-name-${i}`);
+          const pInp = document.getElementById(`top-ongoing-prog-${i}`);
+          const dInp = document.getElementById(`top-ongoing-dline-${i}`);
+          ongoing.push({
+            sl: i + 1,
+            name: nInp ? nInp.value.trim() : "",
+            progress: pInp ? pInp.value.trim() : "",
+            deadline: dInp ? dInp.value.trim() : ""
+          });
+        }
+        previewContainer.innerHTML = SlideLayoutEngine.renderTopWorksSummarySlide(this.selectedMonth, {
+          completedTop5: completed,
+          ongoingTop5: ongoing
+        });
+      } catch(e) {}
+    }
+
+    // 2. Debounce auto-save to cloud after 1.5 seconds of idle typing
+    if (this._autoSaveTimer) clearTimeout(this._autoSaveTimer);
+    this._autoSaveTimer = setTimeout(() => {
+      this._autoSaveTimer = null;
+      this.silentSaveTopWorks();
+    }, 1500);
+  },
+
+  silentSaveTopWorks() {
+    if (typeof TopWorksManager === 'undefined') return;
+    const completed = [];
+    for (let i = 0; i < 5; i++) {
+      const inp = document.getElementById(`top-completed-input-${i}`);
+      completed.push(inp ? inp.value.trim() : "");
+    }
+    const ongoing = [];
+    for (let i = 0; i < 5; i++) {
+      const nameInp = document.getElementById(`top-ongoing-name-${i}`);
+      const progInp = document.getElementById(`top-ongoing-prog-${i}`);
+      const dlineInp = document.getElementById(`top-ongoing-dline-${i}`);
+      ongoing.push({
+        sl: i + 1,
+        name: nameInp ? nameInp.value.trim() : "",
+        progress: progInp ? progInp.value.trim() : "",
+        deadline: dlineInp ? dlineInp.value.trim() : ""
+      });
+    }
+    TopWorksManager.saveTopWorksForMonth(this.selectedMonth, completed, ongoing);
+  },
+
+  updateInPlace(month, data) {
+    if (!data) return;
+    const curMonth = this.selectedMonth || (window.appState && window.appState.workbookMgr ? window.appState.workbookMgr.activeMonth : 'SEP-2026');
+    if (month && month.toUpperCase() !== curMonth.toUpperCase()) return;
+
+    const completed = Array.isArray(data.completedTop5) ? data.completedTop5 : [];
+    const ongoing = Array.isArray(data.ongoingTop5) ? data.ongoingTop5 : [];
+
+    // 1. Update Section 1 inputs (Top 5 Completed) if not currently focused
+    for (let i = 0; i < 5; i++) {
+      const inp = document.getElementById(`top-completed-input-${i}`);
+      if (inp && document.activeElement !== inp) {
+        inp.value = completed[i] || '';
+      }
+      const modalInp = document.getElementById(`modal-top-completed-${i}`);
+      if (modalInp && document.activeElement !== modalInp) {
+        modalInp.value = completed[i] || '';
+      }
+    }
+
+    // 2. Update Section 2 inputs (Top 5 Ongoing) if not currently focused
+    for (let i = 0; i < 5; i++) {
+      const row = ongoing[i] || { name: '', progress: '', deadline: '' };
+      
+      const nameInp = document.getElementById(`top-ongoing-name-${i}`);
+      if (nameInp && document.activeElement !== nameInp) {
+        nameInp.value = row.name || '';
+      }
+      const progInp = document.getElementById(`top-ongoing-prog-${i}`);
+      if (progInp && document.activeElement !== progInp) {
+        progInp.value = row.progress || '';
+      }
+      const dlineInp = document.getElementById(`top-ongoing-dline-${i}`);
+      if (dlineInp && document.activeElement !== dlineInp) {
+        dlineInp.value = row.deadline || '';
+      }
+
+      // Modal inputs
+      const mNameInp = document.getElementById(`modal-top-ongoing-name-${i}`);
+      if (mNameInp && document.activeElement !== mNameInp) {
+        mNameInp.value = row.name || '';
+      }
+      const mProgInp = document.getElementById(`modal-top-ongoing-prog-${i}`);
+      if (mProgInp && document.activeElement !== mProgInp) {
+        mProgInp.value = row.progress || '';
+      }
+      const mDlineInp = document.getElementById(`modal-top-ongoing-dline-${i}`);
+      if (mDlineInp && document.activeElement !== mDlineInp) {
+        mDlineInp.value = row.deadline || '';
+      }
+    }
+
+    // 3. Update preview container if present
+    const previewContainer = document.getElementById('top5-live-slide-preview-container');
+    if (previewContainer && typeof SlideLayoutEngine !== 'undefined') {
+      try {
+        previewContainer.innerHTML = SlideLayoutEngine.renderTopWorksSummarySlide(curMonth, {
+          completedTop5: completed,
+          ongoingTop5: ongoing
+        });
+      } catch (e) {}
+    }
+  },
+
   saveTopWorks() {
     if (typeof TopWorksManager === 'undefined') return;
 
@@ -588,6 +713,7 @@ const FinalEditorView = {
                     </span>
                   </div>
                   <textarea id="top-completed-input-${idx}" rows="3"
+                    oninput="FinalEditorView.handleInputChange()"
                     placeholder="Enter completed work title ${idx + 1} (leave blank if none)..."
                     class="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-red-400 resize-none">${HELPERS.escapeHtml(topWorks.completedTop5[idx] || '')}</textarea>
                   <div class="text-[9px] font-mono text-slate-400 mt-1">Slot #${idx + 1}</div>
@@ -635,16 +761,19 @@ const FinalEditorView = {
                         </td>
                         <td class="py-2 px-2">
                           <input type="text" id="top-ongoing-name-${idx}" value="${HELPERS.escapeHtml(row.name || '')}"
+                            oninput="FinalEditorView.handleInputChange()"
                             placeholder="e.g. CNC Tube Bending Automation..."
                             class="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-red-400" />
                         </td>
                         <td class="py-2 px-2">
                           <input type="text" id="top-ongoing-prog-${idx}" value="${HELPERS.escapeHtml(row.progress || '')}"
+                            oninput="FinalEditorView.handleInputChange()"
                             placeholder="e.g. Trial run and modification ongoing..."
                             class="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:border-red-400" />
                         </td>
                         <td class="py-2 px-2 text-center">
                           <input type="text" id="top-ongoing-dline-${idx}" value="${HELPERS.escapeHtml(row.deadline || '')}"
+                            oninput="FinalEditorView.handleInputChange()"
                             placeholder="e.g. Oct, 2026"
                             class="w-full text-center bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-red-400" />
                         </td>
@@ -676,7 +805,7 @@ const FinalEditorView = {
             </div>
             <span class="text-xs text-slate-400 font-mono">Updates automatically when saved &bull; ${month}</span>
           </div>
-          <div class="w-full max-w-5xl mx-auto drop-shadow-md rounded-xl overflow-hidden border border-slate-200">
+          <div id="top5-live-slide-preview-container" class="w-full max-w-5xl mx-auto drop-shadow-md rounded-xl overflow-hidden border border-slate-200">
             ${(typeof SlideLayoutEngine !== 'undefined') ? SlideLayoutEngine.renderTopWorksSummarySlide(month, topWorks) : ''}
           </div>
         </div>

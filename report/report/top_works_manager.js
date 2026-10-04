@@ -96,7 +96,11 @@ const TopWorksManager = {
 
     if (store[m]) {
       let ongoing = store[m].ongoingTop5;
-      if (liveOngoing.length > 0 && (!ongoing || ongoing.length === 0 || ongoing.every(p => !p.name || p.name === '—'))) {
+      const isPlaceholderRAC = Array.isArray(ongoing) && ongoing.length > 0 &&
+        ongoing[0].name === "RAC Assembly line relocation" &&
+        ongoing.slice(1).every(p => !p.name || p.name === '—');
+
+      if (liveOngoing.length > 0 && (!ongoing || ongoing.length === 0 || ongoing.every(p => !p.name || p.name === '—') || isPlaceholderRAC)) {
         ongoing = [];
         for (let i = 0; i < 5; i++) {
           if (liveOngoing[i]) {
@@ -136,13 +140,7 @@ const TopWorksManager = {
     }
 
     if (!ongoingTop5) {
-      ongoingTop5 = [
-        { sl: 1, name: "RAC Assembly line relocation", progress: "Trial production run & line balancing verification ongoing", deadline: "4-5 Months" },
-        { sl: 2, name: "—", progress: "—", deadline: "—" },
-        { sl: 3, name: "—", progress: "—", deadline: "—" },
-        { sl: 4, name: "—", progress: "—", deadline: "—" },
-        { sl: 5, name: "—", progress: "—", deadline: "—" }
-      ];
+      ongoingTop5 = this._cloneOngoing(this.DEFAULT_ONGOING);
     }
 
     const completedTop5 = liveCompleted.length > 0 ? liveCompleted.slice(0, 5) : ["", "", "", "", ""];
@@ -153,6 +151,91 @@ const TopWorksManager = {
       isCarriedOver: true,
       sourceMonth: m
     };
+  },
+
+  applyRemoteStore(allData) {
+    if (!allData || typeof allData !== 'object') return null;
+    const store = this._loadStore();
+    let changed = false;
+
+    for (const [monthKey, monthData] of Object.entries(allData)) {
+      if (!monthData || typeof monthData !== 'object') continue;
+      const m = monthKey.toUpperCase();
+
+      const cleanCompleted = (Array.isArray(monthData.completedTop5) ? monthData.completedTop5 : []).slice(0, 5);
+      while (cleanCompleted.length < 5) cleanCompleted.push("");
+
+      const cleanOngoing = (Array.isArray(monthData.ongoingTop5) ? monthData.ongoingTop5 : []).slice(0, 5).map((p, idx) => ({
+        sl: idx + 1,
+        name: (p.name || "").trim(),
+        progress: (p.progress || "").trim(),
+        deadline: (p.deadline || "").trim()
+      }));
+      while (cleanOngoing.length < 5) {
+        cleanOngoing.push({ sl: cleanOngoing.length + 1, name: "", progress: "", deadline: "" });
+      }
+
+      const existing = store[m];
+      const remoteTime = monthData.updated_at ? (typeof monthData.updated_at === 'number' ? monthData.updated_at : new Date(monthData.updated_at).getTime()) : 0;
+      const localTime = (existing && existing.updated_at) ? (typeof existing.updated_at === 'number' ? existing.updated_at : new Date(existing.updated_at).getTime()) : 0;
+
+      const localMissingData = !existing || 
+        !Array.isArray(existing.completedTop5) || existing.completedTop5.every(s => !s) ||
+        !Array.isArray(existing.ongoingTop5) || existing.ongoingTop5.every(p => !p.name || p.name === '—');
+
+      if (!existing || remoteTime >= localTime || localMissingData) {
+        store[m] = {
+          completedTop5: cleanCompleted,
+          ongoingTop5: cleanOngoing,
+          updated_at: monthData.updated_at || Date.now()
+        };
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      this._saveStore(store);
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('walton_top_works_changed', { detail: store }));
+        }
+      } catch (e) {}
+    }
+    return store;
+  },
+
+  applyRemoteUpdate(month, data) {
+    if (!month || !data || typeof data !== 'object') return null;
+    const m = month.toUpperCase();
+    const store = this._loadStore();
+
+    const cleanCompleted = (Array.isArray(data.completedTop5) ? data.completedTop5 : []).slice(0, 5);
+    while (cleanCompleted.length < 5) cleanCompleted.push("");
+
+    const cleanOngoing = (Array.isArray(data.ongoingTop5) ? data.ongoingTop5 : []).slice(0, 5).map((p, idx) => ({
+      sl: idx + 1,
+      name: (p.name || "").trim(),
+      progress: (p.progress || "").trim(),
+      deadline: (p.deadline || "").trim()
+    }));
+    while (cleanOngoing.length < 5) {
+      cleanOngoing.push({ sl: cleanOngoing.length + 1, name: "", progress: "", deadline: "" });
+    }
+
+    store[m] = {
+      completedTop5: cleanCompleted,
+      ongoingTop5: cleanOngoing,
+      updated_at: data.updated_at || Date.now()
+    };
+
+    this._saveStore(store);
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('walton_top_works_changed', { detail: { month: m, data: store[m] } }));
+      }
+    } catch (e) {}
+
+    return store[m];
   },
 
   saveTopWorks(month, completedOrData, ongoingTop5) {
@@ -184,15 +267,41 @@ const TopWorksManager = {
       cleanOngoing.push({ sl: cleanOngoing.length + 1, name: "", progress: "", deadline: "" });
     }
 
+    const now = Date.now();
     store[m] = {
       completedTop5: cleanCompleted,
       ongoingTop5: cleanOngoing,
-      updated_at: new Date().toISOString()
+      updated_at: now
     };
 
     this._saveStore(store);
 
-    // 1. Sync to Hostinger server storage via API
+    // 1. Instant Realtime sync to Google Firebase (triggers sub-50ms listener across all open browsers)
+    try {
+      if (typeof FirebaseSyncService !== 'undefined') {
+        if (FirebaseSyncService.db) {
+          FirebaseSyncService.db.ref(`walton_monthly_report/top_works/${m}`).set({
+            completedTop5: cleanCompleted,
+            ongoingTop5: cleanOngoing,
+            updated_at: now
+          }).catch(e => console.warn('[TopWorks Sync] Firebase sync notice:', e));
+        } else {
+          const unwatch = setInterval(() => {
+            if (FirebaseSyncService.db) {
+              clearInterval(unwatch);
+              FirebaseSyncService.db.ref(`walton_monthly_report/top_works/${m}`).set({
+                completedTop5: cleanCompleted,
+                ongoingTop5: cleanOngoing,
+                updated_at: now
+              }).catch(() => {});
+            }
+          }, 500);
+          setTimeout(() => clearInterval(unwatch), 5000);
+        }
+      }
+    } catch(e) {}
+
+    // 2. Sync to Hostinger server storage via API
     try {
       if (typeof fetch !== 'undefined') {
         fetch('api/sync_top_works.php', {
@@ -201,20 +310,10 @@ const TopWorksManager = {
           body: JSON.stringify({
             month: m,
             completedTop5: cleanCompleted,
-            ongoingTop5: cleanOngoing
+            ongoingTop5: cleanOngoing,
+            updated_at: now
           })
         }).catch(e => console.warn('[TopWorks Sync] Server sync notice:', e));
-      }
-    } catch(e) {}
-
-    // 2. Realtime sync to Google Firebase
-    try {
-      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
-        FirebaseSyncService.db.ref(`walton_monthly_report/top_works/${m}`).set({
-          completedTop5: cleanCompleted,
-          ongoingTop5: cleanOngoing,
-          updated_at: Date.now()
-        }).catch(e => console.warn('[TopWorks Sync] Firebase sync notice:', e));
       }
     } catch(e) {}
 
@@ -223,24 +322,37 @@ const TopWorksManager = {
 
   async fetchFromServer(month = "SEP-2026") {
     const m = (month || "SEP-2026").toUpperCase();
+    let dataLoaded = null;
+
+    // 1. Firebase (fastest sub-50ms real-time source of truth)
     try {
-      if (typeof fetch !== 'undefined') {
-        const res = await fetch(`api/sync_top_works.php?month=${m}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json && json.success && json.data) {
-            const store = this._loadStore();
-            store[m] = {
-              completedTop5: json.data.completedTop5 || [],
-              ongoingTop5: json.data.ongoingTop5 || [],
-              updated_at: json.data.updated_at || new Date().toISOString()
-            };
-            this._saveStore(store);
-            return store[m];
-          }
+      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+        const snap = await FirebaseSyncService.db.ref(`walton_monthly_report/top_works/${m}`).once('value');
+        const val = snap.val();
+        if (val && typeof val === 'object' && (val.completedTop5 || val.ongoingTop5)) {
+          dataLoaded = val;
         }
       }
     } catch(e) {}
+
+    // 2. Hostinger server storage API fallback
+    if (!dataLoaded) {
+      try {
+        if (typeof fetch !== 'undefined') {
+          const res = await fetch(`api/sync_top_works.php?month=${m}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json && json.success && json.data) {
+              dataLoaded = json.data;
+            }
+          }
+        }
+      } catch(e) {}
+    }
+
+    if (dataLoaded) {
+      return this.applyRemoteUpdate(m, dataLoaded);
+    }
     return null;
   },
 
