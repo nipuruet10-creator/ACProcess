@@ -641,6 +641,17 @@ class PhotoManager {
             if (updatedWbTask) {
               FirebaseSyncService.pushTask(m, updatedWbTask);
             }
+            if (FirebaseSyncService.db) {
+              FirebaseSyncService.db.ref(`walton_monthly_report/live_photos/${m}/${taskId}`).update({
+                taskId: taskId,
+                month: m,
+                slot: slot,
+                [slot]: serverUrl,
+                photo: serverUrl,
+                [isBefore ? 'photo_1' : 'photo_2']: serverUrl,
+                updated_at: Date.now()
+              }).catch(() => {});
+            }
           } catch(e) {}
         }
 
@@ -757,23 +768,6 @@ class PhotoManager {
       }
     }
 
-    if (t) {
-      const isServerPhotoP1 = Boolean(this.photoMap[taskId]?.before_photo || memMonth?.before_photo);
-      const isServerPhotoP2 = Boolean(this.photoMap[taskId]?.after_photo || memMonth?.after_photo);
-
-      if (t.clear_photos && !isServerPhotoP1 && !isServerPhotoP2) {
-        if (!t._photoDeleted_before && !t._photoDeleted_after) {
-          p1 = null;
-          p2 = null;
-        }
-      }
-      if (t._photoDeleted_before && !isServerPhotoP1) {
-        p1 = null;
-      }
-      if (t._photoDeleted_after && !isServerPhotoP2) {
-        p2 = null;
-      }
-    }
     p1 = this.formatPhotoUrl(p1);
     p2 = this.formatPhotoUrl(p2);
 
@@ -809,6 +803,91 @@ class PhotoManager {
       return 'https://acprocess.com/report/' + rel;
     }
     return clean;
+  }
+
+  /**
+   * Real-time Cloud Photo Sync: Adopts live photo broadcasts from Firebase live_photos node
+   * Instantly updates in-memory cache, IndexedDB, workbook, and live card UI across all devices
+   */
+  applyLivePhotoData(taskId, pData, month = 'SEP-2026') {
+    if (!taskId || !pData) return;
+    const m = month || pData.month || 'SEP-2026';
+    const mKey = `${m}_${taskId}`;
+
+    const beforeP = this.formatPhotoUrl(pData.before_photo || pData.photo_1 || null);
+    const afterP = this.formatPhotoUrl(pData.after_photo || pData.photo_2 || pData.photo || null);
+
+    if (!this.photoMap[taskId]) this.photoMap[taskId] = {};
+    if (!this.photoMap[mKey]) this.photoMap[mKey] = {};
+
+    let hasChange = false;
+    if (beforeP && this.photoMap[taskId].before_photo !== beforeP) {
+      this.photoMap[taskId].before_photo = beforeP;
+      this.photoMap[taskId].photo_1 = beforeP;
+      this.photoMap[mKey].before_photo = beforeP;
+      this.photoMap[mKey].photo_1 = beforeP;
+      hasChange = true;
+    }
+    if (afterP && this.photoMap[taskId].after_photo !== afterP) {
+      this.photoMap[taskId].after_photo = afterP;
+      this.photoMap[taskId].photo_2 = afterP;
+      this.photoMap[taskId].photo = afterP;
+      this.photoMap[mKey].after_photo = afterP;
+      this.photoMap[mKey].photo_2 = afterP;
+      this.photoMap[mKey].photo = afterP;
+      hasChange = true;
+    }
+
+    // Persist to IndexedDB
+    if (typeof PhotoIndexedDB !== 'undefined') {
+      PhotoIndexedDB.saveTaskPhotos(taskId, this.photoMap[taskId]).catch(() => {});
+      PhotoIndexedDB.saveTaskPhotos(mKey, this.photoMap[mKey]).catch(() => {});
+    }
+
+    // Update Workbook task
+    if (window.appState && window.appState.workbookMgr) {
+      try {
+        const wbMgr = window.appState.workbookMgr;
+        const target = wbMgr.getTask(m, taskId);
+        if (target) {
+          if (beforeP) { target.before_photo = beforeP; target.photo_1 = beforeP; delete target._photoDeleted_before; }
+          if (afterP) { target.after_photo = afterP; target.photo_2 = afterP; target.photo = afterP; delete target._photoDeleted_after; }
+          delete target.clear_photos;
+          delete target._lastPhotoDeleteTime;
+          wbMgr.save();
+        }
+      } catch(e) {}
+    }
+
+    // Update SyncEngine active slides
+    if (window.appState && window.appState.syncEngine) {
+      try {
+        const slides = window.appState.syncEngine.getActiveSlides(m);
+        const target = slides.find(s => s && s.task_id === taskId);
+        if (target) {
+          if (beforeP) target.photo_before = beforeP;
+          if (afterP) target.photo_after = afterP;
+          target.photo = afterP || beforeP || target.photo;
+          target.has_dual_photo = Boolean(target.photo_before && target.photo_after);
+          localStorage.setItem(`walton_pd_active_slides_${m}`, JSON.stringify(slides));
+        }
+      } catch(e) {}
+    }
+
+    // Update live DOM on cards
+    if (hasChange) {
+      const livePhoto = afterP || beforeP;
+      if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
+        MonthlyReportView.updateSlideCardPhoto(taskId, livePhoto);
+      }
+      if (typeof MonthlyInputView !== 'undefined' && typeof MonthlyInputView.updateTaskCardPhoto === 'function') {
+        MonthlyInputView.updateTaskCardPhoto(taskId);
+      }
+      if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView._activeModalTaskId === taskId) {
+        if (typeof MonthlyReportView.renderModalPhotoSlots === 'function') MonthlyReportView.renderModalPhotoSlots(taskId);
+        if (typeof MonthlyReportView.renderModalLivePreview === 'function') MonthlyReportView.renderModalLivePreview(taskId);
+      }
+    }
   }
 
   /**
