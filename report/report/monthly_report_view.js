@@ -156,11 +156,12 @@ const MonthlyReportView = {
   searchQuery: "",
   currentPage: 1,
   pageSize: 12,
-  viewMode: 'grid',
+  viewMode: (typeof localStorage !== 'undefined' && localStorage.getItem('walton_report_view_mode')) ? localStorage.getItem('walton_report_view_mode') : 'table',
+  _renderTimer: null,
 
   setPage(page) {
     this.currentPage = Math.max(1, page);
-    this.render();
+    this.render(true);
     const el = document.getElementById('monthly-report-cards-grid') || document.getElementById('monthly-report-table-container');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   },
@@ -168,12 +169,15 @@ const MonthlyReportView = {
   setPageSize(sz) {
     this.pageSize = (sz === 'all') ? 'all' : (Number(sz) || 12);
     this.currentPage = 1;
-    this.render();
+    this.render(true);
   },
 
   setViewMode(mode) {
     this.viewMode = mode;
-    this.render();
+    try {
+      if (typeof localStorage !== 'undefined') localStorage.setItem('walton_report_view_mode', mode);
+    } catch (e) {}
+    this.render(true);
   },
 
   handleMonthSelect(month) {
@@ -743,13 +747,6 @@ const MonthlyReportView = {
 
   updateSlideCardPhoto(taskId, forcedPhotoUrl = null) {
     if (!taskId) return;
-    let card = document.getElementById(`slide-card-${taskId}`);
-    if (!card) {
-      const lowerId = String(taskId).toLowerCase();
-      card = document.querySelector(`[data-task-id="${taskId}"]`) ||
-             document.querySelector(`[data-task-id="${lowerId}"]`);
-    }
-    if (!card) return;
     const month = this.selectedMonth;
     let photos = null;
     if (typeof photoManager !== 'undefined') {
@@ -760,7 +757,33 @@ const MonthlyReportView = {
     let photoSingle = forcedPhotoUrl || photoAfter || photoBefore;
     const hasPhoto = Boolean(photoSingle);
 
-    // Format server photo with cache-buster timestamp so browser repaints immediately
+    // 1. If in Table View mode, update row photo badge directly
+    const row = document.getElementById(`slide-row-${taskId}`);
+    if (row) {
+      const statusCell = row.querySelector('.slide-photo-status-cell');
+      if (statusCell) {
+        statusCell.innerHTML = hasPhoto ? `
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            📷 Photo Attached
+          </span>
+        ` : `
+          <button type="button" onclick="MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo');" 
+                  class="px-2 py-0.5 rounded bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 text-[10px] font-bold border border-slate-200 transition cursor-pointer">
+            + Paste Photo
+          </button>
+        `;
+      }
+    }
+
+    // 2. If in Card View mode, find card
+    let card = document.getElementById(`slide-card-${taskId}`);
+    if (!card) {
+      const lowerId = String(taskId).toLowerCase();
+      card = document.querySelector(`[data-task-id="${taskId}"]`) ||
+             document.querySelector(`[data-task-id="${lowerId}"]`);
+    }
+    if (!card) return;
+
     let displaySrc = photoSingle;
     if (typeof photoManager !== 'undefined' && photoManager.formatPhotoUrl) {
       displaySrc = photoManager.formatPhotoUrl(displaySrc);
@@ -768,7 +791,8 @@ const MonthlyReportView = {
       const rel = displaySrc.startsWith('/') ? displaySrc.slice(1) : displaySrc;
       displaySrc = 'https://acprocess.com/report/' + rel;
     }
-    if (displaySrc && (displaySrc.startsWith('http') || displaySrc.startsWith('uploads/') || displaySrc.startsWith('/uploads/'))) {
+    // Only cache bust if explicitly forced (e.g., active user upload/paste)
+    if (forcedPhotoUrl && displaySrc && (displaySrc.startsWith('http') || displaySrc.startsWith('uploads/'))) {
       const cleanUrl = displaySrc.split('?')[0];
       displaySrc = `${cleanUrl}?t=${Date.now()}`;
     }
@@ -792,29 +816,24 @@ const MonthlyReportView = {
     if (previewContainer) {
       if (hasPhoto) {
         const existingMainImg = previewContainer.querySelector('.photo-main-img');
-        const existingBlurImg = previewContainer.querySelector('.photo-blur-bg');
         const existingWrapper = previewContainer.querySelector('.photo-fit-wrapper');
 
-        // ZERO BLINK: If image elements already exist, smoothly update src without tearing down DOM!
+        // ZERO BLINK & ZERO REFLOW: update src in-place
         if (existingMainImg && existingWrapper) {
           existingMainImg.src = displaySrc;
-          if (existingBlurImg) existingBlurImg.src = displaySrc;
           if (isCover) {
-            existingWrapper.classList.remove('photo-fit-blur');
-            existingWrapper.classList.add('photo-fit-cover');
-            if (existingBlurImg) existingBlurImg.style.display = 'none';
+            existingWrapper.className = 'photo-fit-wrapper photo-fit-cover relative w-full aspect-video rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center border border-slate-200 shadow-2xs group/img';
+            existingMainImg.className = 'photo-main-img w-full h-full object-cover absolute inset-0 drop-shadow-sm transition-all';
           } else {
-            existingWrapper.classList.remove('photo-fit-cover');
-            existingWrapper.classList.add('photo-fit-blur');
-            if (existingBlurImg) existingBlurImg.style.display = '';
+            existingWrapper.className = 'photo-fit-wrapper photo-fit-contain relative w-full aspect-video rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center border border-slate-200 shadow-2xs group/img';
+            existingMainImg.className = 'photo-main-img relative z-10 w-full h-full object-contain drop-shadow-sm transition-all';
           }
           return;
         }
 
         previewContainer.innerHTML = `
-          <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
-            <img src="${displaySrc}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" onerror="this.style.display='none';" />
-            <img src="${displaySrc}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${taskId}', '${photoAfter ? 'after_photo' : 'before_photo'}');" />
+          <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-contain'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center border border-slate-200 shadow-2xs group/img">
+            <img src="${displaySrc}" loading="lazy" decoding="async" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${taskId}', '${photoAfter ? 'after_photo' : 'before_photo'}');" />
             <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
               <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
                 ${photoAfter && photoBefore ? 'Dual Photo' : (photoAfter ? 'After Photo' : 'Before Photo')}
@@ -862,6 +881,40 @@ const MonthlyReportView = {
           </div>
         `;
       }
+    }
+  },
+
+  refreshVisibleCards() {
+    if (this.viewMode === 'table') {
+      const table = document.getElementById('monthly-report-table-container');
+      if (!table) return;
+      const month = this.selectedMonth;
+      if (typeof photoManager === 'undefined') return;
+      table.querySelectorAll('tr[id^="slide-row-"]').forEach(row => {
+        const taskId = row.id.replace('slide-row-', '');
+        const photos = photoManager.getTaskPhotos(taskId, month);
+        const hasPhoto = Boolean(photos && (photos.after_photo || photos.before_photo));
+        const statusCell = row.querySelector('.slide-photo-status-cell');
+        if (statusCell) {
+          statusCell.innerHTML = hasPhoto ? `
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              📷 Photo Attached
+            </span>
+          ` : `
+            <button type="button" onclick="MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo');" 
+                    class="px-2 py-0.5 rounded bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 text-[10px] font-bold border border-slate-200 transition cursor-pointer">
+              + Paste Photo
+            </button>
+          `;
+        }
+      });
+    } else {
+      const grid = document.getElementById('monthly-report-cards-grid');
+      if (!grid) return;
+      grid.querySelectorAll('.task-slide-card').forEach(card => {
+        const taskId = card.getAttribute('data-task-id');
+        if (taskId) this.updateSlideCardPhoto(taskId);
+      });
     }
   },
 
@@ -1865,7 +1918,23 @@ const MonthlyReportView = {
     }
   },
 
-  render() {
+  render(forceImmediate = false) {
+    const container = document.getElementById('monthly-report-view-container');
+    const isFirstRender = container && (!container.innerHTML || container.innerHTML.trim() === '');
+    if (forceImmediate || isFirstRender) {
+      if (this._renderTimer) clearTimeout(this._renderTimer);
+      this._renderTimer = null;
+      this._doRender();
+      return;
+    }
+    if (this._renderTimer) clearTimeout(this._renderTimer);
+    this._renderTimer = setTimeout(() => {
+      this._renderTimer = null;
+      this._doRender();
+    }, 50);
+  },
+
+  _doRender() {
     const container = document.getElementById('monthly-report-view-container');
     if (!container) return;
 
@@ -2296,7 +2365,7 @@ const MonthlyReportView = {
                         <div class="font-bold text-slate-900 line-clamp-1" title="${HELPERS.escapeHtml(s.slide_title)}">${HELPERS.escapeHtml(s.slide_title)}</div>
                         <div class="text-[10.5px] text-slate-400 line-clamp-1">${HELPERS.escapeHtml(s.description || '')}</div>
                       </td>
-                      <td class="py-2 px-3 text-center whitespace-nowrap">
+                      <td class="py-2 px-3 text-center whitespace-nowrap slide-photo-status-cell">
                         ${hasPhoto ? `
                           <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             📷 Photo Attached

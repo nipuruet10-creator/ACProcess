@@ -119,11 +119,10 @@ class PhotoManager {
       console.warn("Could not read photos from IndexedDB:", e);
     }
 
-    // 4. Fetch all photos from Hostinger permanent server storage for active months
+    // 4. Fetch photos from Hostinger permanent server storage for active month
     try {
-      await this.fetchPhotosFromServer('SEP-2026');
-      await this.fetchPhotosFromServer('AUG-2026');
-      await this.fetchPhotosFromServer('ALL');
+      const activeM = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
+      await this.fetchPhotosFromServer(activeM);
     } catch (e) {
       console.warn("[Hostinger Photo Storage] Server photo sync notice:", e);
     }
@@ -135,18 +134,21 @@ class PhotoManager {
       console.warn("[Hostinger Photo Storage] Local reconciliation notice:", e);
     }
 
-    // 6. Periodic background sync every 10 seconds for real-time cross-device photo updates
+    // 6. Periodic fallback sync (Runs every 30 seconds only if Firebase is offline)
     if (typeof window !== 'undefined' && !this._serverPollTimer) {
       let pollCount = 0;
       this._serverPollTimer = setInterval(() => {
+        // If Firebase Realtime Database is connected, it already broadcasts sub-50ms live photos! Skip heavy HTTP polling.
+        if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
+          return;
+        }
         pollCount++;
         const m = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
         this.fetchPhotosFromServer(m);
-        // Every 30 seconds, auto-reconcile any pending local photos
         if (pollCount % 3 === 0) {
           this.reconcileLocalPhotosToServer();
         }
-      }, 10000);
+      }, 30000);
     }
 
     this.isReady = true;
@@ -305,6 +307,7 @@ class PhotoManager {
         const data = await resp.json();
         if (data && data.success && data.photos) {
           let updatedCount = 0;
+          let hasAnyPhotoChanged = false;
           let delMap = {};
           try {
             delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
@@ -413,17 +416,20 @@ class PhotoManager {
 
             // Real-time live card update when photo is added or updated on another PC
             if (photoChanged) {
-              if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
-                MonthlyReportView.updateSlideCardPhoto(tId);
-              }
-              if (typeof MonthlyInputView !== 'undefined' && typeof MonthlyInputView.updateTaskCardPhoto === 'function') {
-                MonthlyInputView.updateTaskCardPhoto(tId);
-              }
+              hasAnyPhotoChanged = true;
             }
             updatedCount++;
           }
 
           // If photos were added or updated on another PC, also refresh active slides cache & views smoothly
+          if (hasAnyPhotoChanged) {
+            if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.refreshVisibleCards === 'function') {
+              MonthlyReportView.refreshVisibleCards();
+            }
+            if (typeof MonthlyInputView !== 'undefined' && typeof MonthlyInputView.debouncedRender === 'function') {
+              MonthlyInputView.debouncedRender(150);
+            }
+          }
           if (updatedCount > 0) {
             try {
               const activeM = month && month !== 'ALL' ? month : 'SEP-2026';
@@ -916,8 +922,8 @@ class PhotoManager {
       } catch(e) {}
     }
 
-    // Update live DOM on cards
-    if (hasChange) {
+    // Update live DOM on cards (Only on single item update, not inside batch loop)
+    if (hasChange && !isBatch) {
       const livePhoto = afterP || beforeP;
       if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
         MonthlyReportView.updateSlideCardPhoto(taskId, livePhoto);
@@ -986,6 +992,10 @@ class PhotoManager {
           const slides = window.appState.syncEngine.getActiveSlides(m);
           this._debouncedSaveSlides(m, slides);
         } catch(e) {}
+      }
+
+      if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.refreshVisibleCards === 'function') {
+        MonthlyReportView.refreshVisibleCards();
       }
     }
   }
