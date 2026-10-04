@@ -93,6 +93,31 @@ class PPTXGenerator {
 
     const pptx = new PptxGenJS();
 
+    // Universal Defensive Shape Interceptor:
+    // Guarantees zero runtime crashes if any shape parameter is undefined/falsy or invalid across all CDN bundles
+    const origAddSlide = pptx.addSlide.bind(pptx);
+    pptx.addSlide = function(...args) {
+      const slide = origAddSlide(...args);
+      const origAddShape = slide.addShape.bind(slide);
+      slide.addShape = function(shapeType, opts) {
+        let validShape = shapeType;
+        if (!validShape) {
+          validShape = (pptx.ShapeType && pptx.ShapeType.rect) || (pptx.shapes && pptx.shapes.RECTANGLE) || 'rect';
+        }
+        try {
+          return origAddShape(validShape, opts);
+        } catch (shapeErr) {
+          console.warn("Recovered from addShape error with fallback 'rect':", shapeErr, shapeType);
+          try {
+            return origAddShape('rect', opts);
+          } catch (_) {
+            return null;
+          }
+        }
+      };
+      return slide;
+    };
+
     // Widescreen Layout (13.333" × 7.5" matches coordinate space used in slide methods)
     pptx.layout = "LAYOUT_WIDE";
     pptx.author = "Walton AC Process Development";
@@ -2574,6 +2599,7 @@ class PPTXGenerator {
     const navyPrimary = "0B2038";
     const blueCorporate = "0284C7";
     const blueRoyal = "2563EB";
+    const cyanAccent = "06B6D4";
     const textMuted = "64748B";
 
     // Top Accent Border

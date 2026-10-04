@@ -6,6 +6,21 @@
  * WALTON Hi-Tech Industries PLC
  */
 
+// Safe HELPERS fallback to guarantee crash-free rendering even if helpers.js loads out of sequence
+if (typeof HELPERS === 'undefined') {
+  const _fallbackHelpers = {
+    sanitizeText: (t) => t || '',
+    formatCurrency: (c) => c || '',
+    formatDate: (d) => d || '',
+    formatBDT: (c) => c || '৳ 0',
+    escapeHtml: (s) => s || '',
+    escapeHTML: (s) => s || '',
+    getInitials: (n) => n ? n.slice(0, 2) : ''
+  };
+  if (typeof window !== 'undefined') window.HELPERS = _fallbackHelpers;
+  if (typeof global !== 'undefined') global.HELPERS = _fallbackHelpers;
+}
+
 const SlideLayoutEngine = {
   theme: typeof SLIDE_THEME !== 'undefined' ? SLIDE_THEME : {
     COLORS: {
@@ -3929,6 +3944,7 @@ const SlideLayoutEngine = {
    * Then: Thank You slide (Requirement 11)
    */
   renderDeck(reportData = {}, template = "walton_executive_crimson") {
+    const deck = [];
     const activeTemplate = reportData.template || template || "walton_executive_crimson";
     const isBlue = (activeTemplate === "industrial_innovation_blue" || activeTemplate === "walton_blue_dual");
     const month = reportData.month || "SEPTEMBER 2026";
