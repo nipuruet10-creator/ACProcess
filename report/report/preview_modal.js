@@ -217,46 +217,51 @@ const SlidePreviewModal = {
     }
 
     container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/95 backdrop-blur-md">
-        <div class="relative w-full max-w-7xl bg-[#0B0F19] border border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-5 text-slate-100 flex flex-col max-h-[98vh]">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5 bg-slate-950/95 backdrop-blur-md">
+        <div class="relative w-full max-w-7xl bg-[#0B0F19] border border-slate-800 rounded-2xl shadow-2xl p-3 sm:p-5 text-slate-100 flex flex-col max-h-[98vh] overflow-hidden">
           
-          <!-- Modal Top Control Bar -->
-          <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <!-- Modal Top Control Bar (Mobile-friendly Stack/Wrap) -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-800 flex-shrink-0">
             
             <!-- Left Branding & Slide Info -->
-            <div class="flex items-center gap-3">
-              <span class="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold bg-red-600 text-white shadow-sm">
-                ${isDeck ? 'FULL EXECUTIVE DECK' : '16:9 SLIDE PREVIEW'}
+            <div class="flex items-center gap-2 max-w-full">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-red-600 text-white shadow-sm flex-shrink-0">
+                ${isDeck ? 'FULL DECK' : 'SLIDE PREVIEW'}
               </span>
-              <div class="max-w-md truncate">
-                <span class="text-xs font-bold text-white">${HELPERS.escapeHtml(headerTitle)}</span>
-                ${currentTask ? `<span class="text-[10px] text-slate-400 ml-2 font-mono">ID: ${currentTask.task_id} &bull; ${currentTask.engineer}</span>` : ''}
+              <div class="truncate min-w-0">
+                <span class="text-xs font-bold text-white truncate block sm:inline">${HELPERS.escapeHtml(headerTitle)}</span>
+                ${currentTask ? `<span class="text-[10px] text-slate-400 sm:ml-2 font-mono hidden sm:inline">ID: ${currentTask.task_id} &bull; ${currentTask.engineer}</span>` : ''}
               </div>
             </div>
 
             <!-- Slide Navigation & Jump Controls -->
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
               ${isDeck ? `
-                <select onchange="SlidePreviewModal.goToSlide(parseInt(this.value))" class="bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-red-500 max-w-[200px] truncate">
+                <select onchange="SlidePreviewModal.goToSlide(parseInt(this.value))" class="bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-red-500 max-w-[140px] sm:max-w-[200px] truncate">
                   ${this.deckTitles.map((t, idx) => `<option value="${idx}" ${this.currentSlideIndex === idx ? 'selected' : ''}>${t}</option>`).join('')}
                 </select>
               ` : ''}
 
-              <button onclick="SlidePreviewModal.prev()" ${this.currentSlideIndex === 0 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold disabled:opacity-30 border border-slate-700">
-                &larr; Prev
-              </button>
-              <span class="text-xs font-mono text-red-400 font-bold px-1 whitespace-nowrap">
-                ${this.currentSlideIndex + 1} / ${total}
-              </span>
-              <button onclick="SlidePreviewModal.next()" ${this.currentSlideIndex === total - 1 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold disabled:opacity-30 border border-slate-700">
-                Next &rarr;
-              </button>
-              <button onclick="SlidePreviewModal.toggleFullscreen()" title="Toggle Fullscreen Presentation" class="ml-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center gap-1 cursor-pointer">
-                <span>⛶</span> <span class="hidden sm:inline">Fullscreen</span>
-              </button>
-              <button onclick="SlidePreviewModal.close()" class="ml-2 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
+              <div class="flex items-center gap-1">
+                <button onclick="SlidePreviewModal.prev()" ${this.currentSlideIndex === 0 ? 'disabled' : ''} class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold disabled:opacity-30 border border-slate-700 cursor-pointer">
+                  &larr; Prev
+                </button>
+                <span class="text-xs font-mono text-red-400 font-bold px-1 whitespace-nowrap">
+                  ${this.currentSlideIndex + 1}/${total}
+                </span>
+                <button onclick="SlidePreviewModal.next()" ${this.currentSlideIndex === total - 1 ? 'disabled' : ''} class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold disabled:opacity-30 border border-slate-700 cursor-pointer">
+                  Next &rarr;
+                </button>
+              </div>
+
+              <div class="flex items-center gap-1 ml-auto sm:ml-0">
+                <button onclick="SlidePreviewModal.toggleFullscreen()" title="Toggle Fullscreen Presentation" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center gap-1 cursor-pointer">
+                  <span>⛶</span> <span class="hidden md:inline">Full</span>
+                </button>
+                <button onclick="SlidePreviewModal.close()" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 cursor-pointer" title="Close Preview">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
             </div>
 
           </div>

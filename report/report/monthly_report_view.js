@@ -632,6 +632,91 @@ const MonthlyReportView = {
     }
   },
 
+  showUploadProgress(taskId, percent = 0, statusText = "Uploading photo...") {
+    if (!taskId) return;
+    const card = document.getElementById(`slide-card-${taskId}`);
+    if (card) {
+      const container = card.querySelector('.slide-card-photo-container');
+      if (container) {
+        let overlay = container.querySelector('.slide-upload-progress-overlay');
+        if (!overlay) {
+          container.style.position = 'relative';
+          overlay = document.createElement('div');
+          overlay.className = 'slide-upload-progress-overlay absolute inset-0 z-30 bg-slate-950/85 backdrop-blur-xs rounded-xl flex flex-col items-center justify-center p-3 text-white transition-opacity duration-200';
+          overlay.innerHTML = `
+            <div class="w-full max-w-[85%] space-y-2 text-center pointer-events-none">
+              <div class="flex items-center justify-between text-[11px] font-mono font-bold">
+                <span class="upload-status-text text-blue-300 truncate mr-2">⚡ Uploading...</span>
+                <span class="upload-percent-text text-white font-black">0%</span>
+              </div>
+              <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                <div class="upload-progress-bar h-full bg-gradient-to-r from-blue-500 via-indigo-400 to-emerald-400 rounded-full transition-all duration-150" style="width: 0%;"></div>
+              </div>
+              <div class="text-[9.5px] text-slate-400 font-mono">Hostinger Server Permanent SSD</div>
+            </div>
+          `;
+          container.appendChild(overlay);
+        }
+        const pctEl = overlay.querySelector('.upload-percent-text');
+        const barEl = overlay.querySelector('.upload-progress-bar');
+        const stEl = overlay.querySelector('.upload-status-text');
+        if (pctEl) pctEl.textContent = `${percent}%`;
+        if (barEl) barEl.style.width = `${percent}%`;
+        if (stEl && statusText) stEl.textContent = statusText;
+      }
+    }
+
+    // Also update Customize Modal slot if open
+    const modalSlot = document.getElementById('modal-slot-photo');
+    if (modalSlot && this._activeModalTaskId === taskId) {
+      let modalOverlay = modalSlot.querySelector('.modal-upload-progress-overlay');
+      if (!modalOverlay) {
+        modalSlot.style.position = 'relative';
+        modalOverlay = document.createElement('div');
+        modalOverlay.className = 'modal-upload-progress-overlay absolute inset-0 z-30 bg-slate-950/85 backdrop-blur-xs rounded-xl flex flex-col items-center justify-center p-3 text-white transition-opacity duration-200';
+        modalOverlay.innerHTML = `
+          <div class="w-full max-w-[85%] space-y-2 text-center pointer-events-none">
+            <div class="flex items-center justify-between text-[11px] font-mono font-bold">
+              <span class="upload-status-text text-blue-300 truncate mr-2">⚡ Uploading...</span>
+              <span class="upload-percent-text text-white font-black">0%</span>
+            </div>
+            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+              <div class="upload-progress-bar h-full bg-gradient-to-r from-blue-500 via-indigo-400 to-emerald-400 rounded-full transition-all duration-150" style="width: 0%;"></div>
+            </div>
+            <div class="text-[9.5px] text-slate-400 font-mono">Hostinger Server Permanent SSD</div>
+          </div>
+        `;
+        modalSlot.appendChild(modalOverlay);
+      }
+      const pctEl = modalOverlay.querySelector('.upload-percent-text');
+      const barEl = modalOverlay.querySelector('.upload-progress-bar');
+      const stEl = modalOverlay.querySelector('.upload-status-text');
+      if (pctEl) pctEl.textContent = `${percent}%`;
+      if (barEl) barEl.style.width = `${percent}%`;
+      if (stEl && statusText) stEl.textContent = statusText;
+    }
+  },
+
+  hideUploadProgress(taskId) {
+    if (!taskId) return;
+    const card = document.getElementById(`slide-card-${taskId}`);
+    if (card) {
+      const overlay = card.querySelector('.slide-upload-progress-overlay');
+      if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 200);
+      }
+    }
+    const modalSlot = document.getElementById('modal-slot-photo');
+    if (modalSlot) {
+      const modalOverlay = modalSlot.querySelector('.modal-upload-progress-overlay');
+      if (modalOverlay) {
+        modalOverlay.style.opacity = '0';
+        setTimeout(() => modalOverlay.remove(), 200);
+      }
+    }
+  },
+
   updateSlideCardPhoto(taskId) {
     if (!taskId) return;
     const card = document.getElementById(`slide-card-${taskId}`);
@@ -664,6 +749,28 @@ const MonthlyReportView = {
     const previewContainer = card.querySelector('.slide-card-photo-container');
     if (previewContainer) {
       if (hasPhoto) {
+        const existingMainImg = previewContainer.querySelector('.photo-main-img');
+        const existingBlurImg = previewContainer.querySelector('.photo-blur-bg');
+        const existingWrapper = previewContainer.querySelector('.photo-fit-wrapper');
+
+        // ZERO BLINK: If image elements already exist, smoothly update src only without tearing down DOM!
+        if (existingMainImg && existingWrapper) {
+          if (existingMainImg.getAttribute('src') !== photoSingle) {
+            existingMainImg.src = photoSingle;
+            if (existingBlurImg) existingBlurImg.src = photoSingle;
+          }
+          if (isCover) {
+            existingWrapper.classList.remove('photo-fit-blur');
+            existingWrapper.classList.add('photo-fit-cover');
+            if (existingBlurImg) existingBlurImg.style.display = 'none';
+          } else {
+            existingWrapper.classList.remove('photo-fit-cover');
+            existingWrapper.classList.add('photo-fit-blur');
+            if (existingBlurImg) existingBlurImg.style.display = '';
+          }
+          return;
+        }
+
         previewContainer.innerHTML = `
           <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
             <img src="${photoSingle}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" />
@@ -678,7 +785,7 @@ const MonthlyReportView = {
                       class="px-2 py-0.5 rounded bg-black/60 hover:bg-black/80 text-white text-[9px] font-bold backdrop-blur-xs transition cursor-pointer">
                 📋 Paste
               </button>
-              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); document.getElementById('card-file-${taskId}')?.click();" title="Replace from file"
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); document.getElementById('card-file-${taskId}')?.click();" title="Replace from file / camera"
                       class="px-2 py-0.5 rounded bg-black/60 hover:bg-black/80 text-white text-[9px] font-bold backdrop-blur-xs transition cursor-pointer">
                 📁 Replace
               </button>
@@ -691,8 +798,11 @@ const MonthlyReportView = {
           </div>
         `;
       } else {
+        const existingNoPhoto = previewContainer.querySelector('.no-photo-placeholder');
+        if (existingNoPhoto) return; // already in no-photo state, don't recreate
+
         previewContainer.innerHTML = `
-          <div class="w-full aspect-video rounded-xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-3 text-center group-hover:border-blue-400 transition"
+          <div class="no-photo-placeholder w-full aspect-video rounded-xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-3 text-center group-hover:border-blue-400 transition"
                ondragover="event.preventDefault(); this.classList.add('border-blue-500', 'bg-blue-50/50');"
                ondragleave="this.classList.remove('border-blue-500', 'bg-blue-50/50');"
                ondrop="this.classList.remove('border-blue-500', 'bg-blue-50/50'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'after_photo');">
@@ -700,12 +810,12 @@ const MonthlyReportView = {
             <span class="text-[11px] font-bold text-slate-500">No Photo Attached</span>
             <div class="flex items-center gap-1.5 mt-2">
               <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" title="Paste image from clipboard (Ctrl+V)"
-                      class="px-2 py-0.8 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 transition shadow-2xs cursor-pointer">
+                      class="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 transition shadow-2xs cursor-pointer">
                 📋 Paste (Ctrl+V)
               </button>
-              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); document.getElementById('card-file-${taskId}')?.click();" title="Upload from file"
-                      class="px-2 py-0.8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition cursor-pointer">
-                📁 Browse
+              <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); document.getElementById('card-file-${taskId}')?.click();" title="Upload from file or camera"
+                      class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition cursor-pointer border border-slate-200">
+                📁 Upload / Camera
               </button>
             </div>
             <input type="file" id="card-file-${taskId}" accept="image/*" class="hidden" onchange="MonthlyReportView.handleCardFileInput(this, '${taskId}', 'after_photo')" />
@@ -731,6 +841,10 @@ const MonthlyReportView = {
       return;
     }
     this._uploadLock[taskId] = true;
+
+    // Immediately show progress overlay on slide card & modal
+    this.showUploadProgress(taskId, 10, "⚡ Optimizing image...");
+
     try {
       let base64Url = "";
       if (typeof blobOrFile === 'string') {
@@ -746,30 +860,45 @@ const MonthlyReportView = {
         });
       }
 
-      if (!base64Url) return;
+      if (!base64Url) {
+        this.hideUploadProgress(taskId);
+        return;
+      }
 
-      // 1. Immediately save to local photoManager memory & IndexedDB for instant UI response
-      // (photoManager.setTaskPhoto automatically pushes to Hostinger server storage in background)
+      this.showUploadProgress(taskId, 25, "Uploading to Hostinger SSD...");
+
+      // Save to photoManager and push to Hostinger server with live percentage tracking!
+      let serverUrl = null;
       if (typeof photoManager !== 'undefined') {
+        const onProgress = (pct, msg) => {
+          this.showUploadProgress(taskId, pct, msg || `Uploading... ${pct}%`);
+        };
         if (photoManager.setTaskPhoto) {
-          await photoManager.setTaskPhoto(taskId, slot, base64Url, null, this.selectedMonth);
+          serverUrl = await photoManager.setTaskPhoto(taskId, slot, base64Url, null, this.selectedMonth, onProgress);
         } else if (photoManager.savePhoto) {
-          await photoManager.savePhoto(taskId, slot, base64Url, this.selectedMonth);
+          serverUrl = await photoManager.savePhoto(taskId, slot, base64Url, this.selectedMonth, onProgress);
         }
       }
 
-      // 2. Refresh modal slots & live preview or card in grid
+      this.showUploadProgress(taskId, 100, "Permanent Hostinger SSD Saved!");
+
+      // Refresh modal slots & live preview or card in grid
       if (this._activeModalTaskId === taskId) {
         this.renderModalPhotoSlots(taskId);
         this.renderModalLivePreview(taskId);
       }
       this.updateSlideCardPhoto(taskId);
 
+      setTimeout(() => {
+        this.hideUploadProgress(taskId);
+      }, 400);
+
       if (typeof window.showToast === 'function') {
         window.showToast(`📸 Photo stored permanently on Hostinger server for Task ${taskId}!`, "success");
       }
     } catch (err) {
       console.error("Paste/Upload photo error:", err);
+      this.hideUploadProgress(taskId);
       if (typeof window.showToast === 'function') {
         window.showToast("Failed to save photo. Please try again.", "error");
       }
@@ -978,7 +1107,7 @@ const MonthlyReportView = {
     const container = this.renderContainer();
     container.innerHTML = `
       <div class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-3 bg-slate-950/85 backdrop-blur-md">
-        <div class="relative w-full max-w-[96vw] 2xl:max-w-[1550px] max-h-[92vh] h-[90vh] bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 sm:p-4 text-slate-800 flex flex-col overflow-hidden">
+        <div class="relative w-full max-w-[96vw] 2xl:max-w-[1550px] max-h-[95vh] h-[95vh] xl:h-[90vh] bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 sm:p-4 text-slate-800 flex flex-col overflow-y-auto xl:overflow-hidden">
           
           <!-- Top Header -->
           <div class="flex items-center justify-between pb-2 border-b border-slate-100 flex-shrink-0">
@@ -1001,14 +1130,14 @@ const MonthlyReportView = {
                 <h3 class="text-sm font-black text-slate-900 mt-0.5">Customize Slide Content, Photo &amp; Live In-Modal Preview</h3>
               </div>
             </div>
-            <button onclick="MonthlyReportView.closeModal()" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition font-bold text-sm cursor-pointer">&times;</button>
+            <button onclick="MonthlyReportView.closeModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition font-bold text-base cursor-pointer" title="Close Studio">&times;</button>
           </div>
 
           <!-- Body: Split 2-Column (Controls on Left: 5 cols, Real-Time Preview on Right: 7 cols) -->
-          <div class="grid grid-cols-1 xl:grid-cols-12 gap-3.5 pt-2 flex-1 min-h-0 items-stretch overflow-hidden">
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-3.5 pt-2 flex-1 min-h-0 items-stretch overflow-visible xl:overflow-hidden">
             
-            <!-- Left: Unified Editorial & Photo Form (5 Columns) - Fits viewport with zero scrolling -->
-            <form id="slide-override-form" onsubmit="MonthlyReportView.saveOverrides(event, '${taskId}')" class="xl:col-span-5 flex flex-col justify-between overflow-y-auto space-y-2 pr-1 min-h-0 text-xs">
+            <!-- Left: Unified Editorial & Photo Form (5 Columns) -->
+            <form id="slide-override-form" onsubmit="MonthlyReportView.saveOverrides(event, '${taskId}')" class="xl:col-span-5 flex flex-col justify-between overflow-visible xl:overflow-y-auto space-y-2 pr-1 min-h-0 text-xs">
               <input type="hidden" id="edit-slide-photo-fit" value="${currentPhotoFit}" />
               
               <!-- Slide Title -->
@@ -1951,16 +2080,16 @@ const MonthlyReportView = {
                            ondragover="event.preventDefault(); this.classList.add('border-blue-500', 'bg-blue-50');"
                            ondragleave="this.classList.remove('border-blue-500', 'bg-blue-50');"
                            ondrop="event.preventDefault(); this.classList.remove('border-blue-500', 'bg-blue-50'); MonthlyReportView.handleSlotDrop(event, '${s.task_id}', 'after_photo');">
-                        <span class="text-xl text-slate-400 group-hover/drop:scale-110 group-hover/drop:text-blue-600 transition">📋</span>
-                        <span class="text-[11px] font-bold text-slate-700 mt-1">Paste Photo (Ctrl+V)</span>
-                        <div class="flex items-center gap-1.5 mt-1.5" onclick="event.stopPropagation()">
+                        <span class="text-xl text-slate-400 group-hover/drop:scale-110 group-hover/drop:text-blue-600 transition">📷</span>
+                        <span class="text-[11px] font-bold text-slate-700 mt-0.5">Paste or Upload Photo</span>
+                        <div class="flex items-center gap-1.5 mt-1" onclick="event.stopPropagation()">
                           <button type="button" onclick="MonthlyReportView.selectSlideCard('${s.task_id}'); MonthlyReportView.pasteFromClipboard('${s.task_id}', 'after_photo')" 
-                                  class="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 transition shadow-2xs cursor-pointer">
-                            📋 Paste
+                                  class="px-2 py-0.8 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 transition shadow-2xs cursor-pointer">
+                            📋 Paste (Ctrl+V)
                           </button>
                           <button type="button" onclick="MonthlyReportView.selectSlideCard('${s.task_id}'); document.getElementById('card-file-${s.task_id}')?.click();" 
-                                  class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition cursor-pointer">
-                            📁 Browse
+                                  class="px-2.5 py-0.8 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition cursor-pointer border border-slate-200">
+                            📁 Upload / Camera
                           </button>
                         </div>
                         <input type="file" id="card-file-${s.task_id}" accept="image/*" class="hidden" onchange="MonthlyReportView.handleCardFileInput(this, '${s.task_id}', 'after_photo')" />
@@ -1978,8 +2107,13 @@ const MonthlyReportView = {
                 <div class="pt-3 border-t border-slate-100 flex items-center gap-2">
                   <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${s.task_id}'); MonthlyReportView.pasteFromClipboard('${s.task_id}', 'after_photo')" 
                           title="Paste photo directly from clipboard (Ctrl+C then Ctrl+V)"
-                          class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
-                    <span>📋</span> <span>Paste</span>
+                          class="px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+                    <span>📋</span> <span class="hidden xs:inline">Paste</span>
+                  </button>
+                  <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${s.task_id}'); document.getElementById('card-file-${s.task_id}')?.click();"
+                          title="Upload photo from camera or file"
+                          class="px-2.5 sm:px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200 transition flex items-center gap-1 cursor-pointer">
+                    <span>📷</span> <span class="hidden xs:inline">Photo</span>
                   </button>
                   <button onclick="MonthlyReportView.openModal('${s.task_id}')" class="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-xs font-black text-white shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
                     <span>🎨</span> <span>Customize</span>

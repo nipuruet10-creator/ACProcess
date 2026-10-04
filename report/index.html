@@ -188,34 +188,33 @@
         </div>
 
         <!-- Right Quick Actions -->
-        <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <!-- Back to acprocess.com (Requirement 3: Clean button on right side of Header) -->
-          <a href="/" title="Back to Central Portal Hub (acprocess.com)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 text-xs font-bold transition shadow-2xs group">
-            <span class="text-sm">🏠</span>
-            <span class="hidden sm:inline">Back to</span>
-            <span class="font-bold">acprocess.com</span>
-            <span class="text-[10px] text-blue-500 font-mono group-hover:-translate-x-0.5 transition-transform">↖</span>
+        <div class="flex items-center gap-1 sm:gap-2.5 flex-shrink-0">
+          <!-- Back to acprocess.com -->
+          <a href="/" title="Back to Central Portal Hub (acprocess.com)" class="inline-flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 text-xs font-bold transition shadow-2xs group">
+            <span class="text-xs sm:text-sm">🏠</span>
+            <span class="hidden md:inline">acprocess.com</span>
+            <span class="text-[9px] text-blue-500 font-mono hidden sm:inline group-hover:-translate-x-0.5 transition-transform">↖</span>
           </a>
 
           <!-- Live Status Badge -->
-          <div id="navbar-cloud-sync-badge">
-            <span class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
-              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <div id="navbar-cloud-sync-badge" class="hidden xs:block">
+            <span class="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs">
+              <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500"></span>
               <span class="hidden sm:inline">Real-Time</span> <span>Live</span>
             </span>
           </div>
 
           <!-- Sync Data Button -->
-          <button onclick="App.triggerGlobalSync()" title="Synchronize latest tasks from Cloud & compile slides" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
-            <span class="text-blue-500">🔄</span>
-            <span class="hidden md:inline">Sync Data</span>
+          <button onclick="App.triggerGlobalSync()" title="Synchronize latest tasks from Cloud & compile slides" class="px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold transition flex items-center gap-1 shadow-xs cursor-pointer">
+            <span class="text-blue-500 text-xs">🔄</span>
+            <span class="hidden md:inline">Sync</span>
           </button>
 
           <!-- User Role Badge -->
           <div id="user-role-badge" class="hidden sm:block"></div>
 
           <!-- Generate Monthly Report Fast Action -->
-          <button onclick="ReportBuilderView.generateMonthlyReport()" class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-[#DC2626] hover:bg-red-700 text-xs font-bold text-white shadow-sm transition">
+          <button onclick="ReportBuilderView.generateMonthlyReport()" class="inline-flex items-center gap-1 px-2.5 py-1 sm:px-3.5 sm:py-2 rounded-xl bg-[#DC2626] hover:bg-red-700 text-xs font-bold text-white shadow-sm transition cursor-pointer">
             <span>📄</span>
             <span class="hidden sm:inline">Generate</span> <span>Report</span>
           </button>
@@ -304,41 +303,41 @@
   <script src="ai/gemini_client.js?v=20261003_10"></script>
   <script src="ai/ai_breakdown_sheet.js?v=20261003_10"></script>
   <script src="ai/ai_breakdown_view.js?v=20261003_10"></script>
-  <script src="photos/storage_provider.js?v=20261003_10"></script>
-  <script src="photos/photo_manager.js?v=20261003_10"></script>
-  <script src="photos/photo_view_modal.js?v=20261003_10"></script>
-  <script src="photos/photo_manager_view.js?v=20261003_10"></script>
-  <script src="slides/radial_gauge_component.js?v=20261003_10"></script>
-  <script src="slides/engineer_grouping.js?v=20261003_10"></script>
-  <script src="slides/slide_layout_engine.js?v=20261003_10"></script>
-  <script src="tasks/sync_engine.js?v=20261003_10"></script>
-  <script src="report/readiness_engine.js?v=20261003_10"></script>
-  <script src="report/preview_modal.js?v=20261003_10"></script>
-  <script src="report/builder_view.js?v=20261003_10"></script>
-  <script src="report/top_works_manager.js?v=20261003_10"></script>
-  <script src="report/final_editor_view.js?v=20261003_10"></script>
-  <script src="report/monthly_report_view.js?v=20261003_10"></script>
-  <script src="dashboard/cost_saving_tracker.js?v=20261003_10"></script>
-  <script src="dashboard/cost_savings_view.js?v=20261003_10"></script>
-  <script src="dashboard/bom_tracker.js?v=20261003_10"></script>
-  <script src="dashboard/project_tracker.js?v=20261003_10"></script>
-  <script src="projects/projects_view.js?v=20261003_10"></script>
-  <script src="dashboard/charts.js?v=20261003_10"></script>
-  <script src="dashboard/dashboard_controller.js?v=20261003_10"></script>
-  <script src="database/master_data_view.js?v=20261003_10"></script>
-  <script src="config/settings_view.js?v=20261003_10"></script>
-  <script src="export/pptx_generator.js?v=20261003_10"></script>
-  <script src="export/pdf_generator.js?v=20261003_10"></script>
-  <script src="export/html_generator.js?v=20261003_10"></script>
-  <script src="management/mgmt_report_manager.js?v=20261003_10"></script>
-  <script src="export/management_pptx_generator.js?v=20261003_10"></script>
-  <script src="export/management_html_generator.js?v=20261003_10"></script>
-  <script src="management/mgmt_report_view.js?v=20261003_10"></script>
-  <script src="history/history_manager.js?v=20261003_10"></script>
-  <script src="history/version_view.js?v=20261003_10"></script>
-  <script src="audit/audit_logger.js?v=20261003_10"></script>
-  <script src="export/export_controller.js?v=20261003_10"></script>
-  <script src="app.js?v=20261003_10"></script>
+  <script src="photos/storage_provider.js?v=20261004_1"></script>
+  <script src="photos/photo_manager.js?v=20261004_1"></script>
+  <script src="photos/photo_view_modal.js?v=20261004_1"></script>
+  <script src="photos/photo_manager_view.js?v=20261004_1"></script>
+  <script src="slides/radial_gauge_component.js?v=20261004_1"></script>
+  <script src="slides/engineer_grouping.js?v=20261004_1"></script>
+  <script src="slides/slide_layout_engine.js?v=20261004_1"></script>
+  <script src="tasks/sync_engine.js?v=20261004_1"></script>
+  <script src="report/readiness_engine.js?v=20261004_1"></script>
+  <script src="report/preview_modal.js?v=20261004_1"></script>
+  <script src="report/builder_view.js?v=20261004_1"></script>
+  <script src="report/top_works_manager.js?v=20261004_1"></script>
+  <script src="report/final_editor_view.js?v=20261004_1"></script>
+  <script src="report/monthly_report_view.js?v=20261004_1"></script>
+  <script src="dashboard/cost_saving_tracker.js?v=20261004_1"></script>
+  <script src="dashboard/cost_savings_view.js?v=20261004_1"></script>
+  <script src="dashboard/bom_tracker.js?v=20261004_1"></script>
+  <script src="dashboard/project_tracker.js?v=20261004_1"></script>
+  <script src="projects/projects_view.js?v=20261004_1"></script>
+  <script src="dashboard/charts.js?v=20261004_1"></script>
+  <script src="dashboard/dashboard_controller.js?v=20261004_1"></script>
+  <script src="database/master_data_view.js?v=20261004_1"></script>
+  <script src="config/settings_view.js?v=20261004_1"></script>
+  <script src="export/pptx_generator.js?v=20261004_1"></script>
+  <script src="export/pdf_generator.js?v=20261004_1"></script>
+  <script src="export/html_generator.js?v=20261004_1"></script>
+  <script src="management/mgmt_report_manager.js?v=20261004_1"></script>
+  <script src="export/management_pptx_generator.js?v=20261004_1"></script>
+  <script src="export/management_html_generator.js?v=20261004_1"></script>
+  <script src="management/mgmt_report_view.js?v=20261004_1"></script>
+  <script src="history/history_manager.js?v=20261004_1"></script>
+  <script src="history/version_view.js?v=20261004_1"></script>
+  <script src="audit/audit_logger.js?v=20261004_1"></script>
+  <script src="export/export_controller.js?v=20261004_1"></script>
+  <script src="app.js?v=20261004_1"></script>
 
   <!-- Top 5 Entry Modal Container -->
   <div id="top5-editor-modal-container"></div>

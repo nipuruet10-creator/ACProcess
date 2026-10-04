@@ -271,18 +271,7 @@ class PhotoManager {
               }
             } catch(e) {}
 
-            // Debounced re-render of monthly report if on-screen and modal is not open
-            if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.render === 'function') {
-              const cardsContainer = document.getElementById('monthly-report-cards-grid');
-              if (cardsContainer && !MonthlyReportView._activeModalTaskId && !this._pollRerenderTimer) {
-                this._pollRerenderTimer = setTimeout(() => {
-                  this._pollRerenderTimer = null;
-                  if (!MonthlyReportView._activeModalTaskId) {
-                    MonthlyReportView.render();
-                  }
-                }, 400);
-              }
-            }
+            // Granular micro-updates already handled via updateSlideCardPhoto above (zero blinking, zero DOM destruction)
           }
 
           return data.photos;
@@ -296,8 +285,9 @@ class PhotoManager {
 
   /**
    * Uploads photo to Hostinger Server Storage API for permanent disk persistence across all devices
+   * Supports live upload progress percentage reporting and robust XMLHttpRequest error resilience
    */
-  async uploadPhotoToServer(taskId, slot, base64Url, month = null) {
+  async uploadPhotoToServer(taskId, slot, base64Url, month = null, onProgress = null) {
     if (!taskId || !base64Url) return null;
     let m = month;
     if (!m && typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
@@ -305,106 +295,138 @@ class PhotoManager {
     }
     if (!m) m = 'SEP-2026';
 
+    if (typeof onProgress === 'function') onProgress(15, 'Sending to Hostinger...');
+
     try {
-      const resp = await fetch(this._getApiUrl('api/save_photo.php'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          taskId: taskId,
-          month: m,
-          slot: slot,
-          image: base64Url
-        })
+      const payload = JSON.stringify({
+        taskId: taskId,
+        month: m,
+        slot: slot,
+        image: base64Url
       });
 
-      if (resp.ok) {
-        const result = await resp.json();
-        if (result && result.success && result.url) {
-          console.log(`[Hostinger Photo Storage] Upload success for ${taskId}: ${result.url}`);
-          const serverUrl = result.url;
-          const isBefore = (slot === 'before_photo' || slot === 'photo_1');
-          const isAfter = (slot === 'after_photo' || slot === 'photo_2');
+      const result = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', this._getApiUrl('api/save_photo.php'), true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.timeout = 30000;
 
-          if (!this.photoMap[taskId]) {
-            this.photoMap[taskId] = { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
-          }
-          if (isBefore) {
-            this.photoMap[taskId].before_photo = serverUrl;
-            this.photoMap[taskId].photo_1 = serverUrl;
-          }
-          if (isAfter) {
-            this.photoMap[taskId].after_photo = serverUrl;
-            this.photoMap[taskId].photo_2 = serverUrl;
-            this.photoMap[taskId].photo = serverUrl;
-          }
-
-          const monthKey = `${m}_${taskId}`;
-          if (!this.photoMap[monthKey]) {
-            this.photoMap[monthKey] = { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
-          }
-          if (isBefore) {
-            this.photoMap[monthKey].before_photo = serverUrl;
-            this.photoMap[monthKey].photo_1 = serverUrl;
-          }
-          if (isAfter) {
-            this.photoMap[monthKey].after_photo = serverUrl;
-            this.photoMap[monthKey].photo_2 = serverUrl;
-            this.photoMap[monthKey].photo = serverUrl;
-          }
-
-          // Persist clean server URL to IndexedDB
-          if (typeof PhotoIndexedDB !== 'undefined') {
-            PhotoIndexedDB.saveTaskPhotos(taskId, this.photoMap[taskId]).catch(() => {});
-            PhotoIndexedDB.saveTaskPhotos(monthKey, this.photoMap[monthKey]).catch(() => {});
-          }
-
-          // Persist clean server URL to MonthWorkbookManager (lightweight URL prevents localStorage 5MB quota errors!)
-          if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
-            try {
-              const wbMgr = window.appState.workbookMgr;
-              const targetTask = wbMgr.getTask(m, taskId);
-              if (targetTask) {
-                if (isBefore) {
-                  targetTask.photo_1 = serverUrl;
-                  targetTask.before_photo = serverUrl;
-                  delete targetTask._photoDeleted_before;
-                }
-                if (isAfter) {
-                  targetTask.photo_2 = serverUrl;
-                  targetTask.after_photo = serverUrl;
-                  delete targetTask._photoDeleted_after;
-                }
-                delete targetTask.clear_photos;
-                targetTask._lastPhotoEditTime = Date.now();
-                targetTask.last_updated = new Date().toISOString();
-                wbMgr.save();
-              }
-            } catch(e) {}
-          }
-
-          // Broadcast server URL to peer laptops via Firebase Realtime Database
-          if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
-            try {
-              FirebaseSyncService.updateCell(m, taskId, isBefore ? 'photo_1' : 'photo_2', serverUrl);
-              FirebaseSyncService.updateCell(m, taskId, isBefore ? 'before_photo' : 'after_photo', serverUrl);
-              FirebaseSyncService.updateCell(m, taskId, 'clear_photos', null);
-              FirebaseSyncService.updateCell(m, taskId, isBefore ? '_photoDeleted_before' : '_photoDeleted_after', null);
-            } catch(e) {}
-          }
-
-          // If MonthlyReportView is active, update targeted DOM directly (no full render!)
-          if (typeof MonthlyReportView !== 'undefined') {
-            if (MonthlyReportView._activeModalTaskId === taskId) {
-              if (typeof MonthlyReportView.renderModalPhotoSlots === 'function') MonthlyReportView.renderModalPhotoSlots(taskId);
-              if (typeof MonthlyReportView.renderModalLivePreview === 'function') MonthlyReportView.renderModalLivePreview(taskId);
+        if (xhr.upload && typeof onProgress === 'function') {
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable && e.total > 0) {
+              const netPct = Math.round((e.loaded / e.total) * 100);
+              const mapped = 15 + Math.round(netPct * 0.75);
+              onProgress(Math.min(mapped, 92), `Uploading (${netPct}%)...`);
             }
-            if (typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
-              MonthlyReportView.updateSlideCardPhoto(taskId);
-            }
-          }
-
-          return serverUrl;
+          };
         }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              if (typeof onProgress === 'function') onProgress(96, 'Saving to Server SSD...');
+              const parsed = JSON.parse(xhr.responseText);
+              resolve(parsed);
+            } catch (err) {
+              reject(err);
+            }
+          } else {
+            reject(new Error(`Server returned HTTP ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during upload'));
+        xhr.ontimeout = () => reject(new Error('Upload timeout'));
+
+        xhr.send(payload);
+      });
+
+      if (result && result.success && result.url) {
+        if (typeof onProgress === 'function') onProgress(100, 'Saved permanently!');
+        console.log(`[Hostinger Photo Storage] Upload success for ${taskId}: ${result.url}`);
+        const serverUrl = result.url;
+        const isBefore = (slot === 'before_photo' || slot === 'photo_1');
+        const isAfter = (slot === 'after_photo' || slot === 'photo_2');
+
+        if (!this.photoMap[taskId]) {
+          this.photoMap[taskId] = { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
+        }
+        if (isBefore) {
+          this.photoMap[taskId].before_photo = serverUrl;
+          this.photoMap[taskId].photo_1 = serverUrl;
+        }
+        if (isAfter) {
+          this.photoMap[taskId].after_photo = serverUrl;
+          this.photoMap[taskId].photo_2 = serverUrl;
+          this.photoMap[taskId].photo = serverUrl;
+        }
+
+        const monthKey = `${m}_${taskId}`;
+        if (!this.photoMap[monthKey]) {
+          this.photoMap[monthKey] = { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
+        }
+        if (isBefore) {
+          this.photoMap[monthKey].before_photo = serverUrl;
+          this.photoMap[monthKey].photo_1 = serverUrl;
+        }
+        if (isAfter) {
+          this.photoMap[monthKey].after_photo = serverUrl;
+          this.photoMap[monthKey].photo_2 = serverUrl;
+          this.photoMap[monthKey].photo = serverUrl;
+        }
+
+        // Persist clean server URL to IndexedDB
+        if (typeof PhotoIndexedDB !== 'undefined') {
+          PhotoIndexedDB.saveTaskPhotos(taskId, this.photoMap[taskId]).catch(() => {});
+          PhotoIndexedDB.saveTaskPhotos(monthKey, this.photoMap[monthKey]).catch(() => {});
+        }
+
+        // Persist clean server URL to MonthWorkbookManager (lightweight URL prevents localStorage 5MB quota errors!)
+        if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+          try {
+            const wbMgr = window.appState.workbookMgr;
+            const targetTask = wbMgr.getTask(m, taskId);
+            if (targetTask) {
+              if (isBefore) {
+                targetTask.photo_1 = serverUrl;
+                targetTask.before_photo = serverUrl;
+                delete targetTask._photoDeleted_before;
+              }
+              if (isAfter) {
+                targetTask.photo_2 = serverUrl;
+                targetTask.after_photo = serverUrl;
+                delete targetTask._photoDeleted_after;
+              }
+              delete targetTask.clear_photos;
+              targetTask._lastPhotoEditTime = Date.now();
+              targetTask.last_updated = new Date().toISOString();
+              wbMgr.save();
+            }
+          } catch(e) {}
+        }
+
+        // Broadcast server URL to peer laptops via Firebase Realtime Database
+        if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
+          try {
+            FirebaseSyncService.updateCell(m, taskId, isBefore ? 'photo_1' : 'photo_2', serverUrl);
+            FirebaseSyncService.updateCell(m, taskId, isBefore ? 'before_photo' : 'after_photo', serverUrl);
+            FirebaseSyncService.updateCell(m, taskId, 'clear_photos', null);
+            FirebaseSyncService.updateCell(m, taskId, isBefore ? '_photoDeleted_before' : '_photoDeleted_after', null);
+          } catch(e) {}
+        }
+
+        // If MonthlyReportView is active, update targeted DOM directly (no full render!)
+        if (typeof MonthlyReportView !== 'undefined') {
+          if (MonthlyReportView._activeModalTaskId === taskId) {
+            if (typeof MonthlyReportView.renderModalPhotoSlots === 'function') MonthlyReportView.renderModalPhotoSlots(taskId);
+            if (typeof MonthlyReportView.renderModalLivePreview === 'function') MonthlyReportView.renderModalLivePreview(taskId);
+          }
+          if (typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
+            MonthlyReportView.updateSlideCardPhoto(taskId);
+          }
+        }
+
+        return serverUrl;
       }
     } catch (e) {
       console.warn("[Hostinger Photo Storage] Server upload error:", e);
@@ -568,14 +590,14 @@ class PhotoManager {
       syncThumbnail = compressedData;
     }
 
-    return this.setTaskPhoto(taskId, slot, compressedData, syncThumbnail, month);
+    return this.setTaskPhoto(taskId, slot, compressedData, syncThumbnail, month, onProgress);
   }
 
-  async savePhoto(taskId, slot, base64Url, month = null) {
-    return this.setTaskPhoto(taskId, slot, base64Url, null, month);
+  async savePhoto(taskId, slot, base64Url, month = null, onProgress = null) {
+    return this.setTaskPhoto(taskId, slot, base64Url, null, month, onProgress);
   }
 
-  async setTaskPhoto(taskId, slot, base64Url, syncThumbnail = null, month = null) {
+  async setTaskPhoto(taskId, slot, base64Url, syncThumbnail = null, month = null, onProgress = null) {
     if (!taskId || !base64Url) return null;
     let m = month;
     if (!m && typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
@@ -587,6 +609,7 @@ class PhotoManager {
     const monthKey = m ? `${m}_${taskId}` : null;
     const isBefore = (slot === 'before_photo' || slot === 'photo_1');
     const isAfter = (slot === 'after_photo' || slot === 'photo_2');
+    const isBase64Blob = typeof base64Url === 'string' && base64Url.startsWith('data:image/');
 
     if (!this.photoMap[taskId]) {
       this.photoMap[taskId] = { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
@@ -626,19 +649,7 @@ class PhotoManager {
       }
     }
 
-    // 2. Safely update AI Breakdown sheet metadata
-    try {
-      if (typeof window !== 'undefined' && window.appState && window.appState.breakdownSheet) {
-        const updates = { task_id: taskId, slide_status: "READY" };
-        if (isBefore) updates.photo_before = base64Url;
-        if (isAfter) updates.photo_after = base64Url;
-        window.appState.breakdownSheet.upsertBreakdown(updates);
-      }
-    } catch (e) {
-      console.warn("Breakdown update notice:", e);
-    }
-
-    // 3. Update in-memory active presentation slides immediately so Monthly Report reflects changes
+    // 2. Update in-memory active presentation slides immediately so Monthly Report reflects changes
     try {
       if (typeof window !== 'undefined' && window.appState && window.appState.syncEngine) {
         const slideMonth = m || (window.appState.workbookMgr ? window.appState.workbookMgr.activeMonth : "SEP-2026");
@@ -649,94 +660,55 @@ class PhotoManager {
           if (isAfter) target.photo_after = base64Url;
           target.photo = base64Url;
           target.has_dual_photo = Boolean(target.photo_before && target.photo_after);
-          try {
-            localStorage.setItem(`walton_pd_active_slides_${slideMonth}`, JSON.stringify(slides));
-          } catch (e) {}
+          // Only save clean lightweight URLs into localStorage to prevent 5MB quota errors!
+          if (!isBase64Blob) {
+            try {
+              localStorage.setItem(`walton_pd_active_slides_${slideMonth}`, JSON.stringify(slides));
+            } catch (e) {}
+          }
         }
       }
     } catch (e) {
       console.warn("Active slides memory update notice:", e);
     }
 
-    // 4. Synchronize thumbnail to MonthWorkbookManager & broadcast to Firebase & Google Sheets!
-    try {
-      if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
-        const wbMgr = window.appState.workbookMgr;
-        const activeM = m || wbMgr.activeMonth || "SEP-2026";
-        let targetTask = wbMgr.getTask(activeM, taskId);
-        if (!targetTask) {
-          const allMonths = (wbMgr.getAllMonths && typeof wbMgr.getAllMonths === 'function')
-            ? wbMgr.getAllMonths()
-            : [activeM];
-          for (const mon of allMonths) {
-            const t = wbMgr.getTask(mon, taskId);
-            if (t) { targetTask = t; break; }
-          }
-        }
-
-        if (targetTask) {
-          const photoKey = isBefore ? 'photo_1' : 'photo_2';
-          
-          if (isBefore) {
-            targetTask.photo_1 = base64Url;
-            targetTask.before_photo = base64Url;
-            delete targetTask._photoDeleted_before;
-          }
-          if (isAfter) {
-            targetTask.photo_2 = base64Url;
-            targetTask.after_photo = base64Url;
-            delete targetTask._photoDeleted_after;
-          }
-          targetTask._lastPhotoEditTime = Date.now();
-          delete targetTask.clear_photos;
-          targetTask.last_updated = new Date().toISOString();
-          wbMgr.save();
-
-          // Real-time Firebase Broadcast (syncs uploaded photo immediately to peer laptops!)
-          if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
-            FirebaseSyncService.updateCell(activeM, taskId, photoKey, base64Url);
-            FirebaseSyncService.updateCell(activeM, taskId, isBefore ? 'before_photo' : 'after_photo', base64Url);
-            FirebaseSyncService.updateCell(activeM, taskId, 'clear_photos', null);
-            FirebaseSyncService.updateCell(activeM, taskId, isBefore ? '_photoDeleted_before' : '_photoDeleted_after', null);
-            FirebaseSyncService.pushTask(activeM, targetTask);
-          }
-
-          // Push to cloud in background: prefer Google Drive direct CDN link, fallback to sharp thumbnail
-          (async () => {
-            let cloudPhotoRef = null;
-            if (typeof GoogleSheetsSync !== 'undefined' && GoogleSheetsSync.uploadPhoto) {
-              cloudPhotoRef = await GoogleSheetsSync.uploadPhoto(taskId, slot, base64Url);
-            }
-
-            if (cloudPhotoRef) {
-              targetTask[photoKey] = cloudPhotoRef;
-              targetTask.last_updated = new Date().toISOString();
-              wbMgr.save();
-              if (typeof GoogleSheetsSync !== 'undefined' && GoogleSheetsSync.pushTask) {
-                GoogleSheetsSync.pushTask(targetTask);
-              }
+    // 3. For clean server URLs, persist directly to workbookMgr & Firebase
+    if (!isBase64Blob) {
+      try {
+        if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+          const wbMgr = window.appState.workbookMgr;
+          const activeM = m || wbMgr.activeMonth || "SEP-2026";
+          let targetTask = wbMgr.getTask(activeM, taskId);
+          if (targetTask) {
+            const photoKey = isBefore ? 'photo_1' : 'photo_2';
+            if (isBefore) {
+              targetTask.photo_1 = base64Url;
+              targetTask.before_photo = base64Url;
             } else {
-              let th = syncThumbnail;
-              if (!th && typeof PhotoStorageProvider !== 'undefined' && PhotoStorageProvider.generateSyncThumbnail) {
-                th = await PhotoStorageProvider.generateSyncThumbnail(base64Url);
-              }
-              const taskToPush = { ...targetTask, [photoKey]: th || base64Url };
-              if (typeof GoogleSheetsSync !== 'undefined' && GoogleSheetsSync.pushTask) {
-                GoogleSheetsSync.pushTask(taskToPush);
-              }
+              targetTask.photo_2 = base64Url;
+              targetTask.after_photo = base64Url;
             }
-          })().catch(err => console.warn("Background photo cloud sync notice:", err));
+            targetTask._lastPhotoEditTime = Date.now();
+            delete targetTask.clear_photos;
+            targetTask.last_updated = new Date().toISOString();
+            wbMgr.save();
+
+            if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
+              FirebaseSyncService.updateCell(activeM, taskId, photoKey, base64Url);
+              FirebaseSyncService.updateCell(activeM, taskId, isBefore ? 'before_photo' : 'after_photo', base64Url);
+            }
+          }
         }
+      } catch (syncErr) {
+        console.warn("Photo sync notice:", syncErr);
       }
-    } catch (syncErr) {
-      console.warn("Photo sync notice:", syncErr);
     }
 
-    // 5. Send to Hostinger Server Storage API for permanent disk storage across all devices
+    // 4. Send to Hostinger Server Storage API for permanent disk storage across all devices
     let serverUrl = null;
     if (base64Url && (base64Url.startsWith('data:image/') || base64Url.length > 500)) {
       try {
-        serverUrl = await this.uploadPhotoToServer(taskId, slot, base64Url, m);
+        serverUrl = await this.uploadPhotoToServer(taskId, slot, base64Url, m, onProgress);
       } catch (e) {
         console.warn("[Hostinger Photo Storage] Upload notice:", e);
       }
