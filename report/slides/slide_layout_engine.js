@@ -4039,9 +4039,9 @@ const SlideLayoutEngine = {
 
     // Sequence: Standard Tasks -> Completed Projects -> Ongoing Projects
     const taskSlides = [...sequencedStandardTasks, ...completedProjectSlides, ...ongoingProjectSlides];
-    const deck = [];
-    // Total slides: Task slides + 5 (Cover + Table of Contents + Management Dashboard + Tasks + Top 5 Works + Closing)
-    const totalSlideCount = taskSlides.length + 5;
+    // Workshop Cost Saving Report slide inclusion (Positioned sequentially immediately before Top 5 Summary)
+    const hasWorkshopSlide = (typeof WorkshopCostManager !== 'undefined' && WorkshopCostManager.hasWorkshopData && WorkshopCostManager.hasWorkshopData(month)) || (reportData && reportData.workshopCostData);
+    const totalSlideCount = taskSlides.length + (hasWorkshopSlide ? 6 : 5);
 
     // Slide 1: Cover Page
     if (isBlue) {
@@ -4070,14 +4070,23 @@ const SlideLayoutEngine = {
       deck.push(this.renderTaskSlide(taskWithTpl, idx + 4, totalSlideCount));
     });
 
-    // Slide N+4: Top 5 Works & Projects Summary (Image 2)
+    let currentSlideIndex = taskSlides.length + 4;
+
+    // Slide: AC Process Workshop Cost Saving Report (16:9 Landscape - positioned immediately before Top 5 Summary)
+    if (hasWorkshopSlide) {
+      deck.push(this.renderWorkshopCostSavingSlide(month, reportData.workshopCostData || null, currentSlideIndex, totalSlideCount));
+      currentSlideIndex++;
+    }
+
+    // Slide: Top 5 Works & Projects Summary
     if (isBlue) {
       deck.push(this.renderIndustrialBlueTopWorksSlide(month, reportData.topWorksData || reportData));
     } else {
       deck.push(this.renderTopWorksSummarySlide(month, reportData.topWorksData || reportData));
     }
+    currentSlideIndex++;
 
-    // Slide N+5 (Final Closing Slide): Thank You / Continuous Process Improvement
+    // Slide: Thank You / Continuous Process Improvement
     if (isBlue) {
       deck.push(this.renderIndustrialBlueThankYouSlide(month));
     } else {
@@ -4085,6 +4094,16 @@ const SlideLayoutEngine = {
     }
 
     return deck;
+  },
+
+  /**
+   * 16:9 Landscape AC Process Workshop Cost Saving Slide Renderer (Image 2 design from Image 3 Excel input)
+   */
+  renderWorkshopCostSavingSlide(month = "AUG-2026", data = null, slideNum = 4, totalSlides = 15) {
+    if (typeof WorkshopCostManager !== 'undefined' && WorkshopCostManager.renderSlideHtml) {
+      return WorkshopCostManager.renderSlideHtml(month, data, slideNum, totalSlides);
+    }
+    return `<div class="p-8 text-center font-bold">Workshop Cost Saving Slide</div>`;
   },
 
   /**

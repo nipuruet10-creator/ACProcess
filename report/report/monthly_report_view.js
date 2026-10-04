@@ -484,12 +484,12 @@ const MonthlyReportView = {
 
     container.innerHTML = `
       <!-- Single Unified Photo Slot for Monthly Report -->
-      <div id="modal-slot-photo" class="bg-white border ${photo ? 'border-slate-200' : 'border-dashed border-blue-300 hover:border-blue-500 bg-blue-50/20'} rounded-xl p-2.5 flex flex-col justify-between shadow-2xs transition group"
+      <div id="modal-slot-photo" class="bg-white border ${photo ? 'border-slate-200' : 'border-dashed border-blue-300 hover:border-blue-500 bg-blue-50/20'} rounded-xl p-2 flex flex-col justify-between shadow-2xs transition group"
            ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-blue-500');"
            ondragleave="this.classList.remove('ring-2', 'ring-blue-500');"
            ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-blue-500'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'after_photo');">
         
-        <div class="relative w-full h-32 rounded-lg overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
+        <div class="relative w-full h-20 sm:h-22 rounded-lg overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
           ${photo ? `
             <div class="photo-fit-wrapper photo-fit-blur relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
               <img src="${photo}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
@@ -507,14 +507,16 @@ const MonthlyReportView = {
               </button>
             </div>
           ` : `
-            <div class="cursor-pointer flex flex-col items-center justify-center p-2 text-center w-full h-full hover:bg-blue-50/40 transition"
+            <div class="cursor-pointer flex items-center justify-center gap-2 p-1.5 text-center w-full h-full hover:bg-blue-50/40 transition"
                  onclick="MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')">
-              <span class="text-2xl text-blue-500 mb-0.5 group-hover:scale-110 transition">📋</span>
-              <span class="text-xs font-bold text-slate-800">Paste Photo (Ctrl+V)</span>
-              <span class="text-[9.5px] text-slate-500 mt-0.5">Click to paste from clipboard, or drag & drop</span>
-              <div class="mt-1 flex items-center gap-1.5" onclick="event.stopPropagation()">
-                <label for="modal-photo-file-single" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9.5px] font-bold cursor-pointer transition">
-                  📁 Browse File
+              <span class="text-xl text-blue-500">📋</span>
+              <div class="text-left">
+                <span class="text-xs font-bold text-slate-800 block">Paste Photo (Ctrl+V)</span>
+                <span class="text-[9.5px] text-slate-500">Click to paste or browse</span>
+              </div>
+              <div class="ml-2 flex items-center gap-1.5" onclick="event.stopPropagation()">
+                <label for="modal-photo-file-single" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9.5px] font-bold cursor-pointer transition border border-slate-200">
+                  📁 Browse
                 </label>
               </div>
             </div>
@@ -914,6 +916,16 @@ const MonthlyReportView = {
   },
 
   async deleteModalPhoto(taskId, slot) {
+    if (!taskId) return;
+    // 0ms Optimistic local wipe
+    if (typeof photoManager !== 'undefined' && photoManager.purgeTaskPhotosMemory) {
+      photoManager.purgeTaskPhotosMemory(taskId);
+    }
+    this.renderModalPhotoSlots(taskId);
+    this.renderModalLivePreview(taskId);
+    this.updateSlideCardPhoto(taskId);
+
+    // Asynchronous backend and peer PC broadcast
     if (typeof photoManager !== 'undefined' && photoManager.removePhoto) {
       await photoManager.removePhoto(taskId, 'all', this.selectedMonth);
     }
@@ -921,12 +933,22 @@ const MonthlyReportView = {
     this.renderModalLivePreview(taskId);
     this.updateSlideCardPhoto(taskId);
     if (typeof window.showToast === 'function') {
-      window.showToast("🗑 Photo removed. Live preview updated.", "info");
+      window.showToast("🗑 Photo deleted permanently & synced across all PCs.", "info");
     }
   },
 
   async deleteCardPhoto(taskId) {
     if (!taskId) return;
+    // 0ms Optimistic local wipe
+    if (typeof photoManager !== 'undefined' && photoManager.purgeTaskPhotosMemory) {
+      photoManager.purgeTaskPhotosMemory(taskId);
+    }
+    this.updateSlideCardPhoto(taskId);
+    if (this._activeModalTaskId === taskId) {
+      this.renderModalPhotoSlots(taskId);
+      this.renderModalLivePreview(taskId);
+    }
+
     if (typeof photoManager !== 'undefined' && photoManager.removePhoto) {
       await photoManager.removePhoto(taskId, 'all', this.selectedMonth);
     }
@@ -1130,14 +1152,20 @@ const MonthlyReportView = {
                 <h3 class="text-sm font-black text-slate-900 mt-0.5">Customize Slide Content, Photo &amp; Live In-Modal Preview</h3>
               </div>
             </div>
-            <button onclick="MonthlyReportView.closeModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition font-bold text-base cursor-pointer" title="Close Studio">&times;</button>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="MonthlyReportView.saveOverridesFromHeader('${taskId}')" 
+                      class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-xs font-black text-white shadow-md shadow-blue-500/25 transition cursor-pointer flex items-center gap-1 active:scale-95">
+                <span>💾</span> <span>Save Slide Overrides</span>
+              </button>
+              <button onclick="MonthlyReportView.closeModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition font-bold text-base cursor-pointer" title="Close Studio">&times;</button>
+            </div>
           </div>
 
           <!-- Body: Split 2-Column (Controls on Left: 5 cols, Real-Time Preview on Right: 7 cols) -->
-          <div class="grid grid-cols-1 xl:grid-cols-12 gap-3.5 pt-2 flex-1 min-h-0 items-stretch overflow-visible xl:overflow-hidden">
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-3 pt-2 flex-1 min-h-0 items-stretch overflow-visible xl:overflow-hidden">
             
             <!-- Left: Unified Editorial & Photo Form (5 Columns) -->
-            <form id="slide-override-form" onsubmit="MonthlyReportView.saveOverrides(event, '${taskId}')" class="xl:col-span-5 flex flex-col justify-between overflow-visible xl:overflow-y-auto space-y-2 pr-1 min-h-0 text-xs">
+            <form id="slide-override-form" onsubmit="MonthlyReportView.saveOverrides(event, '${taskId}')" class="xl:col-span-5 flex flex-col justify-between overflow-visible xl:overflow-y-auto space-y-1.5 pr-1 min-h-0 text-xs">
               <input type="hidden" id="edit-slide-photo-fit" value="${currentPhotoFit}" />
               
               <!-- Slide Title -->
@@ -1148,7 +1176,7 @@ const MonthlyReportView = {
                 </div>
                 <input type="text" id="edit-slide-title" value="${HELPERS.escapeHtml(currentTitle)}" 
                        oninput="MonthlyReportView.debouncedLivePreview('${taskId}')"
-                       class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-bold shadow-2xs" required />
+                       class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-bold shadow-2xs" required />
               </div>
 
               <!-- Project Overview / Description (Auto-generated narrative sentence format) -->
@@ -1161,10 +1189,10 @@ const MonthlyReportView = {
                     <span>✨</span> <span>Auto-Generate</span>
                   </button>
                 </div>
-                <textarea id="edit-slide-desc" rows="3" style="min-height: 75px;"
+                <textarea id="edit-slide-desc" rows="2" style="min-height: 48px; max-height: 60px;"
                           oninput="MonthlyReportView.debouncedLivePreview('${taskId}')"
                           placeholder="e.g. Developed and fabricated precision automated mechanism for active assembly line."
-                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 leading-relaxed font-sans shadow-2xs resize-y">${HELPERS.escapeHtml(currentDesc)}</textarea>
+                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 leading-snug font-sans shadow-2xs resize-y">${HELPERS.escapeHtml(currentDesc)}</textarea>
               </div>
 
               <!-- Key Outcomes (Short bullets) -->
@@ -1173,10 +1201,10 @@ const MonthlyReportView = {
                   <label class="block font-bold text-slate-700 text-xs">Project Impact &amp; Outcomes (Bullets)</label>
                   <span class="text-[9.5px] text-slate-400 font-mono">1 bullet / line</span>
                 </div>
-                <textarea id="edit-slide-impact" rows="5" style="min-height: 120px;"
+                <textarea id="edit-slide-impact" rows="3" style="min-height: 65px; max-height: 85px;"
                           oninput="MonthlyReportView.debouncedLivePreview('${taskId}')"
                           placeholder="One key outcome or deliverable per line..."
-                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-sans shadow-2xs resize-y leading-relaxed">${HELPERS.escapeHtml(currentImpact)}</textarea>
+                          class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-sans shadow-2xs resize-y leading-snug">${HELPERS.escapeHtml(currentImpact)}</textarea>
               </div>
 
               <!-- Category & Concern Engineer in 2 Columns Side-by-Side -->
@@ -1432,6 +1460,17 @@ const MonthlyReportView = {
     if (container) container.innerHTML = '';
   },
 
+  saveOverridesFromHeader(taskId) {
+    const form = document.getElementById('slide-override-form');
+    if (form) {
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+      } else {
+        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      }
+    }
+  },
+
   saveOverrides(event, taskId) {
     if (event) event.preventDefault();
 
@@ -1617,6 +1656,23 @@ const MonthlyReportView = {
 
   previewDashboardSlide() {
     this.previewFullDeck(2);
+  },
+
+  previewWorkshopCostSlide() {
+    const month = this.selectedMonth;
+    const rawData = (typeof WorkshopCostManager !== 'undefined') ? WorkshopCostManager.getWorkshopData(month) : null;
+    const slideHtml = (typeof SlideLayoutEngine !== 'undefined')
+      ? SlideLayoutEngine.renderWorkshopCostSavingSlide(month, rawData)
+      : '<div class="p-8">Workshop Cost Saving Slide</div>';
+
+    if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.openCustomHtml) {
+      SlidePreviewModal.openCustomHtml(slideHtml, `AC Process Workshop Cost Saving Report (${month})`);
+    } else if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.openSingle) {
+      SlidePreviewModal.openSingle({
+        raw_html: slideHtml,
+        slide_title: `AC Process Workshop Cost Saving Report - ${month}`
+      });
+    }
   },
 
   previewTop5Slide() {
@@ -1867,8 +1923,9 @@ const MonthlyReportView = {
     }))).filter(Boolean);
     uniqueEngineers.sort((a, b) => (engineerCounts[b] || 0) - (engineerCounts[a] || 0));
 
-    // Total sequence slide count calculation: Cover(1) + Agenda(2) + Dashboard(3) + Tasks(N) + Top 5(N+4) + Closing(N+5)
-    const totalPresentationSlides = activeSlides.length + 5;
+    // Total sequence slide count calculation: Cover(1) + Agenda(2) + Dashboard(3) + Tasks(N) + Workshop(N+4) + Top 5(N+5) + Closing(N+6)
+    const hasWorkshopSlide = (typeof WorkshopCostManager !== 'undefined' && WorkshopCostManager.hasWorkshopData && WorkshopCostManager.hasWorkshopData(this.selectedMonth));
+    const totalPresentationSlides = activeSlides.length + (hasWorkshopSlide ? 6 : 5);
 
     container.innerHTML = `
       <!-- Single Unified Executive Container for Monthly Report (Immediate slide edit visibility) -->
@@ -2125,13 +2182,37 @@ const MonthlyReportView = {
         </div>
 
         <!-- 4. BOTTOM SPECIAL SLIDES CARDS (Summary & Concluding Deck Slides) -->
-        <div class="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-3">
           
-          <!-- Slide N+1: Top 5 Summary Card -->
+          <!-- Slide N+1: AC Process Workshop Cost Saving Report Card (Immediately before Top 5 Summary) -->
+          <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-4 shadow-2xs flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="w-9 h-9 rounded-xl bg-emerald-600 text-white font-mono font-black text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                #${activeSlides.length + 4}
+              </span>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="px-2 py-0.5 rounded text-[9.5px] font-mono font-bold bg-emerald-600 text-white">WORKSHOP COSTING</span>
+                  <span class="text-[11px] font-mono text-emerald-700">16:9 Landscape</span>
+                </div>
+                <h4 class="text-xs font-black text-slate-900 mt-0.5">AC Process Workshop Cost Saving Report</h4>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <button onclick="App.switchTab('cost-savings')" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-emerald-700 border border-emerald-200 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer" title="Manage Excel Data & Initiatives">
+                <span>📊</span> <span>Excel</span>
+              </button>
+              <button onclick="MonthlyReportView.previewWorkshopCostSlide()" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer" title="Preview 16:9 Landscape Presentation Slide">
+                <span>👁️</span> <span>Preview</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Slide N+2: Top 5 Summary Card -->
           <div class="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/80 rounded-2xl p-4 shadow-2xs flex items-center justify-between gap-3">
             <div class="flex items-center gap-3">
               <span class="w-9 h-9 rounded-xl bg-red-600 text-white font-mono font-black text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
-                #${activeSlides.length + 4}
+                #${activeSlides.length + 5}
               </span>
               <div>
                 <div class="flex items-center gap-1.5">
@@ -2151,11 +2232,11 @@ const MonthlyReportView = {
             </div>
           </div>
 
-          <!-- Slide N+2: Concluding Slide Card -->
+          <!-- Slide N+3: Concluding Slide Card -->
           <div class="bg-slate-900 text-white rounded-2xl p-4 border border-slate-700 shadow-2xs flex items-center justify-between gap-3">
             <div class="flex items-center gap-3">
               <span class="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-mono font-black text-xs flex items-center justify-center flex-shrink-0">
-                #${activeSlides.length + 5}
+                #${activeSlides.length + 6}
               </span>
               <div>
                 <div class="flex items-center gap-1.5">

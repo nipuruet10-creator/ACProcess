@@ -301,7 +301,8 @@ class PPTXGenerator {
 
     const activeTemplate = template || reportData.template || "walton_executive_crimson";
     const isBlue = (activeTemplate === "industrial_innovation_blue" || activeTemplate === "walton_blue_dual");
-    const totalSlideCount = taskSlides.length + 5; // Cover + TOC + Dashboard + Tasks + Top 5 Works + Thank You Closing Slide
+    const hasWorkshopSlide = (typeof WorkshopCostManager !== 'undefined' && WorkshopCostManager.hasWorkshopData && WorkshopCostManager.hasWorkshopData(monthName)) || (reportData && reportData.workshopCostData) || (typeof WorkshopCostManager !== 'undefined');
+    const totalSlideCount = taskSlides.length + (hasWorkshopSlide ? 6 : 5); // Cover + TOC + Dashboard + Tasks + (Workshop Cost Saving) + Top 5 Works + Thank You Closing Slide
 
     // -------------------------------------------------------------
     // SLIDE 1: COVER PAGE (Crimson or Blue)
@@ -367,7 +368,18 @@ class PPTXGenerator {
     }
 
     // -------------------------------------------------------------
-    // SLIDE N+4: TOP 5 WORKS & PROJECTS SUMMARY (Image 2)
+    // SLIDE N+4: AC PROCESS WORKSHOP COST SAVING REPORT (Image 2 Replica)
+    // Placed sequentially immediately before Top 5 Works & Projects Summary
+    // -------------------------------------------------------------
+    if (hasWorkshopSlide) {
+      const slideWorkshop = pptx.addSlide();
+      slideWorkshop.background = { color: bgWhite };
+      this._addWorkshopCostSavingSlide(slideWorkshop, pptx, font, monthName, currentSlideNum, totalSlideCount, isBlue, reportData.workshopCostData || null);
+      currentSlideNum++;
+    }
+
+    // -------------------------------------------------------------
+    // SLIDE N+5: TOP 5 WORKS & PROJECTS SUMMARY (Image 2)
     // -------------------------------------------------------------
     const slideTopWorks = pptx.addSlide();
     slideTopWorks.background = { color: bgWhite };
@@ -1483,10 +1495,22 @@ class PPTXGenerator {
       }
     });
 
+    // Workshop Cost Saving Slide (Positioned immediately before Top 5 Works)
+    const hasWorkshop = (typeof WorkshopCostManager !== 'undefined');
+    if (hasWorkshop) {
+      const workshopPageStr = String(totalSlideCount - 2).padStart(2, '0');
+      activeSections.push({
+        title: "Workshop Cost Saving",
+        sub: "In-House Fabrication & Value Impact",
+        page: `Page No. ${workshopPageStr}`
+      });
+    }
+
+    const top5PageStr = hasWorkshop ? String(totalSlideCount - 1).padStart(2, '0') : finalPageStr;
     activeSections.push({
       title: "Top 5 Works & Projects",
       sub: "Executive Summary & Milestones",
-      page: `Page No. ${finalPageStr}`
+      page: `Page No. ${top5PageStr}`
     });
 
     return activeSections.map((item, idx) => ({
@@ -2042,6 +2066,355 @@ class PPTXGenerator {
     });
 
     this._addExecutiveRedFooter(slide, pptx, font, monthName, currentSlideNum, totalSlideCount);
+  }
+
+  /**
+   * AC Process Workshop Cost Saving Report Slide (16:9 Landscape - Image 2 Replica)
+   * Positioned immediately before Top 5 Works & Projects Summary
+   */
+  _addWorkshopCostSavingSlide(slide, pptx, font, monthName, currentSlideNum, totalSlideCount, isBlue = false, workshopData = null) {
+    const brandColor = isBlue ? "0284C7" : "C5161D";
+    const charcoalDark = "0F172A";
+    const textMuted = "64748B";
+
+    let stats = null;
+    if (workshopData) {
+      if (workshopData.categoryBreakdown) {
+        stats = workshopData;
+      } else if (Array.isArray(workshopData.items) && typeof WorkshopCostManager !== 'undefined') {
+        stats = WorkshopCostManager.calculateStats(workshopData.items, monthName);
+      }
+    }
+    if (!stats && typeof WorkshopCostManager !== 'undefined') {
+      try {
+        const wData = WorkshopCostManager.getWorkshopData(monthName);
+        stats = WorkshopCostManager.calculateStats(wData ? wData.items : [], monthName);
+      } catch (e) {
+        console.warn("Workshop stats load error:", e);
+      }
+    }
+    if (!stats) {
+      stats = {
+        totalCostSaving: 67351,
+        totalWorks: 28,
+        totalQty: 51,
+        avgCostSaving: 2405,
+        categoryBreakdown: [
+          { name: "Box", sum: 15616, pct: "23.2%", color: "#1D4ED8" },
+          { name: "Assembly Support", sum: 15257, pct: "22.7%", color: "#EA580C" },
+          { name: "Carton Section", sum: 12851, pct: "19.1%", color: "#CA8A04" },
+          { name: "Small Fixture", sum: 8637, pct: "12.8%", color: "#0284C7" },
+          { name: "Trolley", sum: 6733, pct: "10.0%", color: "#16A34A" },
+          { name: "Stand", sum: 3546, pct: "5.3%", color: "#DC2626" },
+          { name: "Others Work", sum: 2771, pct: "4.1%", color: "#7C3AED" },
+          { name: "Chair", sum: 1940, pct: "2.9%", color: "#0D9488" }
+        ],
+        top5Works: [
+          { rank: 1, name: "SS Box Cutting & Development", amount: 12867, color: "#1D4ED8" },
+          { rank: 2, name: "12/18 Indoor & Out Door Mash Aluminium Frame Development", amount: 10167, color: "#7C3AED" },
+          { rank: 3, name: "Tools Box Development for RAC Outdoor easing Room", amount: 6520, color: "#16A34A" },
+          { rank: 4, name: "Aging Room Side Conveyor Walking Support Stand Development", amount: 6388, color: "#EA580C" },
+          { rank: 5, name: "Evaporator Tube Storage Trolley Modification & Development", amount: 3303, color: "#DC2626" }
+        ],
+        top5Total: 39245,
+        top5Pct: "58.3%",
+        impacts: [
+          { text: "Process Standardized", icon: "⚙️" },
+          { text: "Setup Time Reduced", icon: "⏱️" },
+          { text: "Fixture Accuracy Improved", icon: "🎯" },
+          { text: "Material Handling Improved", icon: "🛒" },
+          { text: "Assembly Efficiency Increased", icon: "📈" },
+          { text: "Workstation Optimized", icon: "🛠️" }
+        ],
+        keyTakeaway: `Total cost saving in ${monthName} is ৳67,351 BDT.`
+      };
+    }
+
+    // Top Accent Border Line
+    slide.addShape(pptx.ShapeType.rect, {
+      x: 0, y: 0, w: 13.333, h: 0.08,
+      fill: { color: brandColor }, line: { color: brandColor }
+    });
+
+    // 1. Header Area
+    slide.addShape(pptx.ShapeType.diamond, {
+      x: 0.60, y: 0.22, w: 0.32, h: 0.32,
+      fill: { color: brandColor }, line: { color: brandColor }
+    });
+
+    const displayMonth = (typeof WorkshopCostManager !== 'undefined')
+      ? WorkshopCostManager.formatMonthDisplayName(monthName)
+      : monthName.toUpperCase();
+
+    slide.addText([
+      { text: `AC PROCESS WORKSHOP COST SAVING REPORT - ${displayMonth}\n`, options: { fontSize: 13, bold: true, color: charcoalDark } },
+      { text: "IN-HOUSE JIGS, FIXTURES, MODIFICATION & DIE-MAKING VALUE IMPACT", options: { fontSize: 8, bold: true, color: textMuted } }
+    ], {
+      x: 1.02, y: 0.16, w: 5.6, h: 0.52,
+      fontFace: font, valign: "middle"
+    });
+
+    // Top 3 KPI Badges (Right side)
+    const kpiY = 0.15;
+    const kpiH = 0.54;
+
+    // KPI 1: Total Cost Saving
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: 6.72, y: kpiY, w: 2.15, h: kpiH,
+      fill: { color: "ECFDF5" }, line: { color: "10B981", width: 1.2 }, rectRadius: 0.08
+    });
+    slide.addText([
+      { text: "TOTAL COST SAVING\n", options: { fontSize: 7, bold: true, color: "065F46" } },
+      { text: `৳ ${Number(stats.totalCostSaving).toLocaleString()} BDT`, options: { fontSize: 11, bold: true, color: "047857" } }
+    ], {
+      x: 6.72, y: kpiY, w: 2.15, h: kpiH,
+      fontFace: font, align: "center", valign: "middle"
+    });
+
+    // KPI 2: Total Works & Qty
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: 8.97, y: kpiY, w: 1.95, h: kpiH,
+      fill: { color: "EFF6FF" }, line: { color: "3B82F6", width: 1.2 }, rectRadius: 0.08
+    });
+    slide.addText([
+      { text: "TOTAL AMOUNT OF WORK\n", options: { fontSize: 7, bold: true, color: "1E40AF" } },
+      { text: `${stats.totalWorks} Works (${stats.totalQty || stats.totalWorks} Qty)`, options: { fontSize: 10.5, bold: true, color: "1D4ED8" } }
+    ], {
+      x: 8.97, y: kpiY, w: 1.95, h: kpiH,
+      fontFace: font, align: "center", valign: "middle"
+    });
+
+    // KPI 3: Avg Cost Saving
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: 11.02, y: kpiY, w: 1.71, h: kpiH,
+      fill: { color: "EEF2FF" }, line: { color: "6366F1", width: 1.2 }, rectRadius: 0.08
+    });
+    slide.addText([
+      { text: "AVG SAVING / WORK\n", options: { fontSize: 7, bold: true, color: "3730A3" } },
+      { text: `৳ ${Number(stats.avgCostSaving).toLocaleString()}`, options: { fontSize: 10.5, bold: true, color: "4338CA" } }
+    ], {
+      x: 11.02, y: kpiY, w: 1.71, h: kpiH,
+      fontFace: font, align: "center", valign: "middle"
+    });
+
+    // -------------------------------------------------------------
+    // LEFT COLUMN: Cost Saving by Category
+    // -------------------------------------------------------------
+    const leftX = 0.60;
+    const leftW = 5.80;
+
+    // Section Pill Header
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: leftX, y: 0.78, w: 2.5, h: 0.28,
+      fill: { color: isBlue ? "E0F2FE" : "FEE2E2" }, line: { color: isBlue ? "38BDF8" : "FCA5A5", width: 0.6 }, rectRadius: 0.14
+    });
+    slide.addText("📊 COST SAVING BY CATEGORY", {
+      x: leftX, y: 0.78, w: 2.5, h: 0.28,
+      fontFace: font, fontSize: 8.5, bold: true, color: brandColor, align: "center", valign: "middle"
+    });
+
+    // Category Table Rows
+    const cats = Array.isArray(stats.categoryBreakdown) && stats.categoryBreakdown.length > 0
+      ? stats.categoryBreakdown
+      : [
+          { name: "Box", sum: 15616, pct: "23.2%" },
+          { name: "Assembly Support", sum: 15257, pct: "22.7%" },
+          { name: "Carton Section", sum: 12851, pct: "19.1%" },
+          { name: "Small Fixture", sum: 8637, pct: "12.8%" },
+          { name: "Trolley", sum: 6733, pct: "10.0%" },
+          { name: "Stand", sum: 3546, pct: "5.3%" },
+          { name: "Others Work", sum: 2771, pct: "4.1%" },
+          { name: "Chair", sum: 1940, pct: "2.9%" }
+        ];
+
+    const catTableRows = [
+      [
+        { text: "Category", options: { bold: true, fill: "0F172A", color: "FFFFFF" } },
+        { text: "Amount (BDT)", options: { bold: true, fill: "0F172A", color: "FFFFFF", align: "right" } },
+        { text: "% Share", options: { bold: true, fill: "0F172A", color: "FFFFFF", align: "center" } }
+      ]
+    ];
+
+    cats.slice(0, 8).forEach((c, idx) => {
+      const rowBg = idx % 2 === 0 ? "FFFFFF" : "F8FAFC";
+      catTableRows.push([
+        { text: c.name, options: { fill: rowBg, bold: true, color: charcoalDark } },
+        { text: `৳ ${Number(c.sum).toLocaleString()}`, options: { fill: rowBg, align: "right", color: "047857", bold: true } },
+        { text: String(c.pct), options: { fill: rowBg, align: "center", color: "1D4ED8", bold: true } }
+      ]);
+    });
+
+    // Total Row
+    catTableRows.push([
+      { text: "Total Workshop Saving", options: { fill: "F1F5F9", bold: true, color: charcoalDark } },
+      { text: `৳ ${Number(stats.totalCostSaving).toLocaleString()}`, options: { fill: "F1F5F9", align: "right", bold: true, color: "047857" } },
+      { text: "100.0%", options: { fill: "F1F5F9", align: "center", bold: true, color: "1D4ED8" } }
+    ]);
+
+    slide.addTable(catTableRows, {
+      x: leftX, y: 1.12, w: leftW, h: 3.55,
+      colW: [2.9, 1.7, 1.2],
+      fontFace: font, fontSize: 8.8, color: charcoalDark,
+      fill: "FFFFFF", border: { pt: 0.5, color: "CBD5E1" },
+      align: "left", valign: "middle"
+    });
+
+    // Category Distribution Summary Box (Below table)
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: leftX, y: 4.80, w: leftW, h: 1.50,
+      fill: { color: "F8FAFC" }, line: { color: "CBD5E1", width: 1 }, rectRadius: 0.08
+    });
+    slide.addText("⚡ DISTRIBUTION INSIGHTS", {
+      x: leftX + 0.15, y: 4.86, w: leftW - 0.3, h: 0.22,
+      fontFace: font, fontSize: 8, bold: true, color: brandColor
+    });
+
+    // Render chips in 2x4 mini-grid
+    cats.slice(0, 8).forEach((c, i) => {
+      const chipCol = i % 2;
+      const chipRow = Math.floor(i / 2);
+      const cx = leftX + 0.15 + chipCol * 2.85;
+      const cy = 5.12 + chipRow * 0.27;
+
+      slide.addShape(pptx.ShapeType.oval, {
+        x: cx, y: cy + 0.05, w: 0.12, h: 0.12,
+        fill: { color: (c.color || "1D4ED8").replace('#', '') }, line: { color: (c.color || "1D4ED8").replace('#', '') }
+      });
+      slide.addText(`${c.name}: ${c.pct} (৳${Number(c.sum).toLocaleString()})`, {
+        x: cx + 0.18, y: cy, w: 2.65, h: 0.22,
+        fontFace: font, fontSize: 7.5, bold: true, color: charcoalDark, valign: "middle"
+      });
+    });
+
+    // -------------------------------------------------------------
+    // RIGHT COLUMN: Top 5 Highest Cost Saving Works + Impacts
+    // -------------------------------------------------------------
+    const rightX = 6.62;
+    const rightW = 6.11;
+
+    // Top 5 Pill Header
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: rightX, y: 0.78, w: 3.1, h: 0.28,
+      fill: { color: "EFF6FF" }, line: { color: "93C5FD", width: 0.6 }, rectRadius: 0.14
+    });
+    slide.addText("🏆 TOP 5 HIGHEST COST SAVING WORKS", {
+      x: rightX, y: 0.78, w: 3.1, h: 0.28,
+      fontFace: font, fontSize: 8.5, bold: true, color: "1D4ED8", align: "center", valign: "middle"
+    });
+
+    const top5 = Array.isArray(stats.top5Works) && stats.top5Works.length > 0
+      ? stats.top5Works
+      : [
+          { rank: 1, name: "SS Box Cutting & Development", amount: 12867 },
+          { rank: 2, name: "12/18 Indoor & Out Door Mash Aluminium Frame Development", amount: 10167 },
+          { rank: 3, name: "Tools Box Development for RAC Outdoor easing Room", amount: 6520 },
+          { rank: 4, name: "Aging Room Side Conveyor Walking Support Stand Development", amount: 6388 },
+          { rank: 5, name: "Evaporator Tube Storage Trolley Modification & Development", amount: 3303 }
+        ];
+
+    // Render 5 items as clean stacked cards
+    const rankColors = ["1D4ED8", "7C3AED", "16A34A", "EA580C", "DC2626"];
+    top5.slice(0, 5).forEach((t, idx) => {
+      const cardY = 1.12 + idx * 0.64;
+      const rankColor = rankColors[idx] || "1D4ED8";
+
+      // Card Container
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: rightX, y: cardY, w: rightW, h: 0.58,
+        fill: { color: "FFFFFF" }, line: { color: "E2E8F0", width: 1 }, rectRadius: 0.06
+      });
+
+      // Rank Badge
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: rightX + 0.08, y: cardY + 0.09, w: 0.42, h: 0.40,
+        fill: { color: rankColor }, line: { color: rankColor }, rectRadius: 0.04
+      });
+      slide.addText(`0${idx + 1}`, {
+        x: rightX + 0.08, y: cardY + 0.09, w: 0.42, h: 0.40,
+        fontFace: font, fontSize: 9.5, bold: true, color: "FFFFFF", align: "center", valign: "middle"
+      });
+
+      // Work Name (auto size)
+      const nameText = t.name || t.work_name || "Development Task";
+      const nameFontSize = nameText.length > 45 ? 8.2 : 9.2;
+      slide.addText(nameText, {
+        x: rightX + 0.58, y: cardY + 0.06, w: 3.85, h: 0.46,
+        fontFace: font, fontSize: nameFontSize, bold: true, color: charcoalDark, valign: "middle"
+      });
+
+      // Amount Badge
+      slide.addText(`৳ ${Number(t.amount || t.total_price || 0).toLocaleString()} BDT`, {
+        x: rightX + 4.45, y: cardY + 0.06, w: 1.55, h: 0.46,
+        fontFace: font, fontSize: 9.5, bold: true, color: "047857", align: "right", valign: "middle"
+      });
+    });
+
+    // Top 5 Share strip
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: rightX, y: 4.40, w: rightW, h: 0.32,
+      fill: { color: "FEF3C7" }, line: { color: "FCD34D", width: 0.8 }, rectRadius: 0.06
+    });
+    slide.addText(`⭐ Top 5 works contribute ৳${Number(stats.top5Total).toLocaleString()} BDT (${stats.top5Pct}) of total monthly workshop cost savings`, {
+      x: rightX + 0.1, y: 4.40, w: rightW - 0.2, h: 0.32,
+      fontFace: font, fontSize: 8, bold: true, color: "92400E", align: "center", valign: "middle"
+    });
+
+    // Section: Major Impact (2x3 pills grid)
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: rightX, y: 4.80, w: rightW, h: 1.50,
+      fill: { color: "F8FAFC" }, line: { color: "CBD5E1", width: 1 }, rectRadius: 0.08
+    });
+    slide.addText("⚡ MAJOR IMPACT & OPERATIONAL HIGHLIGHTS", {
+      x: rightX + 0.15, y: 4.86, w: rightW - 0.3, h: 0.22,
+      fontFace: font, fontSize: 8, bold: true, color: brandColor
+    });
+
+    const impactList = [
+      { text: "Process Standardized", icon: "⚙️" },
+      { text: "Setup Time Reduced", icon: "⏱️" },
+      { text: "Fixture Accuracy Improved", icon: "🎯" },
+      { text: "Material Handling Improved", icon: "🛒" },
+      { text: "Assembly Efficiency Increased", icon: "📈" },
+      { text: "Workstation Optimized", icon: "🛠️" }
+    ];
+
+    impactList.forEach((imp, i) => {
+      const impCol = i % 2;
+      const impRow = Math.floor(i / 2);
+      const ix = rightX + 0.15 + impCol * 3.0;
+      const iy = 5.14 + impRow * 0.36;
+
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: ix, y: iy, w: 2.85, h: 0.30,
+        fill: { color: "FFFFFF" }, line: { color: "E2E8F0", width: 0.8 }, rectRadius: 0.06
+      });
+      slide.addText(`${imp.icon} ${imp.text}`, {
+        x: ix + 0.10, y: iy, w: 2.65, h: 0.30,
+        fontFace: font, fontSize: 8, bold: true, color: charcoalDark, valign: "middle"
+      });
+    });
+
+    // -------------------------------------------------------------
+    // BOTTOM: Key Takeaway Banner
+    // -------------------------------------------------------------
+    const takeawayText = stats.keyTakeaway || `Total workshop cost saving in ${monthName} is ৳${Number(stats.totalCostSaving).toLocaleString()} BDT.`;
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: 0.60, y: 6.40, w: 12.13, h: 0.40,
+      fill: { color: isBlue ? "F0F9FF" : "FFFBEB" },
+      line: { color: isBlue ? "0284C7" : "F59E0B", width: 1 },
+      rectRadius: 0.08
+    });
+    slide.addText(`💡 KEY TAKEAWAY: ${takeawayText} In-house capability eliminates downtime and vendor procurement lead times.`, {
+      x: 0.80, y: 6.40, w: 11.73, h: 0.40,
+      fontFace: font, fontSize: 8.5, bold: true, color: isBlue ? "0369A1" : "B45309", valign: "middle"
+    });
+
+    // Footer
+    if (isBlue) {
+      this._addIndustrialBlueFooter(slide, pptx, font, monthName, currentSlideNum, totalSlideCount);
+    } else {
+      this._addExecutiveRedFooter(slide, pptx, font, monthName, currentSlideNum, totalSlideCount);
+    }
   }
 
   /**

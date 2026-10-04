@@ -852,14 +852,32 @@ const FirebaseSyncService = {
         continue;
       }
 
-      // PHOTO IMMUTABILITY: Never let remote empty string wipe a valid locally attached photo!
-      if (k === 'photo_1' || k === 'photo_2' || k === 'before_photo' || k === 'after_photo') {
+      // PHOTO IMMUTABILITY: Never let accidental empty string wipe a photo, UNLESS it's an explicit remote deletion!
+      const remotePhotoExplicitDelete = Boolean(
+        task._explicitUserPhotoDeleteTime ||
+        task._lastPhotoDeleteTime ||
+        task.clear_photos === true ||
+        (task._photoDeleted_before && (!localTask._lastPhotoEditTime || task._photoDeleted_before >= localTask._lastPhotoEditTime)) ||
+        (task._photoDeleted_after && (!localTask._lastPhotoEditTime || task._photoDeleted_after >= localTask._lastPhotoEditTime))
+      );
+
+      if (k === 'photo_1' || k === 'photo_2' || k === 'before_photo' || k === 'after_photo' || k === 'photo') {
         if ((!v || String(v).trim() === '') && localTask[k]) {
+          if (remotePhotoExplicitDelete) {
+            mergedTask[k] = "";
+            continue;
+          }
           continue;
         }
       }
-      if (k === 'clear_photos' && v === true && localTask._lastPhotoEditTime) {
-        continue;
+      if (k === 'clear_photos' && v === true) {
+        if (remotePhotoExplicitDelete) {
+          mergedTask.clear_photos = true;
+          continue;
+        }
+        if (localTask._lastPhotoEditTime) {
+          continue;
+        }
       }
 
       mergedTask[k] = v;
@@ -1028,10 +1046,10 @@ const FirebaseSyncService = {
       }
 
       // 9. Photo real-time cross-device sync (Adds and deletes on all PCs immediately!)
-      else if (field === 'photo_1' || field === 'photo_2' || field === 'before_photo' || field === 'after_photo' || field === 'photo') {
+      else if (field === 'photo_1' || field === 'photo_2' || field === 'before_photo' || field === 'after_photo' || field === 'photo' || field === 'clear_photos' || field === '_explicitUserPhotoDeleteTime' || field === '_lastPhotoDeleteTime') {
         const val = task[field] || task.photo_2 || task.after_photo || task.photo;
         const slot = (field === 'photo_1' || field === 'before_photo') ? 'before_photo' : 'after_photo';
-        if (val && val !== "" && val !== "null" && val !== "undefined") {
+        if (val && val !== "" && val !== "null" && val !== "undefined" && !remotePhotoExplicitDelete) {
           // Another user added/updated this photo: save it into this PC's photoManager!
           if (typeof photoManager !== 'undefined') {
             photoManager.setTaskPhoto(taskId, slot, val, val, month);
@@ -1052,10 +1070,41 @@ const FirebaseSyncService = {
               delete lt.clear_photos;
             }
           }
-        } else if (task && task.clear_photos && task._explicitUserPhotoDeleteTime) {
-          // Only if another user explicitly clicked Delete
+          if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.updateSlideCardPhoto) {
+            MonthlyReportView.updateSlideCardPhoto(taskId);
+          }
+        } else if (remotePhotoExplicitDelete || (!val && (task.clear_photos || task._explicitUserPhotoDeleteTime))) {
+          // Explicit photo deletion from another PC: immediately wipe on this PC!
           if (typeof photoManager !== 'undefined') {
-            photoManager.removePhoto(taskId, slot, month);
+            if (typeof photoManager.purgeTaskPhotosMemory === 'function') {
+              photoManager.purgeTaskPhotosMemory(taskId);
+            }
+            if (typeof photoManager.removePhoto === 'function') {
+              photoManager.removePhoto(taskId, 'all', month);
+            }
+          }
+          if (window.appState && window.appState.workbookMgr) {
+            const lt = window.appState.workbookMgr.getTask(month, taskId);
+            if (lt) {
+              lt.photo_1 = "";
+              lt.photo_2 = "";
+              lt.before_photo = "";
+              lt.after_photo = "";
+              lt.photo = "";
+              lt.clear_photos = true;
+              lt._lastPhotoDeleteTime = Date.now();
+            }
+          }
+          // Immediate zero-lag DOM patch on this PC
+          if (typeof MonthlyReportView !== 'undefined') {
+            if (MonthlyReportView.updateSlideCardPhoto) MonthlyReportView.updateSlideCardPhoto(taskId);
+            if (MonthlyReportView._activeModalTaskId === taskId) {
+              if (MonthlyReportView.renderModalPhotoSlots) MonthlyReportView.renderModalPhotoSlots(taskId);
+              if (MonthlyReportView.renderModalLivePreview) MonthlyReportView.renderModalLivePreview(taskId);
+            }
+          }
+          if (typeof MonthlyInputView !== 'undefined' && MonthlyInputView.updateTaskCardPhoto) {
+            MonthlyInputView.updateTaskCardPhoto(taskId);
           }
         }
 

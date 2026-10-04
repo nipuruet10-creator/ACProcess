@@ -95,6 +95,10 @@ const SlidePreviewModal = {
       }
       this.deckTitles.push(`${i + 4}. ${prefix} ${cleanTitle}`);
     });
+    const hasWorkshopSlide = (typeof WorkshopCostManager !== 'undefined' && WorkshopCostManager.hasWorkshopData && WorkshopCostManager.hasWorkshopData(this.currentMonth)) || (reportData && reportData.workshopCostData);
+    if (hasWorkshopSlide) {
+      this.deckTitles.push(`${total - 2}. AC Process Workshop Cost Saving Report`);
+    }
     this.deckTitles.push(`${total - 1}. Top 5 Works & Projects Summary`);
     this.deckTitles.push(`${total}. Thank You / Closing Slide`);
 
@@ -122,6 +126,14 @@ const SlidePreviewModal = {
     this.currentSlideIndex = 0;
     const container = this.renderContainer();
     this._renderModal(container);
+  },
+
+  openCustomHtml(html, title = "16:9 Presentation Slide Preview") {
+    if (!html) return;
+    this.openSingle({
+      raw_html: html,
+      slide_title: title
+    });
   },
 
   /**
@@ -210,10 +222,15 @@ const SlidePreviewModal = {
       }
     } else {
       currentTask = this.activeSlides[this.currentSlideIndex];
-      slideHtml = typeof SlideLayoutEngine !== 'undefined'
-        ? SlideLayoutEngine.renderTaskSlide(currentTask, this.currentSlideIndex + 1, total)
-        : `<div>Slide Preview: ${currentTask ? currentTask.slide_title : ''}</div>`;
-      headerTitle = currentTask ? (currentTask.slide_title || currentTask.task_name) : `Slide ${this.currentSlideIndex + 1}`;
+      if (currentTask && currentTask.raw_html) {
+        slideHtml = currentTask.raw_html;
+        headerTitle = currentTask.slide_title || "Slide Preview";
+      } else {
+        slideHtml = typeof SlideLayoutEngine !== 'undefined'
+          ? SlideLayoutEngine.renderTaskSlide(currentTask, this.currentSlideIndex + 1, total)
+          : `<div>Slide Preview: ${currentTask ? currentTask.slide_title : ''}</div>`;
+        headerTitle = currentTask ? (currentTask.slide_title || currentTask.task_name) : `Slide ${this.currentSlideIndex + 1}`;
+      }
     }
 
     container.innerHTML = `

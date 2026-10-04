@@ -728,6 +728,16 @@ class PhotoManager {
     return base64Url;
   }
 
+  purgeTaskPhotosMemory(taskId) {
+    if (!taskId) return;
+    delete this.photoMap[taskId];
+    Object.keys(this.photoMap).forEach(k => {
+      if (k === taskId || k.endsWith(`_${taskId}`)) {
+        delete this.photoMap[k];
+      }
+    });
+  }
+
   async removePhoto(taskId, slot, month = null) {
     if (!taskId || !slot) return false;
     let m = month;
@@ -741,6 +751,7 @@ class PhotoManager {
     const isAll = (slot === 'all');
     const isBefore = isAll || (slot === 'before_photo' || slot === 'photo_1');
     const isAfter = isAll || (slot === 'after_photo' || slot === 'photo_2');
+    const now = Date.now();
 
     // 1. Clear MonthWorkbookManager FIRST so no fallback can resurrect stale photo!
     let targetTask = null;
@@ -759,19 +770,22 @@ class PhotoManager {
             if (isBefore) {
               t.photo_1 = "";
               t.before_photo = "";
-              t._photoDeleted_before = Date.now();
+              t._photoDeleted_before = now;
             }
             if (isAfter) {
               t.photo_2 = "";
               t.after_photo = "";
-              t._photoDeleted_after = Date.now();
+              t.photo = "";
+              t._photoDeleted_after = now;
             }
             if (!t.photo_1 && !t.photo_2) {
               t.clear_photos = true;
             } else {
               delete t.clear_photos;
             }
-            t._lastPhotoEditTime = Date.now();
+            t._explicitUserPhotoDeleteTime = now;
+            t._lastPhotoDeleteTime = now;
+            t._lastPhotoEditTime = now;
             t.last_updated = new Date().toISOString();
             if (mon === activeM) targetTask = t;
           }
@@ -906,7 +920,34 @@ class PhotoManager {
       
       // REAL-TIME FIREBASE BROADCAST DELETION:
       if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
-        await FirebaseSyncService.updateCell(activeM, taskId, photoField, "");
+        const deletePayload = {
+          _explicitUserPhotoDeleteTime: now,
+          _lastPhotoDeleteTime: now,
+          _lastPhotoEditTime: now
+        };
+        if (isBefore) {
+          deletePayload.photo_1 = "";
+          deletePayload.before_photo = "";
+          deletePayload._photoDeleted_before = now;
+        }
+        if (isAfter) {
+          deletePayload.photo_2 = "";
+          deletePayload.after_photo = "";
+          deletePayload.photo = "";
+          deletePayload._photoDeleted_after = now;
+        }
+        if (isAll) {
+          deletePayload.photo_1 = "";
+          deletePayload.photo_2 = "";
+          deletePayload.before_photo = "";
+          deletePayload.after_photo = "";
+          deletePayload.photo = "";
+          deletePayload.clear_photos = true;
+          deletePayload._photoDeleted_before = now;
+          deletePayload._photoDeleted_after = now;
+        }
+        
+        await FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}`).update(deletePayload).catch(() => {});
         if (targetTask) {
           await FirebaseSyncService.pushTask(activeM, targetTask);
         }

@@ -1474,6 +1474,9 @@ const CostSavingsView = {
           </form>
         </div>
 
+        <!-- AC PROCESS WORKSHOP COST SAVING REPORT (EXCEL INPUT & 16:9 SLIDE GENERATOR) - IMAGES 2 & 3 -->
+        ${this.renderWorkshopCostingSection(month)}
+
         <!-- Cost Saving Presentation Slides Section (Requirement 9: live preview cards like monthly input) -->
         <div class="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs">
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
@@ -1815,6 +1818,381 @@ const CostSavingsView = {
 
       </div>
     `;
+  },
+
+  // =========================================================================
+  // AC PROCESS WORKSHOP COST SAVING REPORT (EXCEL INPUT & 16:9 SLIDE ENGINE)
+  // =========================================================================
+
+  _workshopDraftItems: null,
+  _workshopDraftMonth: null,
+
+  getWorkshopItems(month) {
+    const m = month || this.selectedMonth;
+    if (this._workshopDraftItems && this._workshopDraftMonth === m) {
+      return this._workshopDraftItems;
+    }
+    const data = (typeof WorkshopCostManager !== 'undefined') ? WorkshopCostManager.getWorkshopData(m) : { items: [] };
+    this._workshopDraftMonth = m;
+    this._workshopDraftItems = (data && Array.isArray(data.items)) ? [...data.items] : [];
+    return this._workshopDraftItems;
+  },
+
+  renderWorkshopCostingSection(month) {
+    const items = this.getWorkshopItems(month);
+    const stats = (typeof WorkshopCostManager !== 'undefined')
+      ? WorkshopCostManager.calculateStats(items, month)
+      : { totalCostSaving: 0, totalWorks: 0, totalQty: 0, avgCostSaving: 0, top5Pct: "0%" };
+    const monthDisplay = (typeof WorkshopCostManager !== 'undefined')
+      ? WorkshopCostManager.formatMonthDisplayName(month)
+      : month;
+
+    return `
+      <!-- DEDICATED WORKSHOP COST SAVING REPORT (EXCEL INPUT & 16:9 SLIDE GENERATOR) -->
+      <div class="bg-white border-2 border-emerald-400/80 rounded-3xl p-6 shadow-xs space-y-5" id="workshop-costing-hub">
+        
+        <!-- Header banner -->
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center text-lg shadow-sm">
+                🛠️
+              </span>
+              <h3 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                AC Process Workshop Cost Saving Report &bull; Excel Input &amp; 16:9 Slide Generator
+              </h3>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-200">
+                ${monthDisplay}
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
+              Input or paste monthly Excel data (Work Name, QTY, Per Price, Total Price, Category) to auto-generate the 16:9 landscape presentation slide (Image 2 format) positioned right before Top 5 Summary in the deck.
+            </p>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <button type="button" onclick="CostSavingsView.toggleWorkshopPasteBox()" class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs">
+              <span>📋</span> <span>Paste from Excel</span>
+            </button>
+            <button type="button" onclick="CostSavingsView.addWorkshopRow()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+              <span>➕</span> <span>Add Row</span>
+            </button>
+            <button type="button" onclick="CostSavingsView.loadAugustSampleData()" class="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs" title="Load Reference August 2026 Excel Data">
+              <span>✨</span> <span>Load Sample Data</span>
+            </button>
+            <button type="button" onclick="CostSavingsView.clearWorkshopData()" class="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="Clear all rows">
+              <span>🗑️</span>
+            </button>
+            <button type="button" onclick="CostSavingsView.saveWorkshopData()" class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white text-xs font-black shadow-md shadow-emerald-500/25 transition flex items-center gap-1 cursor-pointer active:scale-95">
+              <span>💾</span> <span>Save &amp; Generate Slide</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 5 Live Summary Badges -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 bg-gradient-to-r from-emerald-50/50 via-slate-50 to-teal-50/50 p-3 rounded-2xl border border-slate-200">
+          <div class="p-2">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Total Saving</div>
+            <div class="text-lg font-black text-emerald-700 font-mono">৳${stats.totalCostSaving.toLocaleString()}</div>
+          </div>
+          <div class="p-2">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Amount of Work</div>
+            <div class="text-lg font-black text-slate-800">${stats.totalWorks} Works</div>
+          </div>
+          <div class="p-2">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Total Quantity</div>
+            <div class="text-lg font-black text-orange-600">${stats.totalQty} Units</div>
+          </div>
+          <div class="p-2">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Avg Saving / Work</div>
+            <div class="text-lg font-black text-purple-700 font-mono">৳${stats.avgCostSaving.toLocaleString()}</div>
+          </div>
+          <div class="p-2">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Top 5 Contribution</div>
+            <div class="text-lg font-black text-blue-700 font-mono">${stats.top5Pct}</div>
+          </div>
+        </div>
+
+        <!-- Collapsible Excel Raw Paste Box -->
+        <div id="workshop-excel-paste-box" class="hidden p-4 rounded-2xl bg-blue-50/70 border border-blue-200 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+              <span>📋</span> <span>Paste Excel Cells Directly Here (Tab-Separated or CSV):</span>
+            </label>
+            <span class="text-[10.5px] text-blue-700 font-mono">Columns: Work Name | QTY | Per Price | Total Price | Category</span>
+          </div>
+          <textarea id="workshop-raw-paste-input" rows="5" placeholder="Copy rows directly from Excel and paste here (Ctrl+V)...&#10;e.g.&#10;9J - 0101 Short Pcies &amp; Y Joint Brazing Fixture Development	1	1134	1134	Small Fixture&#10;Hole Development Tools For Capillary Tube &amp; Brash Distributor	1	486	486	Others Work"
+                    class="w-full bg-white border border-blue-300 rounded-xl p-3 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner leading-relaxed"></textarea>
+          <div class="flex items-center justify-between">
+            <button type="button" onclick="CostSavingsView.handlePasteClipboardButton()" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-blue-300 text-blue-700 font-bold text-xs shadow-2xs cursor-pointer flex items-center gap-1">
+              <span>📋</span> <span>Paste from Clipboard</span>
+            </button>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="CostSavingsView.toggleWorkshopPasteBox(false)" class="px-3 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs cursor-pointer">
+                Cancel
+              </button>
+              <button type="button" onclick="CostSavingsView.importExcelPasteContent()" class="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow cursor-pointer flex items-center gap-1">
+                <span>📥</span> <span>Import into Table</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Table Editor -->
+        <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+          <div class="max-h-[380px] overflow-y-auto">
+            <table class="w-full text-left text-xs text-slate-700 border-collapse" id="workshop-items-table">
+              <thead class="bg-slate-100 text-[11px] font-bold text-slate-600 uppercase tracking-wider sticky top-0 z-10 border-b border-slate-200">
+                <tr>
+                  <th class="py-2.5 px-3 w-10 text-center">#</th>
+                  <th class="py-2.5 px-3 min-w-[280px]">Work Name / Initiative</th>
+                  <th class="py-2.5 px-3 w-40">Category</th>
+                  <th class="py-2.5 px-3 w-20 text-right">QTY</th>
+                  <th class="py-2.5 px-3 w-28 text-right">Per Price (৳)</th>
+                  <th class="py-2.5 px-3 w-28 text-right">Total Price (৳)</th>
+                  <th class="py-2.5 px-3 w-16 text-center">Del</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 bg-white" id="workshop-table-body">
+                ${items.length === 0 ? `
+                  <tr>
+                    <td colspan="7" class="py-10 text-center text-slate-400">
+                      <div class="flex flex-col items-center justify-center">
+                        <span class="text-3xl mb-1.5">📑</span>
+                        <span class="font-bold text-slate-700">No Workshop Costing Items Recorded for ${monthDisplay}</span>
+                        <span class="text-xs text-slate-400 mt-0.5">Click "Paste from Excel" or "Load Sample Data" above to generate the slide.</span>
+                      </div>
+                    </td>
+                  </tr>
+                ` : items.map((item, i) => `
+                  <tr class="hover:bg-slate-50/80 transition">
+                    <td class="py-1 px-2 text-center font-mono text-slate-400 font-bold">${i + 1}</td>
+                    <td class="py-1 px-2">
+                      <input type="text" value="${HELPERS.escapeHtml(item.work_name || '')}" oninput="CostSavingsView.updateWorkshopRowField(${i}, 'work_name', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500" placeholder="Work name..." />
+                    </td>
+                    <td class="py-1 px-2">
+                      <input type="text" list="workshop-cat-list" value="${HELPERS.escapeHtml(item.category || 'Others Work')}" oninput="CostSavingsView.updateWorkshopRowField(${i}, 'category', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none focus:border-blue-500" />
+                    </td>
+                    <td class="py-1 px-2 text-right">
+                      <input type="number" min="1" step="1" value="${item.qty || 1}" oninput="CostSavingsView.updateWorkshopRowField(${i}, 'qty', this.value)" class="w-16 text-right bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500" />
+                    </td>
+                    <td class="py-1 px-2 text-right">
+                      <input type="number" min="0" step="1" value="${item.per_price || 0}" oninput="CostSavingsView.updateWorkshopRowField(${i}, 'per_price', this.value)" class="w-24 text-right bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500" />
+                    </td>
+                    <td class="py-1 px-2 text-right">
+                      <input type="number" min="0" step="1" value="${item.total_price || 0}" oninput="CostSavingsView.updateWorkshopRowField(${i}, 'total_price', this.value)" class="w-24 text-right bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono font-black text-emerald-700 focus:bg-white focus:outline-none focus:border-blue-500" />
+                    </td>
+                    <td class="py-1 px-2 text-center">
+                      <button type="button" onclick="CostSavingsView.deleteWorkshopRow(${i})" class="p-1 rounded text-rose-500 hover:bg-rose-50 text-xs font-bold cursor-pointer" title="Delete Row">🗑️</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          
+          <datalist id="workshop-cat-list">
+            <option value="Box">
+            <option value="Assembly Support">
+            <option value="Carton Section">
+            <option value="Small Fixture">
+            <option value="Trolley">
+            <option value="Stand">
+            <option value="Others Work">
+            <option value="Chair">
+            <option value="Table">
+          </datalist>
+
+          <div class="bg-slate-50 px-3 py-2 border-t border-slate-200 flex items-center justify-between text-xs">
+            <button type="button" onclick="CostSavingsView.addWorkshopRow()" class="px-3 py-1 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1 shadow-2xs cursor-pointer">
+              <span>➕</span> <span>Add Item</span>
+            </button>
+            <div class="flex items-center gap-3 font-bold font-mono">
+              <span>Total Qty: <strong class="text-orange-600">${stats.totalQty}</strong></span>
+              <span>&bull;</span>
+              <span>Grand Total: <strong class="text-emerald-700 text-sm">৳${stats.totalCostSaving.toLocaleString()} BDT</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 16:9 Landscape Live Presentation Slide Preview Card -->
+        <div class="bg-slate-900 rounded-3xl p-4 sm:p-5 border border-slate-800 shadow-xl space-y-3">
+          <div class="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-800">
+            <div class="flex items-center gap-2">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
+                16:9 Landscape Presentation Slide Preview (Deck Sequence: Positioned Before Top 5 Summary)
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="CostSavingsView.previewWorkshopSlide()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                <span>👁️</span> <span>Fullscreen Preview</span>
+              </button>
+              <button type="button" onclick="CostSavingsView.downloadWorkshopSlideImage()" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 transition flex items-center gap-1.5 cursor-pointer active:scale-95">
+                <span>📥</span> <span>Download Slide (PNG)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Slide Container -->
+          <div class="w-full flex items-center justify-center p-2 rounded-2xl bg-slate-950/60 overflow-hidden shadow-2xl">
+            <div class="w-full max-w-[1100px] shadow-2xl rounded-xl overflow-hidden" id="workshop-slide-preview-wrapper">
+              ${(typeof WorkshopCostManager !== 'undefined') ? WorkshopCostManager.renderSlideHtml(month, { items }) : ''}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    `;
+  },
+
+  toggleWorkshopPasteBox(force = null) {
+    const box = document.getElementById('workshop-excel-paste-box');
+    if (!box) return;
+    if (force !== null) {
+      if (force) box.classList.remove('hidden');
+      else box.classList.add('hidden');
+    } else {
+      box.classList.toggle('hidden');
+    }
+  },
+
+  async handlePasteClipboardButton() {
+    try {
+      const text = await navigator.clipboard.readText();
+      const input = document.getElementById('workshop-raw-paste-input');
+      if (input && text) {
+        input.value = text;
+        if (typeof window.showToast === 'function') window.showToast("Pasted from clipboard! Click 'Import into Table' to apply.", "info");
+      }
+    } catch (e) {
+      alert("Clipboard access not available. Please press Ctrl+V directly into the text box.");
+    }
+  },
+
+  importExcelPasteContent() {
+    const input = document.getElementById('workshop-raw-paste-input');
+    if (!input || !input.value.trim()) {
+      alert("Please paste Excel data into the box first.");
+      return;
+    }
+
+    if (typeof WorkshopCostManager === 'undefined') return;
+    const parsed = WorkshopCostManager.parseExcelPaste(input.value);
+    if (!parsed || parsed.length === 0) {
+      alert("Could not parse any valid rows. Please ensure your Excel copy has Work Name and QTY/Price columns.");
+      return;
+    }
+
+    this._workshopDraftItems = parsed;
+    this._workshopDraftMonth = this.selectedMonth;
+    WorkshopCostManager.saveWorkshopData(this.selectedMonth, { items: parsed });
+    this.toggleWorkshopPasteBox(false);
+    this.render();
+
+    if (typeof window.showToast === 'function') {
+      window.showToast(`📥 Successfully imported ${parsed.length} workshop items from Excel!`, "success");
+    }
+  },
+
+  addWorkshopRow() {
+    const items = this.getWorkshopItems(this.selectedMonth);
+    items.push({
+      work_name: "New Workshop Fixture/Development",
+      qty: 1,
+      per_price: 1000,
+      total_price: 1000,
+      category: "Small Fixture"
+    });
+    this._workshopDraftItems = items;
+    this.render();
+  },
+
+  deleteWorkshopRow(idx) {
+    const items = this.getWorkshopItems(this.selectedMonth);
+    if (idx >= 0 && idx < items.length) {
+      items.splice(idx, 1);
+      this._workshopDraftItems = items;
+      this.render();
+    }
+  },
+
+  updateWorkshopRowField(idx, field, value) {
+    const items = this.getWorkshopItems(this.selectedMonth);
+    if (!items[idx]) return;
+
+    if (field === 'qty') {
+      const q = Math.max(1, parseFloat(value) || 1);
+      items[idx].qty = q;
+      items[idx].total_price = q * (items[idx].per_price || 0);
+    } else if (field === 'per_price') {
+      const p = Math.max(0, parseFloat(value) || 0);
+      items[idx].per_price = p;
+      items[idx].total_price = (items[idx].qty || 1) * p;
+    } else if (field === 'total_price') {
+      items[idx].total_price = Math.max(0, parseFloat(value) || 0);
+    } else {
+      items[idx][field] = value;
+    }
+
+    // Refresh live preview wrapper without tearing down input focus
+    const previewWrapper = document.getElementById('workshop-slide-preview-wrapper');
+    if (previewWrapper && typeof WorkshopCostManager !== 'undefined') {
+      previewWrapper.innerHTML = WorkshopCostManager.renderSlideHtml(this.selectedMonth, { items });
+    }
+  },
+
+  loadAugustSampleData() {
+    if (typeof WorkshopCostManager === 'undefined') return;
+    this._workshopDraftItems = [...WorkshopCostManager.AUGUST_2026_RAW_ITEMS];
+    this._workshopDraftMonth = this.selectedMonth;
+    WorkshopCostManager.saveWorkshopData(this.selectedMonth, { items: this._workshopDraftItems });
+    this.render();
+    if (typeof window.showToast === 'function') {
+      window.showToast("✨ Loaded reference August 2026 workshop costing Excel dataset!", "success");
+    }
+  },
+
+  clearWorkshopData() {
+    if (!confirm("Are you sure you want to clear all workshop items for this month?")) return;
+    this._workshopDraftItems = [];
+    this._workshopDraftMonth = this.selectedMonth;
+    if (typeof WorkshopCostManager !== 'undefined') {
+      WorkshopCostManager.saveWorkshopData(this.selectedMonth, { items: [] });
+    }
+    this.render();
+    if (typeof window.showToast === 'function') {
+      window.showToast("🗑 Cleared workshop items.", "info");
+    }
+  },
+
+  saveWorkshopData() {
+    if (typeof WorkshopCostManager === 'undefined') return;
+    const items = this.getWorkshopItems(this.selectedMonth);
+    WorkshopCostManager.saveWorkshopData(this.selectedMonth, { items });
+    this.render();
+    if (typeof window.showToast === 'function') {
+      window.showToast("💾 AC Process Workshop Cost Saving Report saved & 16:9 slide updated!", "success");
+    }
+  },
+
+  previewWorkshopSlide() {
+    const month = this.selectedMonth;
+    const items = this.getWorkshopItems(month);
+    const slideHtml = (typeof WorkshopCostManager !== 'undefined')
+      ? WorkshopCostManager.renderSlideHtml(month, { items })
+      : '<div>Slide unavailable</div>';
+
+    if (typeof SlidePreviewModal !== 'undefined' && SlidePreviewModal.openCustomHtml) {
+      SlidePreviewModal.openCustomHtml(slideHtml, `AC Process Workshop Cost Saving Report (${month})`);
+    }
+  },
+
+  downloadWorkshopSlideImage() {
+    if (typeof WorkshopCostManager !== 'undefined' && WorkshopCostManager.downloadSlideAsImage) {
+      WorkshopCostManager.downloadSlideAsImage('workshop-slide-canvas', `AC_Process_Workshop_Cost_Saving_${this.selectedMonth}.png`);
+    }
   }
 };
 

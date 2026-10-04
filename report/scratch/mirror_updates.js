@@ -24,6 +24,7 @@ const files = [
   'export/pdf_generator.js',
   'export/html_generator.js',
   'projects/projects_view.js',
+  'dashboard/workshop_cost_manager.js',
   'dashboard/cost_savings_view.js',
   'export/export_controller.js',
   'report/builder_view.js',
