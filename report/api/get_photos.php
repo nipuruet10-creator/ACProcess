@@ -53,11 +53,27 @@ try {
                     $tId = $m[1];
                     $slot = $m[2];
 
-                    // Check tombstone
+                    // Check tombstone with timestamp protection
                     $pParts = explode('-', $tId);
                     $prefix = (count($pParts) >= 3) ? ($pParts[0] . '-' . $pParts[1] . '-' . $pParts[2]) : $tId;
-                    if (isset($deletedMap[$tId]) || isset($deletedMap[$prefix])) {
-                        // Task was explicitly deleted by user: purge from disk and skip!
+                    $mtime = filemtime($photosDir . '/' . $f);
+                    $isTombstoned = false;
+
+                    if (isset($deletedMap[$tId])) {
+                        $delTime = is_array($deletedMap[$tId]) && isset($deletedMap[$tId]['time']) ? $deletedMap[$tId]['time'] : (is_numeric($deletedMap[$tId]) ? $deletedMap[$tId] : 0);
+                        if ($delTime > 0 && $mtime < $delTime) {
+                            $isTombstoned = true;
+                        }
+                    }
+                    if (!$isTombstoned && isset($deletedMap[$prefix])) {
+                        $delTime = is_array($deletedMap[$prefix]) && isset($deletedMap[$prefix]['time']) ? $deletedMap[$prefix]['time'] : (is_numeric($deletedMap[$prefix]) ? $deletedMap[$prefix] : 0);
+                        if ($delTime > 0 && $mtime < $delTime) {
+                            $isTombstoned = true;
+                        }
+                    }
+
+                    if ($isTombstoned) {
+                        // Task was explicitly deleted and physical file on disk is older than deletion: purge and skip!
                         @unlink($photosDir . '/' . $f);
                         if (isset($catalog[$tId])) unset($catalog[$tId]);
                         if (isset($catalog[$prefix])) unset($catalog[$prefix]);
