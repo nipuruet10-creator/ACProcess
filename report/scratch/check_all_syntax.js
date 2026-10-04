@@ -1,38 +1,31 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const vm = require('vm');
 
 function walk(dir) {
-  let files = [];
+  let results = [];
   const list = fs.readdirSync(dir);
-  for (const item of list) {
-    const full = path.join(dir, item);
+  list.forEach(file => {
+    const full = path.join(dir, file);
     const stat = fs.statSync(full);
-    if (stat.isDirectory()) {
-      if (item !== 'node_modules' && item !== '.git') {
-        files = files.concat(walk(full));
-      }
-    } else if (item.endsWith('.js')) {
-      files.push(full);
+    if (stat && stat.isDirectory()) {
+      if (file !== 'node_modules' && file !== '.git') results = results.concat(walk(full));
+    } else if (file.endsWith('.js')) {
+      results.push(full);
     }
-  }
-  return files;
+  });
+  return results;
 }
 
-const allJs = walk('.');
+const allJs = walk('./report');
 let errors = 0;
-for (const f of allJs) {
+allJs.forEach(file => {
   try {
-    execSync(`node -c "${f}"`, { stdio: 'pipe' });
+    const code = fs.readFileSync(file, 'utf8');
+    new vm.Script(code, { filename: file });
   } catch (err) {
-    console.error(`SYNTAX ERROR in: ${f}`);
-    console.error(err.stderr.toString());
+    console.error('Syntax error in:', file, err.message);
     errors++;
   }
-}
-
-if (errors === 0) {
-  console.log("All .js files have valid syntax!");
-} else {
-  console.log(`Found ${errors} syntax errors!`);
-}
+});
+console.log(`Checked ${allJs.length} JS files. Total syntax errors: ${errors}`);

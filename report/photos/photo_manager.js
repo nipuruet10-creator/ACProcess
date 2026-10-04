@@ -811,7 +811,7 @@ class PhotoManager {
    * Real-time Cloud Photo Sync: Adopts live photo broadcasts from Firebase live_photos node
    * Instantly updates in-memory cache, IndexedDB, workbook, and live card UI across all devices
    */
-  applyLivePhotoData(taskId, pData, month = 'SEP-2026') {
+  applyLivePhotoData(taskId, pData, month = 'SEP-2026', isBatch = false) {
     if (!taskId || !pData) return;
     const m = month || pData.month || 'SEP-2026';
     const mKey = `${m}_${taskId}`;
@@ -841,23 +841,25 @@ class PhotoManager {
     }
 
     // Clear local deletion tombstones for this task so stale local tombstones cannot suppress live cloud photos
-    try {
-      const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
-      const cleanT = String(taskId).toLowerCase();
-      const pParts = cleanT.split('-');
-      const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
-      delete delMap[taskId];
-      delete delMap[cleanT];
-      delete delMap[pPrefix];
-      delete delMap[mKey];
-      delete delMap[`${m}_${cleanT}`];
-      localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
-    } catch(e) {}
+    if (!isBatch) {
+      try {
+        const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+        const cleanT = String(taskId).toLowerCase();
+        const pParts = cleanT.split('-');
+        const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+        delete delMap[taskId];
+        delete delMap[cleanT];
+        delete delMap[pPrefix];
+        delete delMap[mKey];
+        delete delMap[`${m}_${cleanT}`];
+        localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
+      } catch(e) {}
 
-    // Persist to IndexedDB
-    if (typeof PhotoIndexedDB !== 'undefined') {
-      PhotoIndexedDB.saveTaskPhotos(taskId, this.photoMap[taskId]).catch(() => {});
-      PhotoIndexedDB.saveTaskPhotos(mKey, this.photoMap[mKey]).catch(() => {});
+      // Persist to IndexedDB
+      if (typeof PhotoIndexedDB !== 'undefined') {
+        PhotoIndexedDB.saveTaskPhotos(taskId, this.photoMap[taskId]).catch(() => {});
+        PhotoIndexedDB.saveTaskPhotos(mKey, this.photoMap[mKey]).catch(() => {});
+      }
     }
 
     // Update Workbook task
@@ -879,7 +881,13 @@ class PhotoManager {
           delete target.clear_photos;
           delete target._lastPhotoDeleteTime;
           target._lastPhotoEditTime = Date.now();
-          wbMgr.save();
+          if (!isBatch) {
+            if (typeof wbMgr.debouncedSave === 'function') {
+              wbMgr.debouncedSave(100);
+            } else {
+              wbMgr.save();
+            }
+          }
         }
       } catch(e) {}
     }
@@ -901,7 +909,9 @@ class PhotoManager {
           if (afterP) target.photo_after = afterP;
           target.photo = afterP || beforeP || target.photo;
           target.has_dual_photo = Boolean(target.photo_before && target.photo_after);
-          localStorage.setItem(`walton_pd_active_slides_${m}`, JSON.stringify(slides));
+          if (!isBatch) {
+            this._debouncedSaveSlides(m, slides);
+          }
         }
       } catch(e) {}
     }
@@ -918,6 +928,64 @@ class PhotoManager {
       if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView._activeModalTaskId === taskId) {
         if (typeof MonthlyReportView.renderModalPhotoSlots === 'function') MonthlyReportView.renderModalPhotoSlots(taskId);
         if (typeof MonthlyReportView.renderModalLivePreview === 'function') MonthlyReportView.renderModalLivePreview(taskId);
+      }
+    }
+  }
+
+  _slidesSaveTimer = null;
+  _debouncedSaveSlides(m, slides) {
+    if (this._slidesSaveTimer) clearTimeout(this._slidesSaveTimer);
+    this._slidesSaveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(`walton_pd_active_slides_${m}`, JSON.stringify(slides));
+      } catch(e) {}
+    }, 150);
+  }
+
+  /**
+   * High-Performance Bulk Sync: Ingests 20-50 photos in a single rapid batch without UI freezing
+   */
+  applyLivePhotoBatch(photosMap, month = 'SEP-2026') {
+    if (!photosMap || typeof photosMap !== 'object') return;
+    const m = month || 'SEP-2026';
+    let delMap = {};
+    try {
+      delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+    } catch(e) {}
+
+    let anyChange = false;
+    for (const [taskId, pData] of Object.entries(photosMap)) {
+      if (!taskId || !pData) continue;
+      this.applyLivePhotoData(taskId, pData, m, true);
+      const cleanT = String(taskId).toLowerCase();
+      const pParts = cleanT.split('-');
+      const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+      delete delMap[taskId];
+      delete delMap[cleanT];
+      delete delMap[pPrefix];
+      delete delMap[`${m}_${taskId}`];
+      delete delMap[`${m}_${cleanT}`];
+      anyChange = true;
+    }
+
+    if (anyChange) {
+      try {
+        localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
+      } catch(e) {}
+
+      if (window.appState && window.appState.workbookMgr) {
+        if (typeof window.appState.workbookMgr.debouncedSave === 'function') {
+          window.appState.workbookMgr.debouncedSave(80);
+        } else {
+          window.appState.workbookMgr.save();
+        }
+      }
+
+      if (window.appState && window.appState.syncEngine) {
+        try {
+          const slides = window.appState.syncEngine.getActiveSlides(m);
+          this._debouncedSaveSlides(m, slides);
+        } catch(e) {}
       }
     }
   }

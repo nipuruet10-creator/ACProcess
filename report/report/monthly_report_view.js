@@ -1015,36 +1015,11 @@ const MonthlyReportView = {
   },
 
   handlePhotoImgError(imgEl, taskId, slot = 'after_photo') {
-    if (!imgEl) return;
+    if (!imgEl || imgEl._failed) return;
+    imgEl._failed = true;
+    imgEl.onerror = null; // Kill listener immediately to prevent recursive loop
 
-    // 1. If URL failed due to relative path resolution without /report/, auto-repair immediately
-    if (!imgEl._retriedPathFix && imgEl.src && !imgEl.src.includes('/report/') && (imgEl.src.includes('uploads/') || imgEl.src.includes('/photos/'))) {
-      imgEl._retriedPathFix = true;
-      const uParts = imgEl.src.split('uploads/');
-      if (uParts.length > 1) {
-        const cleanFile = uParts[1].split('?')[0];
-        imgEl.src = `https://acprocess.com/report/uploads/${cleanFile}?t=${Date.now()}`;
-        return;
-      }
-    }
-
-    // 2. Retry once with fresh cache-busting timestamp if it's a server URL
-    if (!imgEl._retriedBuster && imgEl.src && (imgEl.src.startsWith('http') || imgEl.src.includes('uploads/'))) {
-      imgEl._retriedBuster = true;
-      const clean = imgEl.src.split('?')[0];
-      imgEl.src = `${clean}?t=${Date.now()}`;
-      return;
-    }
-
-    if (imgEl._fallbackTried) {
-      this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
-      return;
-    }
-    imgEl._fallbackTried = true;
-
-    console.warn(`[MonthlyReportView] Photo load failed for ${taskId} (${slot}): ${imgEl.src}`);
-
-    // 2. Try to recover from in-memory photoManager
+    // 1. Try to recover from in-memory photoManager
     let fallback = null;
     if (typeof photoManager !== 'undefined') {
       const photos = photoManager.getTaskPhotos(taskId, this.selectedMonth);
@@ -1055,7 +1030,7 @@ const MonthlyReportView = {
       }
     }
 
-    // 3. If fallback is base64, self-heal immediately!
+    // 2. If fallback is base64, self-heal immediately!
     if (fallback && fallback.startsWith('data:image/')) {
       imgEl.src = fallback;
       const parentWrapper = imgEl.closest('.photo-fit-wrapper');
@@ -1066,27 +1041,7 @@ const MonthlyReportView = {
       return;
     }
 
-    // 4. Try to recover from PhotoIndexedDB
-    if (typeof PhotoIndexedDB !== 'undefined' && PhotoIndexedDB.getTaskPhotos) {
-      PhotoIndexedDB.getTaskPhotos(taskId).then(p => {
-        const b64 = p ? ((slot === 'before_photo' || slot === 'photo_1') ? (p.before_photo || p.photo_1) : (p.after_photo || p.photo_2 || p.photo)) : null;
-        if (b64 && b64.startsWith('data:image/')) {
-          imgEl.src = b64;
-          const parentWrapper = imgEl.closest('.photo-fit-wrapper');
-          if (parentWrapper) {
-            const blurBg = parentWrapper.querySelector('.photo-blur-bg');
-            if (blurBg) blurBg.src = b64;
-          }
-          return;
-        }
-        this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
-      }).catch(() => {
-        this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
-      });
-      return;
-    }
-
-    // 5. Otherwise, replace broken image with clean "No Photo Attached" upload/paste box
+    // 3. Replace broken image with clean "No Photo Attached" upload/paste box
     this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
   },
 

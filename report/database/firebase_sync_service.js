@@ -623,8 +623,11 @@ const FirebaseSyncService = {
             }
             if (!lt.photo_1 && !lt.photo_2) lt.clear_photos = true;
             lt._lastPhotoDeleteTime = now;
-            lt._lastPhotoEditTime = 0;
-            window.appState.workbookMgr.save();
+            if (typeof window.appState.workbookMgr.debouncedSave === 'function') {
+              window.appState.workbookMgr.debouncedSave(100);
+            } else {
+              window.appState.workbookMgr.save();
+            }
           }
         }
         if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.updateSlideCardPhoto) {
@@ -682,10 +685,12 @@ const FirebaseSyncService = {
       this.db.ref(`walton_monthly_report/live_photos/${normMonth}`).on('value', (snapshot) => {
         const val = snapshot.val();
         if (val && typeof val === 'object') {
-          for (const [taskId, pData] of Object.entries(val)) {
-            if (!pData || !taskId) continue;
-            if (typeof photoManager !== 'undefined' && photoManager.applyLivePhotoData) {
-              photoManager.applyLivePhotoData(taskId, pData, normMonth);
+          if (typeof photoManager !== 'undefined' && photoManager.applyLivePhotoBatch) {
+            photoManager.applyLivePhotoBatch(val, normMonth);
+          } else if (typeof photoManager !== 'undefined' && photoManager.applyLivePhotoData) {
+            for (const [taskId, pData] of Object.entries(val)) {
+              if (!pData || !taskId) continue;
+              photoManager.applyLivePhotoData(taskId, pData, normMonth, true);
             }
           }
         }
@@ -694,7 +699,7 @@ const FirebaseSyncService = {
         const pData = snapshot.val();
         const taskId = snapshot.key;
         if (pData && taskId && typeof photoManager !== 'undefined' && photoManager.applyLivePhotoData) {
-          photoManager.applyLivePhotoData(taskId, pData, normMonth);
+          photoManager.applyLivePhotoData(taskId, pData, normMonth, false);
         }
       });
     }
@@ -1380,9 +1385,7 @@ const FirebaseSyncService = {
         if (curTab === 'photo-manager' && typeof PhotoManagerView !== 'undefined' && PhotoManagerView.render) {
           PhotoManagerView.render();
         }
-        if (curTab === 'monthly-report' && typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
-          MonthlyReportView.render();
-        }
+        // Note: monthly-report cards are updated smoothly in-place by updateSlideCardPhoto without rebuilding all 85 slides!
         if (curTab === 'monthly-input' && typeof MonthlyInputView !== 'undefined' && MonthlyInputView.render) {
           MonthlyInputView.render();
         }

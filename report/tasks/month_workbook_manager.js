@@ -1096,6 +1096,13 @@ class MonthWorkbookManager {
     }
   }
 
+  debouncedSave(delay = 120) {
+    if (this._debouncedSaveTimer) clearTimeout(this._debouncedSaveTimer);
+    this._debouncedSaveTimer = setTimeout(() => {
+      this.save();
+    }, delay);
+  }
+
   normalizeMonth(month) {
     if (!month) return "SEP-2026";
     const str = String(month).trim();
