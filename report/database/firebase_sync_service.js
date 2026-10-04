@@ -610,42 +610,86 @@ const FirebaseSyncService = {
       });
     }
 
-    // 11. Real-time Deleted Photos Tombstone Sync across all PCs
+    // 11. Real-time Deleted Photos Tombstone Sync across all PCs (with timestamp-based conflict resolution)
     if (!this._deletedPhotosBound || this._currentDeletedPhotosMonth !== normMonth) {
       this._deletedPhotosBound = true;
       this._currentDeletedPhotosMonth = normMonth;
+
       this.db.ref(`walton_monthly_report/deleted_photos/${normMonth}`).on('child_added', (snapshot) => {
         const delTaskId = snapshot.key;
         const delInfo = snapshot.val();
         if (!delTaskId) return;
+        const delTime = (delInfo && (delInfo.timestamp || delInfo.time)) ? (delInfo.timestamp || delInfo.time) : 0;
         const now = Date.now();
+
+        // Check if local task has a NEWER photo upload/edit than this historical tombstone!
+        let localPhotoEditTime = 0;
+        if (window.appState && window.appState.workbookMgr) {
+          const lt = window.appState.workbookMgr.getTask(normMonth, delTaskId);
+          if (lt) {
+            localPhotoEditTime = lt._lastPhotoEditTime || 0;
+          }
+        }
+
+        if (delTime > 0 && localPhotoEditTime > delTime) {
+          // This deletion is OBSOLETE! A photo was uploaded after this deletion was created.
+          // Revoke the stale tombstone from Firebase so it never deletes files on any PC
+          this.db.ref(`walton_monthly_report/deleted_photos/${normMonth}/${delTaskId}`).remove().catch(() => {});
+          return;
+        }
+
+        // Apply legitimate deletion to local storage and in-memory caches
         try {
           const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
           delMap[delTaskId] = delInfo || { timestamp: now, slot: 'all' };
           localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
         } catch(e) {}
+
         if (typeof photoManager !== 'undefined') {
           photoManager.purgeTaskPhotosMemory(delTaskId);
-          photoManager.removePhoto(delTaskId, (delInfo && delInfo.slot) ? delInfo.slot : 'all', normMonth);
         }
+
         if (window.appState && window.appState.workbookMgr) {
           const lt = window.appState.workbookMgr.getTask(normMonth, delTaskId);
           if (lt) {
-            lt.photo_1 = "";
-            lt.photo_2 = "";
-            lt.before_photo = "";
-            lt.after_photo = "";
-            lt.photo = "";
-            lt.clear_photos = true;
+            const slot = (delInfo && delInfo.slot) ? delInfo.slot : 'all';
+            if (slot === 'all' || slot === 'before_photo' || slot === 'photo_1') {
+              lt.photo_1 = "";
+              lt.before_photo = "";
+              lt._photoDeleted_before = now;
+            }
+            if (slot === 'all' || slot === 'after_photo' || slot === 'photo_2') {
+              lt.photo_2 = "";
+              lt.after_photo = "";
+              lt.photo = "";
+              lt._photoDeleted_after = now;
+            }
+            if (!lt.photo_1 && !lt.photo_2) lt.clear_photos = true;
             lt._lastPhotoDeleteTime = now;
-            lt._photoDeleted_before = now;
-            lt._photoDeleted_after = now;
+            lt._lastPhotoEditTime = 0;
             window.appState.workbookMgr.save();
           }
         }
         if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.updateSlideCardPhoto) {
           MonthlyReportView.updateSlideCardPhoto(delTaskId);
         }
+      });
+
+      // Listen for tombstone REVOCATIONS when a user re-uploads or sets a new photo on another PC
+      this.db.ref(`walton_monthly_report/deleted_photos/${normMonth}`).on('child_removed', (snapshot) => {
+        const revTaskId = snapshot.key;
+        if (!revTaskId) return;
+        try {
+          const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+          delete delMap[revTaskId];
+          delete delMap[revTaskId.toLowerCase()];
+          const parts = revTaskId.split('-');
+          if (parts.length >= 3) {
+            delete delMap[`${parts[0]}-${parts[1]}-${parts[2]}`];
+            delete delMap[`${parts[0]}-${parts[1]}-${parts[2]}`.toLowerCase()];
+          }
+          localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
+        } catch(e) {}
       });
     }
 
@@ -965,9 +1009,10 @@ const FirebaseSyncService = {
         continue;
       }
 
-      // PHOTO DELETION / TOMBSTONE PROTECTION:
+      // PHOTO DELETION / TOMBSTONE PROTECTION WITH TIMESTAMP CONFLICT RESOLUTION:
       let isLocalTombstoned = false;
       let tombstoneSlot = 'all';
+      let tombstoneTime = 0;
       try {
         const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
         const cleanTId = String(taskId).toLowerCase();
@@ -977,37 +1022,46 @@ const FirebaseSyncService = {
         if (tb) {
           isLocalTombstoned = true;
           tombstoneSlot = tb.slot || 'all';
+          tombstoneTime = tb.timestamp || tb.time || 0;
         }
       } catch (e) {}
 
-      const localPhotoDeletedBefore = Boolean(isLocalTombstoned && (tombstoneSlot === 'all' || tombstoneSlot === 'before_photo' || tombstoneSlot === 'photo_1')) ||
-                                      Boolean(localTask.clear_photos || localTask._photoDeleted_before);
-      const localPhotoDeletedAfter = Boolean(isLocalTombstoned && (tombstoneSlot === 'all' || tombstoneSlot === 'after_photo' || tombstoneSlot === 'photo_2')) ||
-                                     Boolean(localTask.clear_photos || localTask._photoDeleted_after);
+      const localPhotoEditTime = localTask._lastPhotoEditTime || 0;
+      const remotePhotoEditTime = task._lastPhotoEditTime || 0;
+      const localPhotoDeleteTime = localTask._lastPhotoDeleteTime || localTask._explicitUserPhotoDeleteTime || tombstoneTime;
+      const remotePhotoDeleteTime = task._lastPhotoDeleteTime || task._explicitUserPhotoDeleteTime || 0;
 
-      const remotePhotoExplicitDelete = Boolean(
-        task._explicitUserPhotoDeleteTime ||
-        task._lastPhotoDeleteTime ||
-        task.clear_photos === true ||
-        task._photoDeleted_before ||
-        task._photoDeleted_after
+      // An incoming photo WINS if remote photo edit time is strictly newer than any deletion
+      const isRemotePhotoWinning = remotePhotoEditTime > 0 && remotePhotoEditTime >= Math.max(localPhotoDeleteTime, remotePhotoDeleteTime);
+      const isRemoteExplicitlyDeleted = !isRemotePhotoWinning && Boolean(
+        (remotePhotoDeleteTime > Math.max(localPhotoEditTime, remotePhotoEditTime)) ||
+        (task.clear_photos === true && remotePhotoDeleteTime >= localPhotoEditTime)
       );
 
+      const localPhotoDeletedBefore = !isRemotePhotoWinning && (Boolean(isLocalTombstoned && (tombstoneSlot === 'all' || tombstoneSlot === 'before_photo' || tombstoneSlot === 'photo_1')) || Boolean(localTask.clear_photos || localTask._photoDeleted_before));
+      const localPhotoDeletedAfter = !isRemotePhotoWinning && (Boolean(isLocalTombstoned && (tombstoneSlot === 'all' || tombstoneSlot === 'after_photo' || tombstoneSlot === 'photo_2')) || Boolean(localTask.clear_photos || localTask._photoDeleted_after));
+
       if (k === 'photo_2' || k === 'after_photo' || k === 'photo') {
-        if (remotePhotoExplicitDelete || localPhotoDeletedAfter) {
+        if (!isRemotePhotoWinning && (isRemoteExplicitlyDeleted || localPhotoDeletedAfter)) {
           mergedTask[k] = "";
           continue;
         }
       }
       if (k === 'photo_1' || k === 'before_photo') {
-        if (remotePhotoExplicitDelete || localPhotoDeletedBefore) {
+        if (!isRemotePhotoWinning && (isRemoteExplicitlyDeleted || localPhotoDeletedBefore)) {
           mergedTask[k] = "";
           continue;
         }
       }
-      if (k === 'clear_photos' && (v === true || remotePhotoExplicitDelete || localPhotoDeletedAfter || localPhotoDeletedBefore)) {
-        mergedTask.clear_photos = true;
-        continue;
+      if (k === 'clear_photos') {
+        if (isRemotePhotoWinning) {
+          mergedTask.clear_photos = false;
+          continue;
+        }
+        if (v === true || isRemoteExplicitlyDeleted || localPhotoDeletedAfter || localPhotoDeletedBefore) {
+          mergedTask.clear_photos = true;
+          continue;
+        }
       }
 
       mergedTask[k] = v;
@@ -1181,8 +1235,19 @@ const FirebaseSyncService = {
         const slot = (field === 'photo_1' || field === 'before_photo') ? 'before_photo' : 'after_photo';
         const isLocallyDeletedForSlot = (slot === 'before_photo' ? localPhotoDeletedBefore : localPhotoDeletedAfter);
 
-        if (val && val !== "" && val !== "null" && val !== "undefined" && !remotePhotoExplicitDelete && !isLocallyDeletedForSlot) {
+        const isPhotoValPresent = Boolean(val && val !== "" && val !== "null" && val !== "undefined");
+        if (isPhotoValPresent && (isRemotePhotoWinning || (!isRemoteExplicitlyDeleted && !isLocallyDeletedForSlot))) {
           // Another user added/updated this photo: save it into this PC's photoManager!
+          // Clear any stale local tombstone so this PC recognizes the new photo
+          try {
+            const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+            delete delMap[taskId];
+            delete delMap[String(taskId).toLowerCase()];
+            const pParts = String(taskId).toLowerCase().split('-');
+            if (pParts.length >= 3) delete delMap[`${pParts[0]}-${pParts[1]}-${pParts[2]}`];
+            localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
+          } catch(e) {}
+
           if (typeof photoManager !== 'undefined') {
             photoManager.setTaskPhoto(taskId, slot, val, val, month);
           }
@@ -1200,19 +1265,19 @@ const FirebaseSyncService = {
                 delete lt._photoDeleted_after;
               }
               delete lt.clear_photos;
+              delete lt._explicitUserPhotoDeleteTime;
+              delete lt._lastPhotoDeleteTime;
+              lt._lastPhotoEditTime = remotePhotoEditTime || Date.now();
             }
           }
           if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.updateSlideCardPhoto) {
             MonthlyReportView.updateSlideCardPhoto(taskId);
           }
-        } else if (remotePhotoExplicitDelete || isLocallyDeletedForSlot || (!val && (task.clear_photos || task._explicitUserPhotoDeleteTime))) {
-          // Explicit photo deletion from another PC: immediately wipe on this PC!
+        } else if (isRemoteExplicitlyDeleted || (!isPhotoValPresent && (task.clear_photos || isLocallyDeletedForSlot))) {
+          // Explicit photo deletion from cloud: wipe local cache and DOM without triggering destructive server delete
           if (typeof photoManager !== 'undefined') {
             if (typeof photoManager.purgeTaskPhotosMemory === 'function') {
               photoManager.purgeTaskPhotosMemory(taskId);
-            }
-            if (typeof photoManager.removePhoto === 'function') {
-              photoManager.removePhoto(taskId, 'all', month);
             }
           }
           if (window.appState && window.appState.workbookMgr) {
@@ -1224,7 +1289,8 @@ const FirebaseSyncService = {
               lt.after_photo = "";
               lt.photo = "";
               lt.clear_photos = true;
-              lt._lastPhotoDeleteTime = Date.now();
+              lt._lastPhotoDeleteTime = remotePhotoDeleteTime || Date.now();
+              lt._lastPhotoEditTime = 0;
             }
           }
           // Immediate zero-lag DOM patch on this PC

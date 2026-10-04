@@ -775,8 +775,8 @@ const MonthlyReportView = {
 
         previewContainer.innerHTML = `
           <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
-            <img src="${photoSingle}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" />
-            <img src="${photoSingle}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" />
+            <img src="${photoSingle}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" onerror="this.style.display='none';" />
+            <img src="${photoSingle}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${taskId}', '${photoAfter ? 'after_photo' : 'before_photo'}');" />
             <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
               <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
                 ${photoAfter && photoBefore ? 'Dual Photo' : (photoAfter ? 'After Photo' : 'Before Photo')}
@@ -967,6 +967,74 @@ const MonthlyReportView = {
     const file = input.files[0];
     await this.uploadPhotoFromBlob(file, taskId, slot);
     input.value = "";
+  },
+
+  handlePhotoImgError(imgEl, taskId, slot = 'after_photo') {
+    if (!imgEl) return;
+    if (imgEl._fallbackTried) {
+      this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
+      return;
+    }
+    imgEl._fallbackTried = true;
+
+    console.warn(`[MonthlyReportView] Photo load failed for ${taskId} (${slot}): ${imgEl.src}`);
+
+    // 1. Try to recover from in-memory photoManager
+    let fallback = null;
+    if (typeof photoManager !== 'undefined') {
+      const photos = photoManager.getTaskPhotos(taskId, this.selectedMonth);
+      if (photos) {
+        fallback = (slot === 'before_photo' || slot === 'photo_1')
+          ? (photos.before_photo || photos.photo_1)
+          : (photos.after_photo || photos.photo_2 || photos.photo);
+      }
+    }
+
+    // 2. If fallback is found and differs from failed URL, self-heal immediately
+    if (fallback && fallback !== imgEl.src && !fallback.includes(imgEl.src)) {
+      console.log(`[MonthlyReportView] Auto-healing photo for ${taskId} using cached version.`);
+      imgEl.src = fallback;
+      const parentWrapper = imgEl.closest('.photo-fit-wrapper');
+      if (parentWrapper) {
+        const blurBg = parentWrapper.querySelector('.photo-blur-bg');
+        if (blurBg) blurBg.src = fallback;
+      }
+      // Re-upload to Hostinger in background if local base64
+      if (fallback.startsWith('data:image/') && typeof photoManager !== 'undefined') {
+        photoManager.uploadPhotoToServer(taskId, slot, fallback, this.selectedMonth).catch(() => {});
+      }
+      return;
+    }
+
+    // 3. Otherwise, replace broken image with clean "No Photo Attached" upload/paste box
+    this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
+  },
+
+  _renderPhotoFallbackPlaceholder(imgEl, taskId, slot = 'after_photo') {
+    const container = imgEl.closest('.slide-card-photo-container') || imgEl.closest('.photo-fit-wrapper') || imgEl.parentElement;
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="relative w-full aspect-video rounded-xl border border-dashed border-slate-300 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/30 flex flex-col items-center justify-center p-2.5 text-center transition group/drop cursor-pointer"
+           onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', '${slot}');"
+           ondragover="event.preventDefault(); this.classList.add('border-blue-500', 'bg-blue-50');"
+           ondragleave="this.classList.remove('border-blue-500', 'bg-blue-50');"
+           ondrop="event.preventDefault(); this.classList.remove('border-blue-500', 'bg-blue-50'); MonthlyReportView.handleSlotDrop(event, '${taskId}', '${slot}');">
+        <span class="text-xl text-slate-400 group-hover/drop:scale-110 group-hover/drop:text-blue-600 transition">📷</span>
+        <span class="text-[11px] font-bold text-slate-700 mt-0.5">Paste or Upload Photo</span>
+        <div class="flex items-center gap-1.5 mt-1" onclick="event.stopPropagation()">
+          <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', '${slot}')" title="Paste image from clipboard (Ctrl+V)"
+                  class="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 text-[9.5px] font-bold border border-blue-200 transition shadow-2xs cursor-pointer">
+            📋 Paste
+          </button>
+          <button type="button" onclick="event.stopPropagation(); MonthlyReportView.selectSlideCard('${taskId}'); document.getElementById('card-file-${taskId}')?.click();" title="Upload from file"
+                  class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9.5px] font-bold border border-slate-200 transition shadow-2xs cursor-pointer">
+            📁 Upload
+          </button>
+        </div>
+        <input type="file" id="card-file-${taskId}" accept="image/*" class="hidden" onchange="MonthlyReportView.handleCardFileInput(this, '${taskId}', '${slot}')" />
+      </div>
+    `;
   },
 
   /**
@@ -2106,8 +2174,8 @@ const MonthlyReportView = {
                   <div class="slide-card-photo-container mt-2.5">
                     ${hasPhoto ? `
                       <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200 shadow-2xs group/img">
-                        <img src="${photoDisplay}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" />
-                        <img src="${photoDisplay}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" />
+                        <img src="${photoDisplay}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" onerror="this.style.display='none';" />
+                        <img src="${photoDisplay}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${s.task_id}', '${s.photo_after ? 'after_photo' : 'before_photo'}');" />
                         <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
                           <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
                             ${s.photo_after && s.photo_before ? 'Dual Photo' : (s.photo_after ? 'After Photo' : 'Before Photo')}

@@ -147,15 +147,13 @@ try {
         if (is_array($deletedMap)) {
             $parts = explode('-', $cleanTaskId);
             $prefix = (count($parts) >= 3) ? ($parts[0] . '-' . $parts[1] . '-' . $parts[2]) : $cleanTaskId;
+            $cleanLower = strtolower($cleanTaskId);
+            $prefixLower = strtolower($prefix);
             $changedDel = false;
-            if (isset($deletedMap[$cleanTaskId])) {
-                unset($deletedMap[$cleanTaskId]);
-                $changedDel = true;
-            }
-            if (isset($deletedMap[$prefix])) {
-                unset($deletedMap[$prefix]);
-                $changedDel = true;
-            }
+            if (isset($deletedMap[$cleanTaskId])) { unset($deletedMap[$cleanTaskId]); $changedDel = true; }
+            if (isset($deletedMap[$cleanLower])) { unset($deletedMap[$cleanLower]); $changedDel = true; }
+            if (isset($deletedMap[$prefix])) { unset($deletedMap[$prefix]); $changedDel = true; }
+            if (isset($deletedMap[$prefixLower])) { unset($deletedMap[$prefixLower]); $changedDel = true; }
             if ($changedDel) {
                 @file_put_contents($deletedFile, json_encode($deletedMap, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             }

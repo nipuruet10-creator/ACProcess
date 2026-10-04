@@ -139,7 +139,27 @@ try {
     $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'acprocess.com';
     $fullUrl = $scheme . '://' . $host . '/report/' . $relUrl;
 
-    // 7. Update Persistent Server-Side JSON Catalog
+    // 7. Update Persistent Server-Side JSON Catalog and clear prior deletion tombstones
+    $deletedFile = $baseUploadDir . '/deleted_photos_' . $cleanMonth . '.json';
+    if (file_exists($deletedFile)) {
+        $rawDel = @file_get_contents($deletedFile);
+        $deletedMap = json_decode($rawDel, true);
+        if (is_array($deletedMap)) {
+            $parts = explode('-', $cleanTaskId);
+            $prefix = (count($parts) >= 3) ? ($parts[0] . '-' . $parts[1] . '-' . $parts[2]) : $cleanTaskId;
+            $cleanLower = strtolower($cleanTaskId);
+            $prefixLower = strtolower($prefix);
+            $changedDel = false;
+            if (isset($deletedMap[$cleanTaskId])) { unset($deletedMap[$cleanTaskId]); $changedDel = true; }
+            if (isset($deletedMap[$cleanLower])) { unset($deletedMap[$cleanLower]); $changedDel = true; }
+            if (isset($deletedMap[$prefix])) { unset($deletedMap[$prefix]); $changedDel = true; }
+            if (isset($deletedMap[$prefixLower])) { unset($deletedMap[$prefixLower]); $changedDel = true; }
+            if ($changedDel) {
+                @file_put_contents($deletedFile, json_encode($deletedMap, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            }
+        }
+    }
+
     $indexFile = $baseUploadDir . '/photos_' . $cleanMonth . '.json';
     $catalog = [];
     if (file_exists($indexFile)) {

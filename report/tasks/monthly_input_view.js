@@ -316,10 +316,17 @@ const MonthlyInputView = {
         cleanVal = (value !== '' && value !== null && !isNaN(parseFloat(value))) ? parseFloat(value) : '';
       }
 
-      const patch = { [field]: cleanVal };
+      const now = Date.now();
+      const patch = {
+        [field]: cleanVal,
+        user_edited: true,
+        _lastTextEditTime: now,
+        _lastFieldEditTime: now,
+        last_updated: new Date().toISOString()
+      };
       if (field === 'points') {
         patch.points = cleanVal;
-        patch.hod_point_set_at = Date.now();
+        patch.hod_point_set_at = now;
         patch.hod_point_locked = true;
       }
       if (field === 'assignee' || field === 'engineer' || field === 'concern_engineer') {
@@ -332,21 +339,19 @@ const MonthlyInputView = {
       // Ultra-Fast Real-time Firebase Sync (Sub-30ms Instant Highway)
       if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
         FirebaseSyncService.updateCell(this.selectedMonth, taskId, field, cleanVal);
+        FirebaseSyncService.updateCell(this.selectedMonth, taskId, '_lastTextEditTime', now);
+        FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'user_edited', true);
         if (field === 'points') {
-          FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'hod_point_set_at', Date.now());
+          FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'hod_point_set_at', now);
           FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'hod_point_locked', true);
-          const fullTask = window.appState.workbookMgr.getTask(this.selectedMonth, taskId);
-          if (fullTask) {
-            FirebaseSyncService.pushTask(this.selectedMonth, fullTask);
-          }
         }
         if (field === 'assignee' || field === 'engineer' || field === 'concern_engineer') {
           FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'assignee', cleanVal);
           FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'engineer', cleanVal);
-          const fullTask = window.appState.workbookMgr.getTask(this.selectedMonth, taskId);
-          if (fullTask) {
-            FirebaseSyncService.pushTask(this.selectedMonth, fullTask);
-          }
+        }
+        const fullTask = window.appState.workbookMgr.getTask(this.selectedMonth, taskId);
+        if (fullTask) {
+          FirebaseSyncService.pushTask(this.selectedMonth, fullTask);
         }
       }
 
@@ -395,11 +400,14 @@ const MonthlyInputView = {
     try {
       const month = this.selectedMonth;
       const task = window.appState.workbookMgr.getTask(month, taskId);
+      const now = Date.now();
       if (task) {
         task[field] = (field === 'points')
           ? ((value !== '' && value !== null && !isNaN(parseFloat(value))) ? parseFloat(value) : '')
           : value;
-        task._lastFieldEditTime = Date.now();
+        task.user_edited = true;
+        task._lastFieldEditTime = now;
+        task._lastTextEditTime = now;
         task.last_updated = new Date().toISOString();
         if (!this._storageSaveTimer) {
           this._storageSaveTimer = setTimeout(() => {
@@ -422,6 +430,8 @@ const MonthlyInputView = {
         if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
           const sendVal = (field === 'points' && task) ? task[field] : value;
           FirebaseSyncService.updateCell(month, taskId, field, sendVal);
+          FirebaseSyncService.updateCell(month, taskId, '_lastTextEditTime', now);
+          FirebaseSyncService.updateCell(month, taskId, 'user_edited', true);
         }
         if (field === 'points') {
           if (typeof this.updateRankingTable === 'function') this.updateRankingTable();

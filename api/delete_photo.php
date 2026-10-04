@@ -45,62 +45,86 @@ try {
     $baseUploadDir = is_dir(dirname(__DIR__) . '/uploads') ? (dirname(__DIR__) . '/uploads') : (dirname(__DIR__) . '/report/uploads');
     $photosDir = $baseUploadDir . '/photos/' . $cleanMonth;
 
-    // Determine slots to delete
-    $slotsToDelete = ($slot === 'all') ? ['before_photo', 'after_photo'] : [$slot];
-    $extensions = ['jpg', 'jpeg', 'png', 'webp'];
+    $parts = explode('-', $cleanTaskId);
+    $prefix = (count($parts) >= 3) ? ($parts[0] . '-' . $parts[1] . '-' . $parts[2]) : $cleanTaskId;
 
-    foreach ($slotsToDelete as $s) {
-        foreach ($extensions as $ext) {
-            $path = $photosDir . '/' . $cleanTaskId . '_' . $s . '.' . $ext;
-            if (file_exists($path)) {
-                @unlink($path);
+    // 1. Physically delete all matching image files from disk
+    if (is_dir($photosDir)) {
+        $files = scandir($photosDir);
+        foreach ($files as $f) {
+            if ($f === '.' || $f === '..') continue;
+            $match = false;
+            if (stripos($f, $cleanTaskId) !== false || stripos($f, $prefix) !== false) {
+                if ($slot === 'all') {
+                    $match = true;
+                } elseif ($slot === 'after_photo' && (stripos($f, 'after_photo') !== false || stripos($f, 'photo_2') !== false || stripos($f, '_photo.') !== false)) {
+                    $match = true;
+                } elseif ($slot === 'before_photo' && (stripos($f, 'before_photo') !== false || stripos($f, 'photo_1') !== false)) {
+                    $match = true;
+                }
+            }
+            if ($match) {
+                @unlink($photosDir . '/' . $f);
             }
         }
     }
 
-    // Update monthly index
+    // 2. Record tombstone in permanent deleted_photos list
+    $deletedFile = $baseUploadDir . '/deleted_photos_' . $cleanMonth . '.json';
+    $deletedMap = [];
+    if (file_exists($deletedFile)) {
+        $rawDel = @file_get_contents($deletedFile);
+        $parsedDel = json_decode($rawDel, true);
+        if (is_array($parsedDel)) $deletedMap = $parsedDel;
+    }
+    $nowTime = time();
+    $deletedMap[$cleanTaskId] = ['time' => $nowTime, 'slot' => $slot];
+    $deletedMap[$prefix] = ['time' => $nowTime, 'slot' => $slot];
+    @file_put_contents($deletedFile, json_encode($deletedMap, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    // 3. Update monthly index
     $indexFile = $baseUploadDir . '/photos_' . $cleanMonth . '.json';
     if (file_exists($indexFile)) {
         $raw = @file_get_contents($indexFile);
         $catalog = json_decode($raw, true);
-        if (is_array($catalog) && isset($catalog[$cleanTaskId])) {
-            if ($slot === 'all') {
-                $catalog[$cleanTaskId]['before_photo'] = null;
-                $catalog[$cleanTaskId]['after_photo'] = null;
-                $catalog[$cleanTaskId]['photo_1'] = null;
-                $catalog[$cleanTaskId]['photo_2'] = null;
-                $catalog[$cleanTaskId]['photo'] = null;
-            } elseif ($slot === 'after_photo') {
-                $catalog[$cleanTaskId]['after_photo'] = null;
-                $catalog[$cleanTaskId]['photo_2'] = null;
-                $catalog[$cleanTaskId]['photo'] = $catalog[$cleanTaskId]['before_photo'] ?? null;
-            } else {
-                $catalog[$cleanTaskId]['before_photo'] = null;
-                $catalog[$cleanTaskId]['photo_1'] = null;
+        if (is_array($catalog)) {
+            foreach ([$cleanTaskId, $prefix] as $keyToClean) {
+                if (isset($catalog[$keyToClean])) {
+                    if ($slot === 'all') {
+                        unset($catalog[$keyToClean]);
+                    } elseif ($slot === 'after_photo') {
+                        $catalog[$keyToClean]['after_photo'] = null;
+                        $catalog[$keyToClean]['photo_2'] = null;
+                        $catalog[$keyToClean]['photo'] = $catalog[$keyToClean]['before_photo'] ?? null;
+                    } else {
+                        $catalog[$keyToClean]['before_photo'] = null;
+                        $catalog[$keyToClean]['photo_1'] = null;
+                    }
+                }
             }
-            $catalog[$cleanTaskId]['updated_at'] = date('Y-m-d H:i:s');
             @file_put_contents($indexFile, json_encode($catalog, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
     }
 
-    // Update master index
+    // 4. Update master index
     $masterIndex = $baseUploadDir . '/photos_index.json';
     if (file_exists($masterIndex)) {
         $raw = @file_get_contents($masterIndex);
         $master = json_decode($raw, true);
-        if (is_array($master) && isset($master[$cleanTaskId])) {
-            if ($slot === 'all') {
-                $master[$cleanTaskId]['before_photo'] = null;
-                $master[$cleanTaskId]['after_photo'] = null;
-                $master[$cleanTaskId]['photo_1'] = null;
-                $master[$cleanTaskId]['photo_2'] = null;
-                $master[$cleanTaskId]['photo'] = null;
-            } elseif ($slot === 'after_photo') {
-                $master[$cleanTaskId]['after_photo'] = null;
-                $master[$cleanTaskId]['photo_2'] = null;
-            } else {
-                $master[$cleanTaskId]['before_photo'] = null;
-                $master[$cleanTaskId]['photo_1'] = null;
+        if (is_array($master)) {
+            foreach ([$cleanTaskId, $prefix] as $keyToClean) {
+                if (isset($master[$keyToClean])) {
+                    if ($slot === 'all') {
+                        unset($master[$keyToClean]);
+                    } elseif ($slot === 'after_photo') {
+                        $master[$keyToClean]['after_photo'] = null;
+                        $master[$keyToClean]['photo_2'] = null;
+                        $master[$keyToClean]['photo'] = $master[$keyToClean]['before_photo'] ?? null;
+                    } else {
+                        $master[$keyToClean]['before_photo'] = null;
+                        $master[$keyToClean]['photo_1'] = null;
+                    }
+                }
             }
             @file_put_contents($masterIndex, json_encode($master, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }

@@ -38,7 +38,12 @@ class PhotoManager {
       console.warn("Legacy photo migration notice:", e);
     }
 
-    // 2. Safe local active slides preservation (never nullify user photos!)
+    // 2. Safe local active slides preservation (never nullify user photos, respect deletions)
+    let delMap = {};
+    try {
+      delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+    } catch(e) {}
+
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -47,9 +52,26 @@ class PhotoManager {
           if (val) {
             const slides = JSON.parse(val);
             if (Array.isArray(slides)) {
-              // Extract any local base64 photos into memory and IndexedDB so they are safely preserved
+              let cacheCleaned = false;
+              // Extract any local base64 photos into memory and IndexedDB only if NOT deleted
               slides.forEach(s => {
                 if (s && s.task_id) {
+                  const sClean = String(s.task_id).toLowerCase();
+                  const sParts = sClean.split('-');
+                  const sPrefix = sParts.length >= 3 ? `${sParts[0]}-${sParts[1]}-${sParts[2]}` : sClean;
+                  const tomb = delMap[s.task_id] || delMap[sClean] || delMap[sPrefix];
+                  if (tomb) {
+                    if (tomb.slot === 'all' || tomb.slot === 'after_photo' || tomb.slot === 'photo_2') {
+                      s.photo_after = null;
+                      cacheCleaned = true;
+                    }
+                    if (tomb.slot === 'all' || tomb.slot === 'before_photo' || tomb.slot === 'photo_1') {
+                      s.photo_before = null;
+                      cacheCleaned = true;
+                    }
+                    s.photo = s.photo_after || s.photo_before || null;
+                    return;
+                  }
                   if (s.photo_after && s.photo_after.startsWith('data:image/')) {
                     if (!this.photoMap[s.task_id]) this.photoMap[s.task_id] = {};
                     this.photoMap[s.task_id].after_photo = s.photo_after;
@@ -62,6 +84,9 @@ class PhotoManager {
                   }
                 }
               });
+              if (cacheCleaned) {
+                try { localStorage.setItem(key, JSON.stringify(slides)); } catch(err) {}
+              }
             }
           }
         }
@@ -70,12 +95,24 @@ class PhotoManager {
       console.warn("Storage preservation notice:", e);
     }
 
-    // 3. Load all photos from IndexedDB into memory
+    // 3. Load photos from IndexedDB into memory, filtering out tombstoned deleted photos
     try {
       if (typeof PhotoIndexedDB !== 'undefined') {
         const idbPhotos = await PhotoIndexedDB.getAllPhotos();
         if (idbPhotos && Object.keys(idbPhotos).length > 0) {
-          this.photoMap = { ...this.photoMap, ...idbPhotos };
+          for (const [k, p] of Object.entries(idbPhotos)) {
+            const kClean = String(k).toLowerCase();
+            const kParts = kClean.split('-');
+            const kPrefix = kParts.length >= 3 ? `${kParts[0]}-${kParts[1]}-${kParts[2]}` : kClean;
+            const tomb = delMap[k] || delMap[kClean] || delMap[kPrefix];
+            if (tomb) {
+              if (typeof PhotoIndexedDB !== 'undefined' && PhotoIndexedDB.deleteTaskPhotos) {
+                PhotoIndexedDB.deleteTaskPhotos(k).catch(() => {});
+              }
+              continue;
+            }
+            this.photoMap[k] = p;
+          }
         }
       }
     } catch (e) {
@@ -91,7 +128,7 @@ class PhotoManager {
       console.warn("[Hostinger Photo Storage] Server photo sync notice:", e);
     }
 
-    // 5. Auto-upload any local IndexedDB photos (e.g. Pear's photos) to server permanently
+    // 5. Auto-upload any legitimate local IndexedDB photos to server permanently
     try {
       await this.reconcileLocalPhotosToServer();
     } catch (e) {
@@ -143,9 +180,28 @@ class PhotoManager {
    */
   async reconcileLocalPhotosToServer() {
     if (!this.photoMap) return;
+    let delMap = {};
+    try {
+      delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+    } catch(e) {}
+
     const currentMonth = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
     for (const [tId, pData] of Object.entries(this.photoMap)) {
       if (!pData || tId.includes('_')) continue;
+      const cleanT = String(tId).toLowerCase();
+      const pParts = cleanT.split('-');
+      const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+      const tombstone = delMap[tId] || delMap[cleanT] || delMap[pPrefix];
+
+      if (tombstone) {
+        // User explicitly deleted this photo: NEVER upload back! Purge from memory & IndexedDB
+        this.purgeTaskPhotosMemory(tId);
+        if (typeof PhotoIndexedDB !== 'undefined' && PhotoIndexedDB.deleteTaskPhotos) {
+          PhotoIndexedDB.deleteTaskPhotos(tId).catch(() => {});
+        }
+        continue;
+      }
+
       if (pData.after_photo && pData.after_photo.startsWith('data:image/')) {
         console.log(`[Hostinger Photo Sync] Reconciling local photo for ${tId} (after_photo)...`);
         try {
@@ -189,13 +245,22 @@ class PhotoManager {
             let serverBefore = (pData.before_photo !== undefined && pData.before_photo !== null && pData.before_photo !== '') ? pData.before_photo : (current.before_photo || null);
             let serverAfter = (pData.after_photo !== undefined && pData.after_photo !== null && pData.after_photo !== '') ? pData.after_photo : (current.after_photo || null);
 
-            // Respect permanent local and server deletion tombstones!
             if (tombstone) {
-              if (tombstone.slot === 'all' || tombstone.slot === 'before_photo' || tombstone.slot === 'photo_1') {
-                serverBefore = null;
-              }
-              if (tombstone.slot === 'all' || tombstone.slot === 'after_photo' || tombstone.slot === 'photo_2') {
-                serverAfter = null;
+              const tombTime = tombstone.timestamp || tombstone.time || 0;
+              const serverTime = pData.time || 0;
+              // If server has photo with timestamp newer than tombstone, or photo exists and tombstone is stale
+              if (serverTime > 0 && serverTime >= tombTime) {
+                delete delMap[tId];
+                delete delMap[cleanT];
+                delete delMap[pPrefix];
+                try { localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap)); } catch(e) {}
+              } else {
+                if (tombstone.slot === 'all' || tombstone.slot === 'before_photo' || tombstone.slot === 'photo_1') {
+                  serverBefore = null;
+                }
+                if (tombstone.slot === 'all' || tombstone.slot === 'after_photo' || tombstone.slot === 'photo_2') {
+                  serverAfter = null;
+                }
               }
             }
 
@@ -411,6 +476,30 @@ class PhotoManager {
           this.photoMap[monthKey].photo = serverUrl;
         }
 
+        // Clear all deletion tombstones locally and in Firebase because a fresh photo was uploaded!
+        const cleanT = String(taskId).toLowerCase();
+        const pParts = cleanT.split('-');
+        const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+        try {
+          const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+          delete delMap[taskId];
+          delete delMap[cleanT];
+          delete delMap[pPrefix];
+          delete delMap[`${m}_${taskId}`];
+          delete delMap[`${m}_${cleanT}`];
+          localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
+        } catch(e) {}
+
+        if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected() && FirebaseSyncService.db) {
+          try {
+            FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${taskId}`).remove().catch(() => {});
+            FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${cleanT}`).remove().catch(() => {});
+            if (pPrefix && pPrefix !== taskId) {
+              FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${pPrefix}`).remove().catch(() => {});
+            }
+          } catch(e) {}
+        }
+
         // Persist clean server URL to IndexedDB
         if (typeof PhotoIndexedDB !== 'undefined') {
           PhotoIndexedDB.saveTaskPhotos(taskId, this.photoMap[taskId]).catch(() => {});
@@ -418,6 +507,7 @@ class PhotoManager {
         }
 
         // Persist clean server URL to MonthWorkbookManager (lightweight URL prevents localStorage 5MB quota errors!)
+        let updatedWbTask = null;
         if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
           try {
             const wbMgr = window.appState.workbookMgr;
@@ -431,12 +521,16 @@ class PhotoManager {
               if (isAfter) {
                 targetTask.photo_2 = serverUrl;
                 targetTask.after_photo = serverUrl;
+                targetTask.photo = serverUrl;
                 delete targetTask._photoDeleted_after;
               }
               delete targetTask.clear_photos;
+              delete targetTask._explicitUserPhotoDeleteTime;
+              delete targetTask._lastPhotoDeleteTime;
               targetTask._lastPhotoEditTime = Date.now();
               targetTask.last_updated = new Date().toISOString();
               wbMgr.save();
+              updatedWbTask = targetTask;
             }
           } catch(e) {}
         }
@@ -446,8 +540,15 @@ class PhotoManager {
           try {
             FirebaseSyncService.updateCell(m, taskId, isBefore ? 'photo_1' : 'photo_2', serverUrl);
             FirebaseSyncService.updateCell(m, taskId, isBefore ? 'before_photo' : 'after_photo', serverUrl);
+            FirebaseSyncService.updateCell(m, taskId, 'photo', serverUrl);
             FirebaseSyncService.updateCell(m, taskId, 'clear_photos', null);
+            FirebaseSyncService.updateCell(m, taskId, '_lastPhotoDeleteTime', null);
+            FirebaseSyncService.updateCell(m, taskId, '_explicitUserPhotoDeleteTime', null);
+            FirebaseSyncService.updateCell(m, taskId, '_lastPhotoEditTime', Date.now());
             FirebaseSyncService.updateCell(m, taskId, isBefore ? '_photoDeleted_before' : '_photoDeleted_after', null);
+            if (updatedWbTask) {
+              FirebaseSyncService.pushTask(m, updatedWbTask);
+            }
           } catch(e) {}
         }
 
@@ -691,6 +792,30 @@ class PhotoManager {
       }
     }
 
+    // Immediately clear all deletion tombstones locally and in Firebase because a fresh photo was set!
+    const cleanTargetT = String(taskId).toLowerCase();
+    const targetParts = cleanTargetT.split('-');
+    const targetPrefix = targetParts.length >= 3 ? `${targetParts[0]}-${targetParts[1]}-${targetParts[2]}` : cleanTargetT;
+    try {
+      const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+      delete delMap[taskId];
+      delete delMap[cleanTargetT];
+      delete delMap[targetPrefix];
+      if (monthKey) delete delMap[monthKey];
+      delete delMap[`${m}_${cleanTargetT}`];
+      localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
+    } catch(e) {}
+
+    if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected() && FirebaseSyncService.db) {
+      try {
+        FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${taskId}`).remove().catch(() => {});
+        FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${cleanTargetT}`).remove().catch(() => {});
+        if (targetPrefix && targetPrefix !== taskId) {
+          FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${targetPrefix}`).remove().catch(() => {});
+        }
+      } catch(e) {}
+    }
+
     // 1. Asynchronously persist to IndexedDB (Gigabytes quota)
     if (typeof PhotoIndexedDB !== 'undefined') {
       PhotoIndexedDB.saveTaskPhotos(taskId, this.photoMap[taskId]).catch(err => {
@@ -738,18 +863,29 @@ class PhotoManager {
             if (isBefore) {
               targetTask.photo_1 = base64Url;
               targetTask.before_photo = base64Url;
+              delete targetTask._photoDeleted_before;
             } else {
               targetTask.photo_2 = base64Url;
               targetTask.after_photo = base64Url;
+              targetTask.photo = base64Url;
+              delete targetTask._photoDeleted_after;
             }
-            targetTask._lastPhotoEditTime = Date.now();
             delete targetTask.clear_photos;
+            delete targetTask._explicitUserPhotoDeleteTime;
+            delete targetTask._lastPhotoDeleteTime;
+            targetTask._lastPhotoEditTime = Date.now();
             targetTask.last_updated = new Date().toISOString();
             wbMgr.save();
 
             if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
               FirebaseSyncService.updateCell(activeM, taskId, photoKey, base64Url);
               FirebaseSyncService.updateCell(activeM, taskId, isBefore ? 'before_photo' : 'after_photo', base64Url);
+              FirebaseSyncService.updateCell(activeM, taskId, 'photo', base64Url);
+              FirebaseSyncService.updateCell(activeM, taskId, 'clear_photos', null);
+              FirebaseSyncService.updateCell(activeM, taskId, '_lastPhotoDeleteTime', null);
+              FirebaseSyncService.updateCell(activeM, taskId, '_explicitUserPhotoDeleteTime', null);
+              FirebaseSyncService.updateCell(activeM, taskId, '_lastPhotoEditTime', Date.now());
+              FirebaseSyncService.pushTask(activeM, targetTask);
             }
           }
         }
@@ -935,6 +1071,37 @@ class PhotoManager {
           try {
             localStorage.setItem(`walton_pd_active_slides_${activeM}`, JSON.stringify(slides));
           } catch (e) {}
+        }
+
+        // Clean all cached slide decks in localStorage across all months
+        for (let i = 0; i < localStorage.length; i++) {
+          const lk = localStorage.key(i);
+          if (lk && lk.startsWith('walton_pd_active_slides_')) {
+            try {
+              const rawSlides = localStorage.getItem(lk);
+              if (rawSlides) {
+                const parsedSlides = JSON.parse(rawSlides);
+                if (Array.isArray(parsedSlides)) {
+                  let deckCleaned = false;
+                  parsedSlides.forEach(s => {
+                    if (s && s.task_id) {
+                      const sClean = String(s.task_id).toLowerCase();
+                      if (s.task_id === taskId || sClean === cleanTarget || (prefix && sClean.startsWith(prefix))) {
+                        if (isBefore) s.photo_before = null;
+                        if (isAfter) s.photo_after = null;
+                        s.photo = s.photo_before || s.photo_after || null;
+                        s.has_dual_photo = Boolean(s.photo_before && s.photo_after);
+                        deckCleaned = true;
+                      }
+                    }
+                  });
+                  if (deckCleaned) {
+                    localStorage.setItem(lk, JSON.stringify(parsedSlides));
+                  }
+                }
+              }
+            } catch (err) {}
+          }
         }
       }
     } catch (e) {
