@@ -304,14 +304,28 @@ class PPTXGenerator {
 
     const taskSlides = [...sequencedStandardTasks, ...completedProjectSlides, ...ongoingProjectSlides];
 
+    // Fetch latest photos from Hostinger SSD Server before embedding
+    if (typeof window !== 'undefined' && window.photoManager && window.photoManager.fetchPhotosFromServer) {
+      try {
+        await window.photoManager.fetchPhotosFromServer(monthName);
+        await window.photoManager.fetchPhotosFromServer('ALL');
+      } catch (pmSyncErr) {
+        console.warn("[PptxGenerator] fetchPhotosFromServer warning:", pmSyncErr);
+      }
+    }
+
     // Pre-resolve all photos from photoManager and convert them to Base64 for 100% reliable PPTX embedding
     for (const task of taskSlides) {
       if (typeof window !== 'undefined' && window.photoManager && window.photoManager.getTaskPhotos) {
         const pmPhotos = window.photoManager.getTaskPhotos(task.task_id, monthName);
         if (pmPhotos) {
-          if (!task.photo_after && pmPhotos.after_photo) task.photo_after = pmPhotos.after_photo;
-          if (!task.photo_before && pmPhotos.before_photo) task.photo_before = pmPhotos.before_photo;
-          if (!task.photo) task.photo = pmPhotos.after_photo || pmPhotos.before_photo || pmPhotos.photo_1 || pmPhotos.photo_2;
+          const pAfter = pmPhotos.after_photo || pmPhotos.photo_2;
+          const pBefore = pmPhotos.before_photo || pmPhotos.photo_1;
+          if (pAfter) task.photo_after = pAfter;
+          if (pBefore) task.photo_before = pBefore;
+          task.photo = task.photo_after || task.photo_before || task.photo;
+          if (task.photo_after) task.after_photo = task.photo_after;
+          if (task.photo_before) task.before_photo = task.photo_before;
         }
       }
 

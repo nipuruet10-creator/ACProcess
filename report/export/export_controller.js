@@ -118,6 +118,16 @@ const ExportController = {
     // Filter out any slide where include_in_report is NO (Requirement 2)
     activeSlides = activeSlides.filter(s => s.include_in_report !== "NO" && s.monthly_report !== "NO");
 
+    // Fetch latest photos from Hostinger SSD Server before building payload
+    if (typeof window !== 'undefined' && window.photoManager && window.photoManager.fetchPhotosFromServer) {
+      try {
+        await window.photoManager.fetchPhotosFromServer(selectedMonth);
+        await window.photoManager.fetchPhotosFromServer('ALL');
+      } catch (pmSyncErr) {
+        console.warn("[ExportController] fetchPhotosFromServer warning:", pmSyncErr);
+      }
+    }
+
     // Ensure all valid tasks for the month from workbook marked for inclusion are present
     const wMgr = syncEngine.workbookMgr || (window.appState ? window.appState.workbookMgr : null);
     const monthRawTasks = wMgr ? wMgr.getTasksForMonth(selectedMonth) : [];
@@ -155,9 +165,11 @@ const ExportController = {
       if (typeof window !== 'undefined' && window.photoManager && window.photoManager.getTaskPhotos) {
         const pmPhotos = window.photoManager.getTaskPhotos(s.task_id, selectedMonth);
         if (pmPhotos) {
-          if (!s.photo_after && pmPhotos.after_photo) s.photo_after = pmPhotos.after_photo;
-          if (!s.photo_before && pmPhotos.before_photo) s.photo_before = pmPhotos.before_photo;
-          if (!s.photo) s.photo = pmPhotos.after_photo || pmPhotos.before_photo || pmPhotos.photo_1 || pmPhotos.photo_2;
+          const pAfter = pmPhotos.after_photo || pmPhotos.photo_2;
+          const pBefore = pmPhotos.before_photo || pmPhotos.photo_1;
+          if (pAfter) s.photo_after = pAfter;
+          if (pBefore) s.photo_before = pBefore;
+          s.photo = s.photo_after || s.photo_before || s.photo;
         }
       }
     });

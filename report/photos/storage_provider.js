@@ -181,11 +181,12 @@ const PhotoStorageProvider = {
   },
 
   /**
-   * Automatically compresses and resizes photos to 16:9 presentation resolution (max 1600x900) at 0.83 quality.
-   * Produces crystal-clear visual quality on presentation slides while keeping file size lean (~80-180KB).
-   * Runs non-blockingly to guarantee zero main-thread freezing and instant sub-second upload.
+   * Preserves full high-resolution photographic clarity for presentation slides and permanent archival.
+   * Keeps natural image dimensions (supports up to 4K Ultra-HD 3840x2160) at ultra-high 0.96 quality.
+   * Guarantees zero blur, crystal-clear text/labels/serial numbers and machine details.
+   * Runs non-blockingly to guarantee zero main-thread freezing and instant upload.
    */
-  async compressImageFile(file, maxWidth = 1600, maxHeight = 900, quality = 0.83) {
+  async compressImageFile(file, maxWidth = 3840, maxHeight = 2160, quality = 0.96) {
     if (!file) return "";
 
     // If string input (e.g. data URI from clipboard)
@@ -213,10 +214,10 @@ const PhotoStorageProvider = {
         reader.onload = (e) => {
           const img = new Image();
           img.onload = () => {
-            let width = img.width;
-            let height = img.height;
+            let width = img.naturalWidth || img.width;
+            let height = img.naturalHeight || img.height;
 
-            // Scale down proportionally to 16:9 presentation resolution (max 1600x900)
+            // Only downscale if larger than 4K Ultra-HD (3840x2160) to maintain crisp clarity
             if (width > maxWidth || height > maxHeight) {
               if (width / height > maxWidth / maxHeight) {
                 height = Math.round((height * maxWidth) / width);

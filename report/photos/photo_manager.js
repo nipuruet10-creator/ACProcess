@@ -175,46 +175,123 @@ class PhotoManager {
   }
 
   /**
-   * Auto-heals cross-PC photo sync: If any photo exists locally as Base64 data (e.g. uploaded on Pear's PC),
+   * Auto-heals cross-PC photo sync: If any photo exists locally as Base64 data (e.g. uploaded on an engineer's PC),
    * pushes it automatically to Hostinger disk and server catalog so all other PCs receive it!
    */
   async reconcileLocalPhotosToServer() {
-    if (!this.photoMap) return;
     let delMap = {};
     try {
       delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
     } catch(e) {}
 
     const currentMonth = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
-    for (const [tId, pData] of Object.entries(this.photoMap)) {
-      if (!pData || tId.includes('_')) continue;
-      const cleanT = String(tId).toLowerCase();
-      const pParts = cleanT.split('-');
-      const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
-      const tombstone = delMap[tId] || delMap[cleanT] || delMap[pPrefix];
 
-      if (tombstone) {
-        // User explicitly deleted this photo: NEVER upload back! Purge from memory & IndexedDB
-        this.purgeTaskPhotosMemory(tId);
-        if (typeof PhotoIndexedDB !== 'undefined' && PhotoIndexedDB.deleteTaskPhotos) {
-          PhotoIndexedDB.deleteTaskPhotos(tId).catch(() => {});
+    // 1. Scan memory map
+    if (this.photoMap) {
+      for (const [key, pData] of Object.entries(this.photoMap)) {
+        if (!pData) continue;
+        let tId = key;
+        let m = currentMonth;
+        if (key.includes('_') && (key.startsWith('SEP-') || key.startsWith('AUG-') || key.startsWith('OCT-'))) {
+          const parts = key.split('_');
+          m = parts[0];
+          tId = parts.slice(1).join('_');
         }
-        continue;
-      }
 
-      if (pData.after_photo && pData.after_photo.startsWith('data:image/')) {
-        console.log(`[Hostinger Photo Sync] Reconciling local photo for ${tId} (after_photo)...`);
-        try {
-          await this.uploadPhotoToServer(tId, 'after_photo', pData.after_photo, currentMonth);
-        } catch(e) {}
-      }
-      if (pData.before_photo && pData.before_photo.startsWith('data:image/')) {
-        console.log(`[Hostinger Photo Sync] Reconciling local photo for ${tId} (before_photo)...`);
-        try {
-          await this.uploadPhotoToServer(tId, 'before_photo', pData.before_photo, currentMonth);
-        } catch(e) {}
+        const cleanT = String(tId).toLowerCase();
+        const pParts = cleanT.split('-');
+        const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+        const tombstone = delMap[tId] || delMap[cleanT] || delMap[pPrefix];
+
+        if (tombstone) {
+          this.purgeTaskPhotosMemory(tId);
+          if (typeof PhotoIndexedDB !== 'undefined' && PhotoIndexedDB.deleteTaskPhotos) {
+            PhotoIndexedDB.deleteTaskPhotos(tId).catch(() => {});
+          }
+          continue;
+        }
+
+        const afterP = pData.after_photo || pData.photo_2;
+        if (afterP && typeof afterP === 'string' && afterP.startsWith('data:image/')) {
+          console.log(`[Hostinger Photo Sync] Reconciling memory photo for ${tId} (after_photo)...`);
+          try {
+            await this.uploadPhotoToServer(tId, 'after_photo', afterP, m);
+          } catch(e) {}
+        }
+        const beforeP = pData.before_photo || pData.photo_1;
+        if (beforeP && typeof beforeP === 'string' && beforeP.startsWith('data:image/')) {
+          console.log(`[Hostinger Photo Sync] Reconciling memory photo for ${tId} (before_photo)...`);
+          try {
+            await this.uploadPhotoToServer(tId, 'before_photo', beforeP, m);
+          } catch(e) {}
+        }
       }
     }
+
+    // 2. Scan workbook tasks in MonthWorkbookManager
+    if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+      try {
+        const wbMgr = window.appState.workbookMgr;
+        const tasks = wbMgr.getTasksForMonth ? wbMgr.getTasksForMonth(currentMonth) : [];
+        for (const t of tasks) {
+          if (!t || !t.task_id) continue;
+          const tId = t.task_id;
+          const cleanT = String(tId).toLowerCase();
+          const pParts = cleanT.split('-');
+          const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+          if (delMap[tId] || delMap[cleanT] || delMap[pPrefix]) continue;
+
+          const afterP = t.after_photo || t.photo_2 || t.photo;
+          if (afterP && typeof afterP === 'string' && afterP.startsWith('data:image/')) {
+            console.log(`[Hostinger Photo Sync] Reconciling workbook task photo for ${tId} (after_photo)...`);
+            try {
+              await this.uploadPhotoToServer(tId, 'after_photo', afterP, currentMonth);
+            } catch(e) {}
+          }
+          const beforeP = t.before_photo || t.photo_1;
+          if (beforeP && typeof beforeP === 'string' && beforeP.startsWith('data:image/')) {
+            console.log(`[Hostinger Photo Sync] Reconciling workbook task photo for ${tId} (before_photo)...`);
+            try {
+              await this.uploadPhotoToServer(tId, 'before_photo', beforeP, currentMonth);
+            } catch(e) {}
+          }
+        }
+      } catch (wbSyncErr) {}
+    }
+
+    // 3. Scan active slides in localStorage
+    try {
+      const slideKey = `walton_pd_active_slides_${currentMonth}`;
+      const saved = localStorage.getItem(slideKey);
+      if (saved) {
+        const slides = JSON.parse(saved);
+        if (Array.isArray(slides)) {
+          for (const s of slides) {
+            if (!s || !s.task_id) continue;
+            const tId = s.task_id;
+            const cleanT = String(tId).toLowerCase();
+            const pParts = cleanT.split('-');
+            const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+            if (delMap[tId] || delMap[cleanT] || delMap[pPrefix]) continue;
+
+            const afterP = s.photo_after || s.photo;
+            if (afterP && typeof afterP === 'string' && afterP.startsWith('data:image/')) {
+              console.log(`[Hostinger Photo Sync] Reconciling active slide photo for ${tId} (after_photo)...`);
+              try {
+                await this.uploadPhotoToServer(tId, 'after_photo', afterP, currentMonth);
+              } catch(e) {}
+            }
+            const beforeP = s.photo_before;
+            if (beforeP && typeof beforeP === 'string' && beforeP.startsWith('data:image/')) {
+              console.log(`[Hostinger Photo Sync] Reconciling active slide photo for ${tId} (before_photo)...`);
+              try {
+                await this.uploadPhotoToServer(tId, 'before_photo', beforeP, currentMonth);
+              } catch(e) {}
+            }
+          }
+        }
+      }
+    } catch (slideSyncErr) {}
   }
 
   /**
@@ -410,7 +487,7 @@ class PhotoManager {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', this._getApiUrl('api/save_photo.php'), true);
         xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.timeout = 30000;
+        xhr.timeout = 60000;
 
         if (xhr.upload && typeof onProgress === 'function') {
           xhr.upload.onprogress = (e) => {
@@ -535,6 +612,21 @@ class PhotoManager {
           } catch(e) {}
         }
 
+        // Persist clean server URL to SyncEngine active slides
+        try {
+          if (typeof window !== 'undefined' && window.appState && window.appState.syncEngine) {
+            const slides = window.appState.syncEngine.getActiveSlides(m);
+            const target = slides.find(s => s && s.task_id === taskId);
+            if (target) {
+              if (isBefore) target.photo_before = serverUrl;
+              if (isAfter) target.photo_after = serverUrl;
+              target.photo = serverUrl;
+              target.has_dual_photo = Boolean(target.photo_before && target.photo_after);
+              localStorage.setItem(`walton_pd_active_slides_${m}`, JSON.stringify(slides));
+            }
+          }
+        } catch(slideErr) {}
+
         // Broadcast server URL to peer laptops via Firebase Realtime Database
         if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
           try {
@@ -559,8 +651,11 @@ class PhotoManager {
             if (typeof MonthlyReportView.renderModalLivePreview === 'function') MonthlyReportView.renderModalLivePreview(taskId);
           }
           if (typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
-            MonthlyReportView.updateSlideCardPhoto(taskId);
+            MonthlyReportView.updateSlideCardPhoto(taskId, serverUrl);
           }
+        }
+
+        // If MonthlyInputView is active, update task card photo
         }
 
         return serverUrl;
@@ -720,7 +815,7 @@ class PhotoManager {
    * Compress and save photo file to IndexedDB and sync thumbnail to Google Sheets
    * Full resolution photo stored in IndexedDB; compact thumbnail synced across devices.
    */
-  async savePhotoFile(taskId, slot, file, month = null) {
+  async savePhotoFile(taskId, slot, file, month = null, onProgress = null) {
     if (!taskId || !file) return null;
 
     let compressedData = "";
@@ -748,7 +843,7 @@ class PhotoManager {
       syncThumbnail = compressedData;
     }
 
-    return this.setTaskPhoto(taskId, slot, compressedData, syncThumbnail, month, onProgress);
+    return this.setTaskPhoto(taskId, slot, compressedData, syncThumbnail, month, onProgress || null);
   }
 
   async savePhoto(taskId, slot, base64Url, month = null, onProgress = null) {

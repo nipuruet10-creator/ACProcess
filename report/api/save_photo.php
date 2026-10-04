@@ -8,6 +8,10 @@
 // Enable error reporting for logs but output clean JSON
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
+@ini_set('memory_limit', '256M');
+@ini_set('upload_max_filesize', '64M');
+@ini_set('post_max_size', '64M');
+@ini_set('max_execution_time', '300');
 
 // Headers & CORS
 header('Access-Control-Allow-Origin: *');
@@ -56,6 +60,11 @@ try {
     // Check if uploaded as file via multipart
     if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
         $tmpPath = $_FILES['photo']['tmp_name'];
+        $rawBytes = file_get_contents($tmpPath);
+        $mime = mime_content_type($tmpPath) ?: 'image/jpeg';
+        $imageData = 'data:' . $mime . ';base64,' . base64_encode($rawBytes);
+    } elseif (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $tmpPath = $_FILES['image']['tmp_name'];
         $rawBytes = file_get_contents($tmpPath);
         $mime = mime_content_type($tmpPath) ?: 'image/jpeg';
         $imageData = 'data:' . $mime . ';base64,' . base64_encode($rawBytes);
