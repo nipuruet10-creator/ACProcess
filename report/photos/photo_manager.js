@@ -302,10 +302,10 @@ class PhotoManager {
                 }
               }
               if (t) {
-                const isTaskDeletedAfter = Boolean(t.clear_photos || t._photoDeleted_after || (tombstone && (tombstone.slot === 'all' || tombstone.slot === 'after_photo')));
-                const isTaskDeletedBefore = Boolean(t.clear_photos || t._photoDeleted_before || (tombstone && (tombstone.slot === 'all' || tombstone.slot === 'before_photo')));
+                const isTaskDeletedAfter = Boolean(!merged.after_photo && (t.clear_photos || (t._photoDeleted_after && t._photoDeleted_after > (t._lastPhotoEditTime || 0)) || (tombstone && (tombstone.slot === 'all' || tombstone.slot === 'after_photo'))));
+                const isTaskDeletedBefore = Boolean(!merged.before_photo && (t.clear_photos || (t._photoDeleted_before && t._photoDeleted_before > (t._lastPhotoEditTime || 0)) || (tombstone && (tombstone.slot === 'all' || tombstone.slot === 'before_photo'))));
 
-                if (merged.before_photo && !isTaskDeletedBefore) {
+                if (merged.before_photo) {
                   t.photo_1 = merged.before_photo;
                   t.before_photo = merged.before_photo;
                   delete t._photoDeleted_before;
@@ -317,7 +317,7 @@ class PhotoManager {
                   merged.photo_1 = null;
                 }
 
-                if (merged.after_photo && !isTaskDeletedAfter) {
+                if (merged.after_photo) {
                   t.photo_2 = merged.after_photo;
                   t.after_photo = merged.after_photo;
                   t.photo = merged.after_photo;
@@ -663,16 +663,19 @@ class PhotoManager {
     }
 
     if (t) {
-      if (t.clear_photos) {
+      const isServerPhotoP1 = Boolean(this.photoMap[taskId]?.before_photo || memMonth?.before_photo);
+      const isServerPhotoP2 = Boolean(this.photoMap[taskId]?.after_photo || memMonth?.after_photo);
+
+      if (t.clear_photos && !isServerPhotoP1 && !isServerPhotoP2) {
         if (!t._photoDeleted_before && !t._photoDeleted_after) {
           p1 = null;
           p2 = null;
         }
       }
-      if (t._photoDeleted_before) {
+      if (t._photoDeleted_before && !isServerPhotoP1) {
         p1 = null;
       }
-      if (t._photoDeleted_after) {
+      if (t._photoDeleted_after && !isServerPhotoP2) {
         p2 = null;
       }
     }

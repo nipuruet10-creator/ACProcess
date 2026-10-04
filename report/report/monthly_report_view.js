@@ -740,6 +740,12 @@ const MonthlyReportView = {
 
     // Format server photo with cache-buster timestamp so browser repaints immediately
     let displaySrc = photoSingle;
+    if (typeof photoManager !== 'undefined' && photoManager.formatPhotoUrl) {
+      displaySrc = photoManager.formatPhotoUrl(displaySrc);
+    } else if (displaySrc && (displaySrc.startsWith('uploads/') || displaySrc.startsWith('/uploads/'))) {
+      const rel = displaySrc.startsWith('/') ? displaySrc.slice(1) : displaySrc;
+      displaySrc = 'https://acprocess.com/report/' + rel;
+    }
     if (displaySrc && (displaySrc.startsWith('http') || displaySrc.startsWith('uploads/') || displaySrc.startsWith('/uploads/'))) {
       const cleanUrl = displaySrc.split('?')[0];
       displaySrc = `${cleanUrl}?t=${Date.now()}`;
@@ -1011,7 +1017,18 @@ const MonthlyReportView = {
   handlePhotoImgError(imgEl, taskId, slot = 'after_photo') {
     if (!imgEl) return;
 
-    // 1. Retry once with fresh cache-busting timestamp if it's a server URL
+    // 1. If URL failed due to relative path resolution without /report/, auto-repair immediately
+    if (!imgEl._retriedPathFix && imgEl.src && !imgEl.src.includes('/report/') && (imgEl.src.includes('uploads/') || imgEl.src.includes('/photos/'))) {
+      imgEl._retriedPathFix = true;
+      const uParts = imgEl.src.split('uploads/');
+      if (uParts.length > 1) {
+        const cleanFile = uParts[1].split('?')[0];
+        imgEl.src = `https://acprocess.com/report/uploads/${cleanFile}?t=${Date.now()}`;
+        return;
+      }
+    }
+
+    // 2. Retry once with fresh cache-busting timestamp if it's a server URL
     if (!imgEl._retriedBuster && imgEl.src && (imgEl.src.startsWith('http') || imgEl.src.includes('uploads/'))) {
       imgEl._retriedBuster = true;
       const clean = imgEl.src.split('?')[0];
@@ -1926,9 +1943,11 @@ const MonthlyReportView = {
     if (typeof photoManager !== 'undefined') {
       activeSlides.forEach(s => {
         const p = photoManager.getTaskPhotos(s.task_id, month);
-        s.photo_before = p ? (p.before_photo || null) : null;
-        s.photo_after = p ? (p.after_photo || null) : null;
-        s.photo = p ? (p.before_photo || p.after_photo || null) : null;
+        const pBefore = (p && p.before_photo) ? p.before_photo : (s.photo_before || null);
+        const pAfter = (p && p.after_photo) ? p.after_photo : (s.photo_after || null);
+        s.photo_before = pBefore;
+        s.photo_after = pAfter;
+        s.photo = pAfter || pBefore || s.photo || null;
         s.has_dual_photo = Boolean(s.photo_before && s.photo_after);
 
         const overrides = (window.appState && window.appState.syncEngine)
@@ -2201,6 +2220,12 @@ const MonthlyReportView = {
             const isOverridden = Boolean(s.has_manual_override);
             const photoDisplay = s.photo_after || s.photo_before || s.photo;
             let photoDisplaySrc = photoDisplay;
+            if (typeof photoManager !== 'undefined' && photoManager.formatPhotoUrl) {
+              photoDisplaySrc = photoManager.formatPhotoUrl(photoDisplaySrc);
+            } else if (photoDisplaySrc && (photoDisplaySrc.startsWith('uploads/') || photoDisplaySrc.startsWith('/uploads/'))) {
+              const rel = photoDisplaySrc.startsWith('/') ? photoDisplaySrc.slice(1) : photoDisplaySrc;
+              photoDisplaySrc = 'https://acprocess.com/report/' + rel;
+            }
             if (photoDisplaySrc && (photoDisplaySrc.startsWith('http') || photoDisplaySrc.startsWith('uploads/') || photoDisplaySrc.startsWith('/uploads/'))) {
               const cleanUrl = photoDisplaySrc.split('?')[0];
               photoDisplaySrc = `${cleanUrl}?t=${Date.now()}`;
