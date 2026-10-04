@@ -299,6 +299,7 @@ class SyncEngine {
     rawTasks.forEach(t => {
       if (t && t.task_id && !deletedSet.has(t.task_id)) {
         validTaskMap.set(t.task_id, t);
+        validTaskMap.set(String(t.task_id).toLowerCase(), t);
       }
     });
 
@@ -313,9 +314,17 @@ class SyncEngine {
       slides = slides.filter(s => {
         if (!s || !s.task_id) return false;
         if (deletedSet.has(s.task_id)) return false;
-        const t = validTaskMap.get(s.task_id);
+        const sId = String(s.task_id).trim();
+        let t = validTaskMap.get(sId) || validTaskMap.get(sId.toLowerCase());
+        if (!t && sId.includes('-')) {
+          const p = sId.split('-');
+          if (p.length >= 3) {
+            const pfx = `${p[0]}-${p[1]}-${p[2]}`.toLowerCase();
+            t = rawTasks.find(x => x.task_id && String(x.task_id).toLowerCase().startsWith(pfx));
+          }
+        }
         if (!t) return false;
-        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || 'YES').toUpperCase().trim();
         if (rep === "NO") return false;
         const tid = String(t.task_id || '').toUpperCase();
         if (t.is_project === true || tid.startsWith('PROJ-')) return false;
@@ -326,14 +335,17 @@ class SyncEngine {
       });
 
       // 2. Auto-include any active tasks from workbook not yet present in cached slides
-      validTaskMap.forEach((t, tId) => {
-        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+      validTaskMap.forEach((t) => {
+        if (!t || !t.task_id) return;
+        const tId = t.task_id;
+        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || 'YES').toUpperCase().trim();
+        if (rep === "NO") return;
         const tid = String(tId).toUpperCase();
         const cat = String(t.category || '').toLowerCase();
         const isProj = Boolean(t.is_project || tid.startsWith('PROJ-') || cat.includes('ongoing project') || cat.includes('completed project'));
         const isCost = Boolean(t.is_cost_saving || tid.startsWith('CS-') || cat.includes('cost saving'));
 
-        if (rep !== "NO" && !isProj && !isCost && !slides.some(s => s.task_id === tId)) {
+        if (!isProj && !isCost && !slides.some(s => s.task_id === tId || (s.task_id && String(s.task_id).toLowerCase() === String(tId).toLowerCase()))) {
           let domainData = null;
           if (typeof PROMPT_TEMPLATES !== 'undefined' && PROMPT_TEMPLATES.localFactualTransform) {
             domainData = PROMPT_TEMPLATES.localFactualTransform(t);
@@ -460,6 +472,15 @@ class SyncEngine {
       });
 
       slides = [...stdSlides, ...completedProjSlides, ...ongoingProjSlides];
+      try {
+        const lightweightSlides = slides.map(s => ({
+          ...s,
+          photo: null,
+          photo_before: null,
+          photo_after: null
+        }));
+        localStorage.setItem(`walton_pd_active_slides_${normalizedMonth}`, JSON.stringify(lightweightSlides));
+      } catch (e) {}
       return slides;
     } catch (e) {
       console.warn("getActiveSlides notice:", e);

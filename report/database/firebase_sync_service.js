@@ -1209,16 +1209,44 @@ const FirebaseSyncService = {
 
       // 7. Report Inclusion Toggle
       else if (field === 'include_in_report') {
+        const isYes = task.include_in_report !== 'NO';
         const btn = document.getElementById(`report-toggle-btn-${taskId}`);
         if (btn) {
-          const isYes = task.include_in_report !== 'NO';
           btn.textContent = isYes ? 'YES' : 'NO';
-          btn.className = `px-2.5 py-1 rounded-md text-[10px] font-mono font-bold transition ${
+          btn.className = `px-2.5 py-0.5 rounded-full text-[10px] font-bold transition ${
             isYes
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-black'
+              ? 'bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]'
               : 'bg-slate-50 text-slate-400 border border-slate-200'
           }`;
           this._flashCell(btn);
+        }
+
+        // Cross-PC active slides cache synchronization
+        try {
+          const cacheKey = `walton_pd_active_slides_${month}`;
+          const raw = localStorage.getItem(cacheKey);
+          if (raw) {
+            let sList = JSON.parse(raw);
+            if (Array.isArray(sList)) {
+              if (!isYes) {
+                const cleanTid = String(taskId).toLowerCase();
+                sList = sList.filter(s => s && s.task_id !== taskId && (!task.task_id || s.task_id !== task.task_id) && String(s.task_id).toLowerCase() !== cleanTid);
+              }
+              localStorage.setItem(cacheKey, JSON.stringify(sList));
+            }
+          }
+        } catch(e) {}
+
+        if (!isYes) {
+          const cardEl = document.getElementById(`slide-card-${taskId}`);
+          if (cardEl) cardEl.remove();
+        }
+
+        if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
+          const grid = document.getElementById('monthly-report-cards-grid');
+          if (grid) {
+            MonthlyReportView.render();
+          }
         }
       }
 

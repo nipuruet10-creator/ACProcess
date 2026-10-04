@@ -1219,21 +1219,55 @@ const MonthlyInputView = {
                 document.querySelector(`button[onclick*="toggleInclude('${taskId}')"]`);
     if (btn) {
       btn.textContent = isYes ? 'YES' : 'NO';
-      btn.className = `px-2.5 py-1 rounded-md text-[10px] font-mono font-bold transition ${
+      btn.className = `px-2.5 py-0.5 rounded-full text-[10px] font-bold transition ${
         isYes
-          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-black'
+          ? 'bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]'
           : 'bg-slate-50 text-slate-400 border border-slate-200'
       }`;
     }
 
+    // Immediately evict or re-add in active slides cache
+    try {
+      const cacheKey = `walton_pd_active_slides_${this.selectedMonth}`;
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        let sList = JSON.parse(raw);
+        if (Array.isArray(sList)) {
+          if (!isYes) {
+            const cleanTid = String(taskId).toLowerCase();
+            sList = sList.filter(s => s && s.task_id !== taskId && (!updatedTask || s.task_id !== updatedTask.task_id) && String(s.task_id).toLowerCase() !== cleanTid);
+          }
+          localStorage.setItem(cacheKey, JSON.stringify(sList));
+        }
+      }
+    } catch(e) {}
+
+    // If slide card is present in DOM, remove it immediately if NO
+    if (!isYes) {
+      const cardEl = document.getElementById(`slide-card-${taskId}`);
+      if (cardEl) cardEl.remove();
+    }
+
     // Real-time Firebase Broadcast
     if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected() && updatedTask) {
-      FirebaseSyncService.updateCell(this.selectedMonth, taskId, 'include_in_report', updatedTask.include_in_report);
+      FirebaseSyncService.updateCell(this.selectedMonth, updatedTask.task_id || taskId, 'include_in_report', updatedTask.include_in_report);
     }
 
     // Silently compile report slides in background without blocking or shaking UI
     if (window.appState.syncEngine) {
       window.appState.syncEngine.syncMonth(this.selectedMonth).catch(e => console.warn("Sync notice:", e));
+    }
+
+    // If MonthlyReportView is currently mounted/rendered, update it cleanly
+    if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
+      const mrGrid = document.getElementById('monthly-report-cards-grid');
+      if (mrGrid) {
+        MonthlyReportView.render();
+      }
+    }
+
+    if (typeof window.showToast === 'function') {
+      window.showToast(isYes ? "✅ Included in Monthly Report presentation" : "⛔ Excluded from Monthly Report presentation", "info");
     }
   },
 

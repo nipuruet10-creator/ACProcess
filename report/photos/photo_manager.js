@@ -915,7 +915,7 @@ class PhotoManager {
       }
     }
 
-    return base64Url;
+    return serverUrl || base64Url;
   }
 
   purgeTaskPhotosMemory(taskId) {

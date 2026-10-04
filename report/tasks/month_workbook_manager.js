@@ -129,6 +129,7 @@ class MonthWorkbookManager {
     if (defaultAdded) {
       this.save();
     }
+    this.deduplicateAllWorkbooks();
   }
 
   getDefaultSep2026Tasks() {
@@ -1282,13 +1283,110 @@ class MonthWorkbookManager {
     return m;
   }
 
+  deduplicateTasks(tasks, month = null) {
+    if (!Array.isArray(tasks)) return [];
+    const result = [];
+    const seenIds = new Set();
+    const seenTms = new Map();
+    const seenPrefix = new Map();
+    const prunedIds = [];
+
+    // Prioritize 4-part IDs (e.g. SEP-2026-143-IUSP) over incomplete 3-part prefixes (SEP-2026-143),
+    // and tasks that have non-empty points
+    const sorted = [...tasks].sort((a, b) => {
+      const aParts = String((a && a.task_id) || '').split('-').length;
+      const bParts = String((b && b.task_id) || '').split('-').length;
+      if (bParts !== aParts) return bParts - aParts;
+      const aPts = (a && a.points !== "" && a.points !== undefined && !isNaN(parseFloat(a.points))) ? parseFloat(a.points) : -1;
+      const bPts = (b && b.points !== "" && b.points !== undefined && !isNaN(parseFloat(b.points))) ? parseFloat(b.points) : -1;
+      return bPts - aPts;
+    });
+
+    sorted.forEach(t => {
+      if (!t || !t.task_id) return;
+      const tid = String(t.task_id).trim();
+      const parts = tid.split('-');
+
+      // Exact ID duplicate
+      if (seenIds.has(tid)) {
+        prunedIds.push(tid);
+        return;
+      }
+
+      // TMS ID duplicate
+      const tms = t.tms_task_id ? String(t.tms_task_id).trim() : null;
+      if (tms && seenTms.has(tms)) {
+        prunedIds.push(tid);
+        return;
+      }
+
+      // 3-part prefix vs 4-part ID (e.g. SEP-2026-143 vs SEP-2026-143-IUSP)
+      if (parts.length === 3) {
+        if (seenPrefix.has(tid)) {
+          prunedIds.push(tid);
+          return;
+        }
+      }
+
+      seenIds.add(tid);
+      if (tms) seenTms.set(tms, tid);
+      if (parts.length >= 4) {
+        const pfx = `${parts[0]}-${parts[1]}-${parts[2]}`;
+        seenPrefix.set(pfx, tid);
+      }
+      result.push(t);
+    });
+
+    // Tombstone pruned duplicates so they never resurrect
+    if (prunedIds.length > 0) {
+      try {
+        let deletedList = JSON.parse(localStorage.getItem('walton_deleted_task_ids') || '[]');
+        let changed = false;
+        prunedIds.forEach(pid => {
+          if (!deletedList.includes(pid)) {
+            deletedList.push(pid);
+            changed = true;
+          }
+          if (month && typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+            try {
+              FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${month}/tasks/${pid}`).remove().catch(() => {});
+            } catch(e) {}
+          }
+        });
+        if (changed) {
+          localStorage.setItem('walton_deleted_task_ids', JSON.stringify(deletedList));
+        }
+      } catch(e) {}
+    }
+
+    result.sort((a, b) => String(a.task_id || '').localeCompare(String(b.task_id || ''), undefined, { numeric: true, sensitivity: 'base' }));
+    return result;
+  }
+
+  deduplicateAllWorkbooks() {
+    let changed = false;
+    Object.keys(this.workbooks).forEach(m => {
+      if (Array.isArray(this.workbooks[m])) {
+        const originalLen = this.workbooks[m].length;
+        const clean = this.deduplicateTasks(this.workbooks[m], m);
+        if (clean.length !== originalLen) {
+          this.workbooks[m] = clean;
+          changed = true;
+        }
+      }
+    });
+    if (changed) {
+      this.save();
+    }
+  }
+
   getTasksForMonth(month) {
     const m = this.normalizeMonth(month);
     if (!this.workbooks[m]) {
       this.workbooks[m] = [];
     }
     // Strict Project & Cost Saving Isolation (Requirement 1 & 2)
-    return this.workbooks[m].filter(t => {
+    const filtered = this.workbooks[m].filter(t => {
       if (!t) return false;
       if (t.is_project === true || t.is_cost_saving === true) return false;
       const tid = String(t.task_id || '').toUpperCase();
@@ -1297,6 +1395,7 @@ class MonthWorkbookManager {
       if (cat.includes('ongoing project') || cat.includes('completed project') || cat.includes('strategic project') || cat.includes('cost saving')) return false;
       return true;
     });
+    return this.deduplicateTasks(filtered, m);
   }
 
   getTask(month, taskId) {
@@ -1791,10 +1890,40 @@ class MonthWorkbookManager {
   toggleInclude(month, taskId) {
     const m = this.normalizeMonth(month);
     const tasks = this.workbooks[m] || [];
-    const task = tasks.find(t => t.task_id === taskId);
+    let task = tasks.find(t => t.task_id === taskId);
+    if (!task && typeof taskId === 'string') {
+      const lower = taskId.toLowerCase();
+      task = tasks.find(t => t.task_id && t.task_id.toLowerCase() === lower);
+      if (!task && taskId.includes('-')) {
+        const parts = taskId.split('-');
+        if (parts.length >= 3) {
+          const prefix = `${parts[0]}-${parts[1]}-${parts[2]}`;
+          task = tasks.find(t => t.task_id && t.task_id.startsWith(prefix));
+        }
+      }
+    }
     if (!task) return null;
-    const newStatus = task.include_in_report === "YES" ? "NO" : "YES";
-    return this.updateTask(m, taskId, { include_in_report: newStatus });
+    const current = String(task.include_in_report || 'YES').toUpperCase().trim();
+    const newStatus = (current === "NO") ? "YES" : "NO";
+    const updated = this.updateTask(m, task.task_id, { include_in_report: newStatus });
+
+    // Instantly evict from active slides cache when toggled to NO!
+    if (newStatus === "NO") {
+      try {
+        const cacheKey = `walton_pd_active_slides_${m}`;
+        const raw = localStorage.getItem(cacheKey);
+        if (raw) {
+          let sList = JSON.parse(raw);
+          if (Array.isArray(sList)) {
+            const cleanTid = task.task_id.toLowerCase();
+            sList = sList.filter(s => s && s.task_id !== taskId && s.task_id !== task.task_id && String(s.task_id).toLowerCase() !== cleanTid);
+            localStorage.setItem(cacheKey, JSON.stringify(sList));
+          }
+        }
+      } catch(e) {}
+    }
+
+    return updated;
   }
 
   deleteTask(month, taskId) {
@@ -2359,12 +2488,8 @@ class MonthWorkbookManager {
         }
       }
 
-      // Sort tasks consistently by sequential task ID across all devices
-      this.workbooks[norm].sort((a, b) => {
-        const idA = String(a.task_id || '');
-        const idB = String(b.task_id || '');
-        return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
-      });
+      // Sort tasks consistently by sequential task ID across all devices & deduplicate
+      this.workbooks[norm] = this.deduplicateTasks(this.workbooks[norm], norm);
     });
 
     if (anyChanges) {

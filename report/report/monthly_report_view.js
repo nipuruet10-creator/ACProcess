@@ -719,9 +719,14 @@ const MonthlyReportView = {
     }
   },
 
-  updateSlideCardPhoto(taskId) {
+  updateSlideCardPhoto(taskId, forcedPhotoUrl = null) {
     if (!taskId) return;
-    const card = document.getElementById(`slide-card-${taskId}`);
+    let card = document.getElementById(`slide-card-${taskId}`);
+    if (!card) {
+      const lowerId = String(taskId).toLowerCase();
+      card = document.querySelector(`[data-task-id="${taskId}"]`) ||
+             document.querySelector(`[data-task-id="${lowerId}"]`);
+    }
     if (!card) return;
     const month = this.selectedMonth;
     let photos = null;
@@ -730,8 +735,15 @@ const MonthlyReportView = {
     }
     const photoBefore = photos ? (photos.before_photo || null) : null;
     const photoAfter = photos ? (photos.after_photo || null) : null;
-    const photoSingle = photoAfter || photoBefore;
+    let photoSingle = forcedPhotoUrl || photoAfter || photoBefore;
     const hasPhoto = Boolean(photoSingle);
+
+    // Format server photo with cache-buster timestamp so browser repaints immediately
+    let displaySrc = photoSingle;
+    if (displaySrc && (displaySrc.startsWith('http') || displaySrc.startsWith('uploads/') || displaySrc.startsWith('/uploads/'))) {
+      const cleanUrl = displaySrc.split('?')[0];
+      displaySrc = `${cleanUrl}?t=${Date.now()}`;
+    }
 
     const overrides = (window.appState && window.appState.syncEngine)
       ? window.appState.syncEngine.getManualOverride(taskId)
@@ -755,12 +767,10 @@ const MonthlyReportView = {
         const existingBlurImg = previewContainer.querySelector('.photo-blur-bg');
         const existingWrapper = previewContainer.querySelector('.photo-fit-wrapper');
 
-        // ZERO BLINK: If image elements already exist, smoothly update src only without tearing down DOM!
+        // ZERO BLINK: If image elements already exist, smoothly update src without tearing down DOM!
         if (existingMainImg && existingWrapper) {
-          if (existingMainImg.getAttribute('src') !== photoSingle) {
-            existingMainImg.src = photoSingle;
-            if (existingBlurImg) existingBlurImg.src = photoSingle;
-          }
+          existingMainImg.src = displaySrc;
+          if (existingBlurImg) existingBlurImg.src = displaySrc;
           if (isCover) {
             existingWrapper.classList.remove('photo-fit-blur');
             existingWrapper.classList.add('photo-fit-cover');
@@ -775,8 +785,8 @@ const MonthlyReportView = {
 
         previewContainer.innerHTML = `
           <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
-            <img src="${photoSingle}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" onerror="this.style.display='none';" />
-            <img src="${photoSingle}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${taskId}', '${photoAfter ? 'after_photo' : 'before_photo'}');" />
+            <img src="${displaySrc}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" onerror="this.style.display='none';" />
+            <img src="${displaySrc}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${taskId}', '${photoAfter ? 'after_photo' : 'before_photo'}');" />
             <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
               <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
                 ${photoAfter && photoBefore ? 'Dual Photo' : (photoAfter ? 'After Photo' : 'Before Photo')}
@@ -865,6 +875,35 @@ const MonthlyReportView = {
       if (!base64Url) {
         this.hideUploadProgress(taskId);
         return;
+      }
+
+      // 0ms Optimistic preview: Show immediately on card & modal before network
+      if (typeof photoManager !== 'undefined' && photoManager.photoMap) {
+        if (!photoManager.photoMap[taskId]) photoManager.photoMap[taskId] = {};
+        const isBefore = (slot === 'before_photo' || slot === 'photo_1');
+        if (isBefore) {
+          photoManager.photoMap[taskId].before_photo = base64Url;
+          photoManager.photoMap[taskId].photo_1 = base64Url;
+        } else {
+          photoManager.photoMap[taskId].after_photo = base64Url;
+          photoManager.photoMap[taskId].photo_2 = base64Url;
+          photoManager.photoMap[taskId].photo = base64Url;
+        }
+        const mKey = `${this.selectedMonth}_${taskId}`;
+        if (!photoManager.photoMap[mKey]) photoManager.photoMap[mKey] = {};
+        if (isBefore) {
+          photoManager.photoMap[mKey].before_photo = base64Url;
+          photoManager.photoMap[mKey].photo_1 = base64Url;
+        } else {
+          photoManager.photoMap[mKey].after_photo = base64Url;
+          photoManager.photoMap[mKey].photo_2 = base64Url;
+          photoManager.photoMap[mKey].photo = base64Url;
+        }
+      }
+      this.updateSlideCardPhoto(taskId, base64Url);
+      if (this._activeModalTaskId === taskId) {
+        this.renderModalPhotoSlots(taskId);
+        this.renderModalLivePreview(taskId);
       }
 
       this.showUploadProgress(taskId, 25, "Uploading to Hostinger SSD...");
@@ -971,6 +1010,15 @@ const MonthlyReportView = {
 
   handlePhotoImgError(imgEl, taskId, slot = 'after_photo') {
     if (!imgEl) return;
+
+    // 1. Retry once with fresh cache-busting timestamp if it's a server URL
+    if (!imgEl._retriedBuster && imgEl.src && (imgEl.src.startsWith('http') || imgEl.src.includes('uploads/'))) {
+      imgEl._retriedBuster = true;
+      const clean = imgEl.src.split('?')[0];
+      imgEl.src = `${clean}?t=${Date.now()}`;
+      return;
+    }
+
     if (imgEl._fallbackTried) {
       this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
       return;
@@ -979,7 +1027,7 @@ const MonthlyReportView = {
 
     console.warn(`[MonthlyReportView] Photo load failed for ${taskId} (${slot}): ${imgEl.src}`);
 
-    // 1. Try to recover from in-memory photoManager
+    // 2. Try to recover from in-memory photoManager
     let fallback = null;
     if (typeof photoManager !== 'undefined') {
       const photos = photoManager.getTaskPhotos(taskId, this.selectedMonth);
@@ -990,23 +1038,38 @@ const MonthlyReportView = {
       }
     }
 
-    // 2. If fallback is found and differs from failed URL, self-heal immediately
-    if (fallback && fallback !== imgEl.src && !fallback.includes(imgEl.src)) {
-      console.log(`[MonthlyReportView] Auto-healing photo for ${taskId} using cached version.`);
+    // 3. If fallback is base64, self-heal immediately!
+    if (fallback && fallback.startsWith('data:image/')) {
       imgEl.src = fallback;
       const parentWrapper = imgEl.closest('.photo-fit-wrapper');
       if (parentWrapper) {
         const blurBg = parentWrapper.querySelector('.photo-blur-bg');
         if (blurBg) blurBg.src = fallback;
       }
-      // Re-upload to Hostinger in background if local base64
-      if (fallback.startsWith('data:image/') && typeof photoManager !== 'undefined') {
-        photoManager.uploadPhotoToServer(taskId, slot, fallback, this.selectedMonth).catch(() => {});
-      }
       return;
     }
 
-    // 3. Otherwise, replace broken image with clean "No Photo Attached" upload/paste box
+    // 4. Try to recover from PhotoIndexedDB
+    if (typeof PhotoIndexedDB !== 'undefined' && PhotoIndexedDB.getTaskPhotos) {
+      PhotoIndexedDB.getTaskPhotos(taskId).then(p => {
+        const b64 = p ? ((slot === 'before_photo' || slot === 'photo_1') ? (p.before_photo || p.photo_1) : (p.after_photo || p.photo_2 || p.photo)) : null;
+        if (b64 && b64.startsWith('data:image/')) {
+          imgEl.src = b64;
+          const parentWrapper = imgEl.closest('.photo-fit-wrapper');
+          if (parentWrapper) {
+            const blurBg = parentWrapper.querySelector('.photo-blur-bg');
+            if (blurBg) blurBg.src = b64;
+          }
+          return;
+        }
+        this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
+      }).catch(() => {
+        this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
+      });
+      return;
+    }
+
+    // 5. Otherwise, replace broken image with clean "No Photo Attached" upload/paste box
     this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
   },
 
@@ -1688,9 +1751,14 @@ const MonthlyReportView = {
     if (allTasks && allTasks.length > 0) {
       activeSlides = activeSlides.filter(s => {
         if (!s || !s.task_id) return false;
-        const t = allTasks.find(x => x.task_id === s.task_id);
+        const sId = String(s.task_id).toLowerCase();
+        const t = allTasks.find(x => {
+          if (!x || !x.task_id) return false;
+          const xId = String(x.task_id).toLowerCase();
+          return xId === sId || xId.startsWith(sId + '-') || sId.startsWith(xId + '-');
+        });
         if (!t) return false;
-        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || 'YES').toUpperCase().trim();
         return rep !== "NO";
       });
     }
@@ -1753,9 +1821,14 @@ const MonthlyReportView = {
       if (allTasks && allTasks.length > 0) {
         activeSlides = activeSlides.filter(s => {
           if (!s || !s.task_id) return false;
-          const t = allTasks.find(x => x.task_id === s.task_id);
+          const sId = String(s.task_id).toLowerCase();
+          const t = allTasks.find(x => {
+            if (!x || !x.task_id) return false;
+            const xId = String(x.task_id).toLowerCase();
+            return xId === sId || xId.startsWith(sId + '-') || sId.startsWith(xId + '-');
+          });
           if (!t) return false;
-          const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+          const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || 'YES').toUpperCase().trim();
           return rep !== "NO";
         });
       }
@@ -1775,9 +1848,14 @@ const MonthlyReportView = {
       if (allTasks && allTasks.length > 0) {
         activeSlides = activeSlides.filter(s => {
           if (!s || !s.task_id) return false;
-          const t = allTasks.find(x => x.task_id === s.task_id);
+          const sId = String(s.task_id).toLowerCase();
+          const t = allTasks.find(x => {
+            if (!x || !x.task_id) return false;
+            const xId = String(x.task_id).toLowerCase();
+            return xId === sId || xId.startsWith(sId + '-') || sId.startsWith(xId + '-');
+          });
           if (!t) return false;
-          const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+          const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || 'YES').toUpperCase().trim();
           return rep !== "NO";
         });
       }
@@ -1814,9 +1892,14 @@ const MonthlyReportView = {
     if (allTasks && allTasks.length > 0) {
       activeSlides = activeSlides.filter(s => {
         if (!s || !s.task_id) return false;
-        const t = allTasks.find(x => x.task_id === s.task_id);
+        const sId = String(s.task_id).toLowerCase();
+        const t = allTasks.find(x => {
+          if (!x || !x.task_id) return false;
+          const xId = String(x.task_id).toLowerCase();
+          return xId === sId || xId.startsWith(sId + '-') || sId.startsWith(xId + '-');
+        });
         if (!t) return false;
-        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || '').toUpperCase().trim();
+        const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || 'YES').toUpperCase().trim();
         return rep !== "NO";
       });
     }
@@ -2117,6 +2200,11 @@ const MonthlyReportView = {
             const hasPhoto = Boolean(s.photo_before || s.photo_after || s.photo);
             const isOverridden = Boolean(s.has_manual_override);
             const photoDisplay = s.photo_after || s.photo_before || s.photo;
+            let photoDisplaySrc = photoDisplay;
+            if (photoDisplaySrc && (photoDisplaySrc.startsWith('http') || photoDisplaySrc.startsWith('uploads/') || photoDisplaySrc.startsWith('/uploads/'))) {
+              const cleanUrl = photoDisplaySrc.split('?')[0];
+              photoDisplaySrc = `${cleanUrl}?t=${Date.now()}`;
+            }
             const isSelected = (this._selectedCardTaskId === s.task_id);
             const isCover = (s.photo_fit === 'cover' || s.photo_fit === 'fill');
 
@@ -2174,8 +2262,8 @@ const MonthlyReportView = {
                   <div class="slide-card-photo-container mt-2.5">
                     ${hasPhoto ? `
                       <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200 shadow-2xs group/img">
-                        <img src="${photoDisplay}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" onerror="this.style.display='none';" />
-                        <img src="${photoDisplay}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${s.task_id}', '${s.photo_after ? 'after_photo' : 'before_photo'}');" />
+                        <img src="${photoDisplaySrc}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65; ${isCover ? 'display: none;' : ''}" onerror="this.style.display='none';" />
+                        <img src="${photoDisplaySrc}" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${s.task_id}', '${s.photo_after ? 'after_photo' : 'before_photo'}');" />
                         <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
                           <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
                             ${s.photo_after && s.photo_before ? 'Dual Photo' : (s.photo_after ? 'After Photo' : 'Before Photo')}
