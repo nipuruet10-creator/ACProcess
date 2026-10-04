@@ -667,6 +667,8 @@ class PhotoManager {
         }
 
         // If MonthlyInputView is active, update task card photo
+        if (typeof MonthlyInputView !== 'undefined' && typeof MonthlyInputView.updateTaskCardPhoto === 'function') {
+          MonthlyInputView.updateTaskCardPhoto(taskId);
         }
 
         return serverUrl;
@@ -838,6 +840,20 @@ class PhotoManager {
       hasChange = true;
     }
 
+    // Clear local deletion tombstones for this task so stale local tombstones cannot suppress live cloud photos
+    try {
+      const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+      const cleanT = String(taskId).toLowerCase();
+      const pParts = cleanT.split('-');
+      const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+      delete delMap[taskId];
+      delete delMap[cleanT];
+      delete delMap[pPrefix];
+      delete delMap[mKey];
+      delete delMap[`${m}_${cleanT}`];
+      localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
+    } catch(e) {}
+
     // Persist to IndexedDB
     if (typeof PhotoIndexedDB !== 'undefined') {
       PhotoIndexedDB.saveTaskPhotos(taskId, this.photoMap[taskId]).catch(() => {});
@@ -848,12 +864,21 @@ class PhotoManager {
     if (window.appState && window.appState.workbookMgr) {
       try {
         const wbMgr = window.appState.workbookMgr;
-        const target = wbMgr.getTask(m, taskId);
+        let target = wbMgr.getTask(m, taskId);
+        if (!target && String(taskId).includes('-')) {
+          const parts = String(taskId).split('-');
+          if (parts.length >= 3) {
+            const prefix = `${parts[0]}-${parts[1]}-${parts[2]}`.toLowerCase();
+            const allTasks = wbMgr.getTasksForMonth ? wbMgr.getTasksForMonth(m) : [];
+            target = allTasks.find(tsk => tsk && tsk.task_id && tsk.task_id.toLowerCase().startsWith(prefix));
+          }
+        }
         if (target) {
           if (beforeP) { target.before_photo = beforeP; target.photo_1 = beforeP; delete target._photoDeleted_before; }
           if (afterP) { target.after_photo = afterP; target.photo_2 = afterP; target.photo = afterP; delete target._photoDeleted_after; }
           delete target.clear_photos;
           delete target._lastPhotoDeleteTime;
+          target._lastPhotoEditTime = Date.now();
           wbMgr.save();
         }
       } catch(e) {}
@@ -863,7 +888,14 @@ class PhotoManager {
     if (window.appState && window.appState.syncEngine) {
       try {
         const slides = window.appState.syncEngine.getActiveSlides(m);
-        const target = slides.find(s => s && s.task_id === taskId);
+        let target = slides.find(s => s && s.task_id === taskId);
+        if (!target && String(taskId).includes('-')) {
+          const parts = String(taskId).split('-');
+          if (parts.length >= 3) {
+            const prefix = `${parts[0]}-${parts[1]}-${parts[2]}`.toLowerCase();
+            target = slides.find(s => s && s.task_id && s.task_id.toLowerCase().startsWith(prefix));
+          }
+        }
         if (target) {
           if (beforeP) target.photo_before = beforeP;
           if (afterP) target.photo_after = afterP;
@@ -1287,12 +1319,11 @@ class PhotoManager {
 
     // 6. Push real-time deletion broadcast to Firebase & Google Sheets!
     try {
-      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
+      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected() && FirebaseSyncService.db) {
         const deletePayload = {
           _explicitUserPhotoDeleteTime: now,
           _lastPhotoDeleteTime: now,
-          _lastPhotoEditTime: 0,
-          clear_photos: true
+          _lastPhotoEditTime: 0
         };
         if (isBefore) {
           deletePayload.photo_1 = null;
@@ -1311,7 +1342,6 @@ class PhotoManager {
           deletePayload.before_photo = null;
           deletePayload.after_photo = null;
           deletePayload.photo = null;
-          deletePayload.clear_photos = true;
           deletePayload._photoDeleted_before = now;
           deletePayload._photoDeleted_after = now;
         }
@@ -1323,10 +1353,18 @@ class PhotoManager {
           FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}/photo_2`).remove().catch(() => {});
           FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}/after_photo`).remove().catch(() => {});
           FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}/photo`).remove().catch(() => {});
+          FirebaseSyncService.db.ref(`walton_monthly_report/live_photos/${activeM}/${taskId}/after_photo`).remove().catch(() => {});
+          FirebaseSyncService.db.ref(`walton_monthly_report/live_photos/${activeM}/${taskId}/photo_2`).remove().catch(() => {});
+          FirebaseSyncService.db.ref(`walton_monthly_report/live_photos/${activeM}/${taskId}/photo`).remove().catch(() => {});
         }
         if (isAll || isBefore) {
           FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}/photo_1`).remove().catch(() => {});
           FirebaseSyncService.db.ref(`walton_monthly_report/workbooks/${activeM}/tasks/${taskId}/before_photo`).remove().catch(() => {});
+          FirebaseSyncService.db.ref(`walton_monthly_report/live_photos/${activeM}/${taskId}/before_photo`).remove().catch(() => {});
+          FirebaseSyncService.db.ref(`walton_monthly_report/live_photos/${activeM}/${taskId}/photo_1`).remove().catch(() => {});
+        }
+        if (isAll) {
+          FirebaseSyncService.db.ref(`walton_monthly_report/live_photos/${activeM}/${taskId}`).remove().catch(() => {});
         }
 
         // Record persistent tombstone in Firebase so ALL devices permanently know this photo is deleted
@@ -1341,10 +1379,18 @@ class PhotoManager {
           targetTask.before_photo = null;
           targetTask.after_photo = null;
           targetTask.photo = null;
-          targetTask.clear_photos = true;
           await FirebaseSyncService.pushTask(activeM, targetTask);
         }
       }
+
+      // Also notify Hostinger Server to delete photo file and remove from index
+      try {
+        fetch(this._getApiUrl('api/delete_photo.php'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskId: taskId, slot: slot, month: activeM })
+        }).catch(() => {});
+      } catch(apiErr) {}
 
       // Push to Google Sheets if configured
       if (typeof GoogleSheetsSync !== 'undefined' && GoogleSheetsSync.pushTask && targetTask) {

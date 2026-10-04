@@ -21,6 +21,11 @@ class PPTXGenerator {
     if (!cleanUrl) return null;
     if (cleanUrl.startsWith('data:image/')) return cleanUrl;
 
+    this._photoBase64Cache = this._photoBase64Cache || new Map();
+    if (this._photoBase64Cache.has(cleanUrl)) {
+      return this._photoBase64Cache.get(cleanUrl);
+    }
+
     let fetchUrl = cleanUrl;
     if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
       if (typeof window !== 'undefined' && window.location) {
@@ -39,15 +44,22 @@ class PPTXGenerator {
     }
 
     try {
-      const resp = await fetch(fetchUrl, { mode: 'cors' });
+      const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 6000) : null;
+      const resp = await fetch(fetchUrl, { mode: 'cors', signal: controller ? controller.signal : undefined });
+      if (timeoutId) clearTimeout(timeoutId);
       if (resp.ok) {
         const blob = await resp.blob();
-        return new Promise((resolve) => {
+        const base64 = await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result);
           reader.onerror = () => resolve(fetchUrl);
           reader.readAsDataURL(blob);
         });
+        if (base64) {
+          this._photoBase64Cache.set(cleanUrl, base64);
+          return base64;
+        }
       }
     } catch (e) {
       // Quiet fallback
@@ -55,30 +67,40 @@ class PPTXGenerator {
 
     if (typeof document !== 'undefined') {
       try {
-        return await new Promise((resolve) => {
+        const dataUrl = await new Promise((resolve) => {
           const img = new Image();
           img.crossOrigin = 'Anonymous';
+          const imgTimer = setTimeout(() => resolve(fetchUrl), 6000);
           img.onload = () => {
+            clearTimeout(imgTimer);
             try {
               const canvas = document.createElement('canvas');
               canvas.width = img.naturalWidth || img.width;
               canvas.height = img.naturalHeight || img.height;
               const ctx = canvas.getContext('2d');
               ctx.drawImage(img, 0, 0);
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.98);
-              resolve(dataUrl);
+              const dUrl = canvas.toDataURL('image/jpeg', 0.98);
+              resolve(dUrl);
             } catch(err) {
               resolve(fetchUrl);
             }
           };
-          img.onerror = () => resolve(fetchUrl);
+          img.onerror = () => {
+            clearTimeout(imgTimer);
+            resolve(fetchUrl);
+          };
           img.src = fetchUrl;
         });
+        if (dataUrl) {
+          this._photoBase64Cache.set(cleanUrl, dataUrl);
+          return dataUrl;
+        }
       } catch (e) {
         return fetchUrl;
       }
     }
 
+    this._photoBase64Cache.set(cleanUrl, fetchUrl);
     return fetchUrl;
   }
 
@@ -314,8 +336,8 @@ class PPTXGenerator {
       }
     }
 
-    // Pre-resolve all photos from photoManager and convert them to Base64 for 100% reliable PPTX embedding
-    for (const task of taskSlides) {
+    // Pre-resolve all photos from photoManager and convert them to Base64 concurrently for 100% reliable PPTX embedding
+    await Promise.all(taskSlides.map(async (task) => {
       if (typeof window !== 'undefined' && window.photoManager && window.photoManager.getTaskPhotos) {
         const pmPhotos = window.photoManager.getTaskPhotos(task.task_id, monthName);
         if (pmPhotos) {
@@ -329,14 +351,28 @@ class PPTXGenerator {
         }
       }
 
-      if (task.photo) task.photo = await this._resolvePhotoBase64(task.photo);
-      if (task.photo_1) task.photo_1 = await this._resolvePhotoBase64(task.photo_1);
-      if (task.photo_2) task.photo_2 = await this._resolvePhotoBase64(task.photo_2);
-      if (task.photo_before) task.photo_before = await this._resolvePhotoBase64(task.photo_before);
-      if (task.photo_after) task.photo_after = await this._resolvePhotoBase64(task.photo_after);
-      if (task.before_photo) task.before_photo = await this._resolvePhotoBase64(task.before_photo);
-      if (task.after_photo) task.after_photo = await this._resolvePhotoBase64(task.after_photo);
-    }
+      const rawBefore = task.before_photo || task.photo_before || task.photo_1 || null;
+      const rawAfter = task.after_photo || task.photo_after || task.photo_2 || task.photo || null;
+
+      const [b64Before, b64After] = await Promise.all([
+        rawBefore ? this._resolvePhotoBase64(rawBefore) : Promise.resolve(null),
+        rawAfter ? this._resolvePhotoBase64(rawAfter) : Promise.resolve(null)
+      ]);
+
+      if (b64Before) {
+        task.before_photo = b64Before;
+        task.photo_before = b64Before;
+        task.photo_1 = b64Before;
+      }
+      if (b64After) {
+        task.after_photo = b64After;
+        task.photo_after = b64After;
+        task.photo_2 = b64After;
+        task.photo = b64After;
+      } else if (b64Before) {
+        task.photo = b64Before;
+      }
+    }));
 
     const activeTemplate = template || reportData.template || "walton_executive_crimson";
     const isBlue = (activeTemplate === "industrial_innovation_blue" || activeTemplate === "walton_blue_dual");

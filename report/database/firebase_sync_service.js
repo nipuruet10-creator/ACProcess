@@ -249,22 +249,6 @@ const FirebaseSyncService = {
 
             // Cross-device photo reconciliation on initial connect
             if (typeof photoManager !== 'undefined') {
-              let isLocalTombstoned = false;
-              let tombstoneSlot = 'all';
-              try {
-                const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
-                const cleanTId = String(t.task_id).toLowerCase();
-                const pParts = cleanTId.split('-');
-                const pfx = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanTId;
-                const tb = delMap[t.task_id] || delMap[cleanTId] || delMap[pfx];
-                if (tb) {
-                  isLocalTombstoned = true;
-                  tombstoneSlot = tb.slot || 'all';
-                }
-              } catch (e) {}
-
-            // Cross-device photo reconciliation on initial connect
-            if (typeof photoManager !== 'undefined') {
               const photo1 = t.photo_1 || t.before_photo;
               if (photo1 && typeof photo1 === 'string' && photo1.trim()) {
                 photoManager.setTaskPhoto(t.task_id, 'before_photo', photo1, photo1, normMonth);
@@ -689,9 +673,12 @@ const FirebaseSyncService = {
           }
         }
       });
+    }
+
     // 13. Dedicated Real-time Live Photos Listener (Sub-50ms Cross-PC Photo Sync)
-    if (!this._livePhotosBound) {
-      this._livePhotosBound = true;
+    this._livePhotosBoundMonths = this._livePhotosBoundMonths || {};
+    if (!this._livePhotosBoundMonths[normMonth]) {
+      this._livePhotosBoundMonths[normMonth] = true;
       this.db.ref(`walton_monthly_report/live_photos/${normMonth}`).on('value', (snapshot) => {
         const val = snapshot.val();
         if (val && typeof val === 'object') {

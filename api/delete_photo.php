@@ -130,6 +130,34 @@ try {
         }
     }
 
+    // 5. Clean up from Firebase Realtime Database
+    try {
+        if ($slot === 'all') {
+            $liveDelUrl = "https://ac-monthly-report-default-rtdb.asia-southeast1.firebasedatabase.app/walton_monthly_report/live_photos/{$cleanMonth}/{$cleanTaskId}.json";
+            $ch = curl_init($liveDelUrl);
+            if ($ch) {
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                @curl_exec($ch);
+                curl_close($ch);
+            }
+        } else {
+            $prop = ($slot === 'after_photo') ? 'after_photo' : 'before_photo';
+            $liveDelPropUrl = "https://ac-monthly-report-default-rtdb.asia-southeast1.firebasedatabase.app/walton_monthly_report/live_photos/{$cleanMonth}/{$cleanTaskId}/{$prop}.json";
+            $ch = curl_init($liveDelPropUrl);
+            if ($ch) {
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                @curl_exec($ch);
+                curl_close($ch);
+            }
+        }
+    } catch (Exception $fbDelErr) {}
+
     echo json_encode([
         'success' => true,
         'message' => 'Photo removed from server.',

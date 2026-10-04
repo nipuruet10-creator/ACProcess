@@ -8,6 +8,10 @@
 // Enable error reporting for logs but output clean JSON
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
+@ini_set('memory_limit', '256M');
+@ini_set('upload_max_filesize', '64M');
+@ini_set('post_max_size', '64M');
+@ini_set('max_execution_time', '300');
 
 // Headers & CORS
 header('Access-Control-Allow-Origin: *');
@@ -56,6 +60,11 @@ try {
     // Check if uploaded as file via multipart
     if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
         $tmpPath = $_FILES['photo']['tmp_name'];
+        $rawBytes = file_get_contents($tmpPath);
+        $mime = mime_content_type($tmpPath) ?: 'image/jpeg';
+        $imageData = 'data:' . $mime . ';base64,' . base64_encode($rawBytes);
+    } elseif (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $tmpPath = $_FILES['image']['tmp_name'];
         $rawBytes = file_get_contents($tmpPath);
         $mime = mime_content_type($tmpPath) ?: 'image/jpeg';
         $imageData = 'data:' . $mime . ';base64,' . base64_encode($rawBytes);
@@ -203,6 +212,64 @@ try {
     $masterCatalog[$cleanMonth . '_' . $cleanTaskId] = $catalog[$cleanTaskId];
     $masterCatalog[$cleanTaskId] = $catalog[$cleanTaskId];
     @file_put_contents($masterIndexFile, json_encode($masterCatalog, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+    // 7b. Push directly to Firebase Realtime Database live_photos and workbook task node
+    try {
+        $fbData = [
+            'taskId' => $cleanTaskId,
+            'month' => $cleanMonth,
+            'slot' => $slot,
+            'url' => $relUrl,
+            'full_url' => $fullUrl,
+            'photo' => $fullUrl,
+            'clear_photos' => null,
+            '_lastPhotoDeleteTime' => null,
+            '_explicitUserPhotoDeleteTime' => null,
+            '_lastPhotoEditTime' => round(microtime(true) * 1000),
+            'updated_at' => round(microtime(true) * 1000)
+        ];
+        if ($slot === 'after_photo') {
+            $fbData['after_photo'] = $fullUrl;
+            $fbData['photo_2'] = $fullUrl;
+            $fbData['_photoDeleted_after'] = null;
+        } else {
+            $fbData['before_photo'] = $fullUrl;
+            $fbData['photo_1'] = $fullUrl;
+            $fbData['_photoDeleted_before'] = null;
+        }
+
+        $jsonPayload = json_encode($fbData);
+
+        // 1. Live photos hub
+        $liveUrl = "https://ac-monthly-report-default-rtdb.asia-southeast1.firebasedatabase.app/walton_monthly_report/live_photos/{$cleanMonth}/{$cleanTaskId}.json";
+        $ch1 = curl_init($liveUrl);
+        if ($ch1) {
+            curl_setopt($ch1, CURLOPT_CUSTOMREQUEST, "PATCH");
+            curl_setopt($ch1, CURLOPT_POSTFIELDS, $jsonPayload);
+            curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch1, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch1, CURLOPT_TIMEOUT, 4);
+            curl_setopt($ch1, CURLOPT_SSL_VERIFYPEER, false);
+            @curl_exec($ch1);
+            curl_close($ch1);
+        }
+
+        // 2. Task node in workbook
+        $taskUrl = "https://ac-monthly-report-default-rtdb.asia-southeast1.firebasedatabase.app/walton_monthly_report/workbooks/{$cleanMonth}/tasks/{$cleanTaskId}.json";
+        $ch2 = curl_init($taskUrl);
+        if ($ch2) {
+            curl_setopt($ch2, CURLOPT_CUSTOMREQUEST, "PATCH");
+            curl_setopt($ch2, CURLOPT_POSTFIELDS, $jsonPayload);
+            curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch2, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch2, CURLOPT_TIMEOUT, 4);
+            curl_setopt($ch2, CURLOPT_SSL_VERIFYPEER, false);
+            @curl_exec($ch2);
+            curl_close($ch2);
+        }
+    } catch (Exception $fbErr) {
+        // Non-blocking
+    }
 
     // 8. Return Success Response
     echo json_encode([

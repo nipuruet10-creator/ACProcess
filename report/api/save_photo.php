@@ -211,6 +211,8 @@ try {
     }
     $masterCatalog[$cleanMonth . '_' . $cleanTaskId] = $catalog[$cleanTaskId];
     $masterCatalog[$cleanTaskId] = $catalog[$cleanTaskId];
+    @file_put_contents($masterIndexFile, json_encode($masterCatalog, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
     // 7b. Push directly to Firebase Realtime Database live_photos and workbook task node
     try {
         $fbData = [
