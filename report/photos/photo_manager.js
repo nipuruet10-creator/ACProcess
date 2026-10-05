@@ -1035,164 +1035,192 @@ class PhotoManager {
     return this.setTaskPhoto(taskId, slot, compressedData, syncThumbnail, month, onProgress || null);
   }
 
-  async savePhoto(taskId, slot, base64Url, month = null, onProgress = null) {
-    return this.setTaskPhoto(taskId, slot, base64Url, null, month, onProgress);
+  async savePhoto(taskId, slot, base64Url, month = null, onProgress = null, fromRemote = false) {
+    return this.setTaskPhoto(taskId, slot, base64Url, null, month, onProgress, fromRemote);
   }
 
-  async setTaskPhoto(taskId, slot, base64Url, syncThumbnail = null, month = null, onProgress = null) {
+  async setTaskPhoto(taskId, slot, base64Url, syncThumbnail = null, month = null, onProgress = null, fromRemote = false) {
     if (!taskId || !base64Url) return null;
-    let m = month;
-    if (!m && typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
-      m = window.appState.workbookMgr.activeMonth;
-    }
-    if (!m && typeof MonthlyInputView !== 'undefined' && MonthlyInputView.selectedMonth) {
-      m = MonthlyInputView.selectedMonth;
-    }
-    const monthKey = m ? `${m}_${taskId}` : null;
-    const isBefore = (slot === 'before_photo' || slot === 'photo_1');
-    const isAfter = (slot === 'after_photo' || slot === 'photo_2');
-    const isBase64Blob = typeof base64Url === 'string' && base64Url.startsWith('data:image/');
 
-    if (!this.photoMap[taskId]) {
-      this.photoMap[taskId] = { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
+    if (!this._inFlightSet) this._inFlightSet = new Set();
+    const callKey = `${taskId}_${slot}`;
+    if (this._inFlightSet.has(callKey)) {
+      return base64Url;
     }
-    if (isBefore) {
-      this.photoMap[taskId].before_photo = base64Url;
-      this.photoMap[taskId].photo_1 = base64Url;
-    }
-    if (isAfter) {
-      this.photoMap[taskId].after_photo = base64Url;
-      this.photoMap[taskId].photo_2 = base64Url;
-    }
+    this._inFlightSet.add(callKey);
 
-    if (monthKey) {
-      if (!this.photoMap[monthKey]) {
-        this.photoMap[monthKey] = { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
+    try {
+      let m = month;
+      if (!m && typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+        m = window.appState.workbookMgr.activeMonth;
+      }
+      if (!m && typeof MonthlyInputView !== 'undefined' && MonthlyInputView.selectedMonth) {
+        m = MonthlyInputView.selectedMonth;
+      }
+      const monthKey = m ? `${m}_${taskId}` : null;
+      const isBefore = (slot === 'before_photo' || slot === 'photo_1');
+      const isAfter = (slot === 'after_photo' || slot === 'photo_2');
+      const isBase64Blob = typeof base64Url === 'string' && base64Url.startsWith('data:image/');
+
+      if (!this.photoMap[taskId]) {
+        this.photoMap[taskId] = { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
       }
       if (isBefore) {
-        this.photoMap[monthKey].before_photo = base64Url;
-        this.photoMap[monthKey].photo_1 = base64Url;
+        this.photoMap[taskId].before_photo = base64Url;
+        this.photoMap[taskId].photo_1 = base64Url;
       }
       if (isAfter) {
-        this.photoMap[monthKey].after_photo = base64Url;
-        this.photoMap[monthKey].photo_2 = base64Url;
+        this.photoMap[taskId].after_photo = base64Url;
+        this.photoMap[taskId].photo_2 = base64Url;
       }
-    }
 
-    // Immediately clear all deletion tombstones locally and in Firebase because a fresh photo was set!
-    const cleanTargetT = String(taskId).toLowerCase();
-    const targetParts = cleanTargetT.split('-');
-    const targetPrefix = targetParts.length >= 3 ? `${targetParts[0]}-${targetParts[1]}-${targetParts[2]}` : cleanTargetT;
-    try {
-      const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
-      delete delMap[taskId];
-      delete delMap[cleanTargetT];
-      delete delMap[targetPrefix];
-      if (monthKey) delete delMap[monthKey];
-      delete delMap[`${m}_${cleanTargetT}`];
-      localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
-    } catch(e) {}
-
-    if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected() && FirebaseSyncService.db) {
-      try {
-        FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${taskId}`).remove().catch(() => {});
-        FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${cleanTargetT}`).remove().catch(() => {});
-        if (targetPrefix && targetPrefix !== taskId) {
-          FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${targetPrefix}`).remove().catch(() => {});
-        }
-      } catch(e) {}
-    }
-
-    // 1. Asynchronously persist to IndexedDB (Gigabytes quota)
-    if (typeof PhotoIndexedDB !== 'undefined') {
-      PhotoIndexedDB.saveTaskPhotos(taskId, this.photoMap[taskId]).catch(err => {
-        console.warn("IndexedDB async save notice:", err);
-      });
       if (monthKey) {
-        PhotoIndexedDB.saveTaskPhotos(monthKey, this.photoMap[monthKey]).catch(err => {
-          console.warn("IndexedDB month async save notice:", err);
+        if (!this.photoMap[monthKey]) {
+          this.photoMap[monthKey] = { photo_1: null, photo_2: null, before_photo: null, after_photo: null };
+        }
+        if (isBefore) {
+          this.photoMap[monthKey].before_photo = base64Url;
+          this.photoMap[monthKey].photo_1 = base64Url;
+        }
+        if (isAfter) {
+          this.photoMap[monthKey].after_photo = base64Url;
+          this.photoMap[monthKey].photo_2 = base64Url;
+        }
+      }
+
+      // Immediately clear all deletion tombstones locally and in Firebase because a fresh photo was set!
+      const cleanTargetT = String(taskId).toLowerCase();
+      const targetParts = cleanTargetT.split('-');
+      const targetPrefix = targetParts.length >= 3 ? `${targetParts[0]}-${targetParts[1]}-${targetParts[2]}` : cleanTargetT;
+      try {
+        const delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
+        delete delMap[taskId];
+        delete delMap[cleanTargetT];
+        delete delMap[targetPrefix];
+        if (monthKey) delete delMap[monthKey];
+        delete delMap[`${m}_${cleanTargetT}`];
+        localStorage.setItem('walton_deleted_photo_tasks', JSON.stringify(delMap));
+      } catch(e) {}
+
+      if (!fromRemote && typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected() && FirebaseSyncService.db) {
+        try {
+          FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${taskId}`).remove().catch(() => {});
+          FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${cleanTargetT}`).remove().catch(() => {});
+          if (targetPrefix && targetPrefix !== taskId) {
+            FirebaseSyncService.db.ref(`walton_monthly_report/deleted_photos/${m}/${targetPrefix}`).remove().catch(() => {});
+          }
+        } catch(e) {}
+      }
+
+      // 1. Asynchronously persist to IndexedDB (Gigabytes quota)
+      if (typeof PhotoIndexedDB !== 'undefined') {
+        PhotoIndexedDB.saveTaskPhotos(taskId, this.photoMap[taskId]).catch(err => {
+          console.warn("IndexedDB async save notice:", err);
         });
-      }
-    }
-
-    // 2. Update in-memory active presentation slides immediately so Monthly Report reflects changes
-    try {
-      if (typeof window !== 'undefined' && window.appState && window.appState.syncEngine) {
-        const slideMonth = m || (window.appState.workbookMgr ? window.appState.workbookMgr.activeMonth : "SEP-2026");
-        const slides = window.appState.syncEngine.getActiveSlides(slideMonth);
-        const target = slides.find(s => s.task_id === taskId);
-        if (target) {
-          if (isBefore) target.photo_before = base64Url;
-          if (isAfter) target.photo_after = base64Url;
-          target.photo = base64Url;
-          target.has_dual_photo = Boolean(target.photo_before && target.photo_after);
-          // Only save clean lightweight URLs into localStorage to prevent 5MB quota errors!
-          if (!isBase64Blob) {
-            try {
-              localStorage.setItem(`walton_pd_active_slides_${slideMonth}`, JSON.stringify(slides));
-            } catch (e) {}
-          }
+        if (monthKey) {
+          PhotoIndexedDB.saveTaskPhotos(monthKey, this.photoMap[monthKey]).catch(err => {
+            console.warn("IndexedDB month async save notice:", err);
+          });
         }
       }
-    } catch (e) {
-      console.warn("Active slides memory update notice:", e);
-    }
 
-    // 3. For clean server URLs, persist directly to workbookMgr & Firebase
-    if (!isBase64Blob) {
+      // 2. Update in-memory active presentation slides immediately so Monthly Report reflects changes
       try {
-        if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
-          const wbMgr = window.appState.workbookMgr;
-          const activeM = m || wbMgr.activeMonth || "SEP-2026";
-          let targetTask = wbMgr.getTask(activeM, taskId);
-          if (targetTask) {
-            const photoKey = isBefore ? 'photo_1' : 'photo_2';
-            if (isBefore) {
-              targetTask.photo_1 = base64Url;
-              targetTask.before_photo = base64Url;
-              delete targetTask._photoDeleted_before;
-            } else {
-              targetTask.photo_2 = base64Url;
-              targetTask.after_photo = base64Url;
-              targetTask.photo = base64Url;
-              delete targetTask._photoDeleted_after;
-            }
-            delete targetTask.clear_photos;
-            delete targetTask._explicitUserPhotoDeleteTime;
-            delete targetTask._lastPhotoDeleteTime;
-            targetTask._lastPhotoEditTime = Date.now();
-            targetTask.last_updated = new Date().toISOString();
-            wbMgr.save();
-
-            if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
-              FirebaseSyncService.updateCell(activeM, taskId, photoKey, base64Url);
-              FirebaseSyncService.updateCell(activeM, taskId, isBefore ? 'before_photo' : 'after_photo', base64Url);
-              FirebaseSyncService.updateCell(activeM, taskId, 'photo', base64Url);
-              FirebaseSyncService.updateCell(activeM, taskId, 'clear_photos', null);
-              FirebaseSyncService.updateCell(activeM, taskId, '_lastPhotoDeleteTime', null);
-              FirebaseSyncService.updateCell(activeM, taskId, '_explicitUserPhotoDeleteTime', null);
-              FirebaseSyncService.updateCell(activeM, taskId, '_lastPhotoEditTime', Date.now());
-              FirebaseSyncService.pushTask(activeM, targetTask);
+        if (typeof window !== 'undefined' && window.appState && window.appState.syncEngine) {
+          const slideMonth = m || (window.appState.workbookMgr ? window.appState.workbookMgr.activeMonth : "SEP-2026");
+          const slides = window.appState.syncEngine.getActiveSlides(slideMonth);
+          const target = slides.find(s => s.task_id === taskId);
+          if (target) {
+            if (isBefore) target.photo_before = base64Url;
+            if (isAfter) target.photo_after = base64Url;
+            target.photo = base64Url;
+            target.has_dual_photo = Boolean(target.photo_before && target.photo_after);
+            // Only save clean lightweight URLs into localStorage to prevent 5MB quota errors!
+            if (!isBase64Blob) {
+              try {
+                localStorage.setItem(`walton_pd_active_slides_${slideMonth}`, JSON.stringify(slides));
+              } catch (e) {}
             }
           }
         }
-      } catch (syncErr) {
-        console.warn("Photo sync notice:", syncErr);
-      }
-    }
-
-    // 4. Send to Hostinger Server Storage API for permanent disk storage across all devices
-    let serverUrl = null;
-    if (base64Url && (base64Url.startsWith('data:image/') || base64Url.length > 500)) {
-      try {
-        serverUrl = await this.uploadPhotoToServer(taskId, slot, base64Url, m, onProgress);
       } catch (e) {
-        console.warn("[Hostinger Photo Storage] Upload notice:", e);
+        console.warn("Active slides memory update notice:", e);
       }
-    }
 
-    // Targeted DOM update: Never blow away entire DOM via MonthlyReportView.render()!
-    if (typeof MonthlyReportView !== 'undefined') {
+      // 3. For clean server URLs, persist directly to workbookMgr & Firebase
+      if (!isBase64Blob) {
+        try {
+          if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+            const wbMgr = window.appState.workbookMgr;
+            const activeM = m || wbMgr.activeMonth || "SEP-2026";
+            let targetTask = wbMgr.getTask(activeM, taskId);
+            if (targetTask) {
+              const photoKey = isBefore ? 'photo_1' : 'photo_2';
+              if (isBefore) {
+                targetTask.photo_1 = base64Url;
+                targetTask.before_photo = base64Url;
+                delete targetTask._photoDeleted_before;
+              } else {
+                targetTask.photo_2 = base64Url;
+                targetTask.after_photo = base64Url;
+                targetTask.photo = base64Url;
+                delete targetTask._photoDeleted_after;
+              }
+              delete targetTask.clear_photos;
+              delete targetTask._explicitUserPhotoDeleteTime;
+              delete targetTask._lastPhotoDeleteTime;
+              targetTask._lastPhotoEditTime = Date.now();
+              targetTask.last_updated = new Date().toISOString();
+              
+              if (typeof wbMgr.debouncedSave === 'function') {
+                wbMgr.debouncedSave(200);
+              } else {
+                wbMgr.save();
+              }
+
+              if (!fromRemote && typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
+                FirebaseSyncService.updateCell(activeM, taskId, photoKey, base64Url);
+                FirebaseSyncService.updateCell(activeM, taskId, isBefore ? 'before_photo' : 'after_photo', base64Url);
+                FirebaseSyncService.updateCell(activeM, taskId, 'photo', base64Url);
+                FirebaseSyncService.updateCell(activeM, taskId, 'clear_photos', null);
+                FirebaseSyncService.updateCell(activeM, taskId, '_lastPhotoDeleteTime', null);
+                FirebaseSyncService.updateCell(activeM, taskId, '_explicitUserPhotoDeleteTime', null);
+                FirebaseSyncService.updateCell(activeM, taskId, '_lastPhotoEditTime', Date.now());
+                FirebaseSyncService.pushTask(activeM, targetTask);
+              }
+            }
+          }
+        } catch (syncErr) {
+          console.warn("Photo sync notice:", syncErr);
+        }
+      }
+
+      // 4. Send to Hostinger Server Storage API for permanent disk storage across all devices (never re-upload if from remote)
+      let serverUrl = null;
+      if (!fromRemote && base64Url && (base64Url.startsWith('data:image/') || base64Url.length > 500)) {
+        try {
+          serverUrl = await this.uploadPhotoToServer(taskId, slot, base64Url, m, onProgress);
+        } catch (e) {
+          console.warn("[Hostinger Photo Storage] Upload notice:", e);
+        }
+      }
+
+      // Targeted DOM update: Never blow away entire DOM via MonthlyReportView.render()!
+      if (typeof MonthlyReportView !== 'undefined') {
+        if (typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
+          MonthlyReportView.updateSlideCardPhoto(taskId);
+        }
+        if (MonthlyReportView._activeModalTaskId === taskId) {
+          if (typeof MonthlyReportView.renderModalPhotoSlots === 'function') MonthlyReportView.renderModalPhotoSlots(taskId);
+          if (typeof MonthlyReportView.renderModalLivePreview === 'function') MonthlyReportView.renderModalLivePreview(taskId);
+        }
+      }
+
+      return serverUrl || base64Url;
+    } finally {
+      this._inFlightSet.delete(callKey);
+    }
+  }
       if (typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
         MonthlyReportView.updateSlideCardPhoto(taskId);
       }

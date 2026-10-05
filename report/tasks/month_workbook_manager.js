@@ -1434,8 +1434,8 @@ class MonthWorkbookManager {
 
           // Automatically hydrate photos into photoManager & IndexedDB
           if (typeof photoManager !== 'undefined' && (rt.photo_1 || rt.photo_2)) {
-            if (rt.photo_1) photoManager.setTaskPhoto(rt.task_id, 'before_photo', rt.photo_1, rt.photo_1);
-            if (rt.photo_2) photoManager.setTaskPhoto(rt.task_id, 'after_photo', rt.photo_2, rt.photo_2);
+            if (rt.photo_1) photoManager.setTaskPhoto(rt.task_id, 'before_photo', rt.photo_1, rt.photo_1, null, null, true);
+            if (rt.photo_2) photoManager.setTaskPhoto(rt.task_id, 'after_photo', rt.photo_2, rt.photo_2, null, null, true);
           }
         } else {
           let needsCloudPushBack = false;
@@ -1457,7 +1457,7 @@ class MonthWorkbookManager {
           const isLocalDeletedBefore = Boolean(isLocalTombstoned && (tombstoneSlot === 'all' || tombstoneSlot === 'before_photo' || tombstoneSlot === 'photo_1')) ||
                                        Boolean(lt.clear_photos || lt._photoDeleted_before);
           const isLocalDeletedAfter = Boolean(isLocalTombstoned && (tombstoneSlot === 'all' || tombstoneSlot === 'after_photo' || tombstoneSlot === 'photo_2')) ||
-                                      Boolean(lt.clear_photos || lt._photoDeleted_after);
+                                       Boolean(lt.clear_photos || lt._photoDeleted_after);
 
           const isRemoteExplicitDelete = Boolean(rt.clear_photos || rt._explicitUserPhotoDeleteTime || rt._lastPhotoDeleteTime);
 
@@ -1476,7 +1476,7 @@ class MonthWorkbookManager {
           if (typeof photoManager !== 'undefined') {
             const rP1 = rt.photo_1 || rt.before_photo;
             if (rP1 && !isLocalDeletedBefore && !isRemoteExplicitDelete) {
-              photoManager.setTaskPhoto(rt.task_id, 'before_photo', rP1, rP1, norm);
+              photoManager.setTaskPhoto(rt.task_id, 'before_photo', rP1, rP1, norm, null, true);
               lt.photo_1 = rP1;
               lt.before_photo = rP1;
               delete lt._photoDeleted_before;
@@ -1486,7 +1486,7 @@ class MonthWorkbookManager {
 
             const rP2 = rt.photo_2 || rt.after_photo || rt.photo;
             if (rP2 && !isLocalDeletedAfter && !isRemoteExplicitDelete) {
-              photoManager.setTaskPhoto(rt.task_id, 'after_photo', rP2, rP2, norm);
+              photoManager.setTaskPhoto(rt.task_id, 'after_photo', rP2, rP2, norm, null, true);
               lt.photo_2 = rP2;
               lt.after_photo = rP2;
               lt.photo = rP2;

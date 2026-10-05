@@ -247,7 +247,7 @@ const FirebaseSyncService = {
             if (typeof photoManager !== 'undefined') {
               const photo1 = t.photo_1 || t.before_photo;
               if (photo1 && typeof photo1 === 'string' && photo1.trim()) {
-                photoManager.setTaskPhoto(t.task_id, 'before_photo', photo1, photo1, normMonth);
+                photoManager.setTaskPhoto(t.task_id, 'before_photo', photo1, photo1, normMonth, null, true);
                 if (localMatch) {
                   localMatch.photo_1 = photo1;
                   localMatch.before_photo = photo1;
@@ -258,7 +258,7 @@ const FirebaseSyncService = {
 
               const photo2 = t.photo_2 || t.after_photo || t.photo;
               if (photo2 && typeof photo2 === 'string' && photo2.trim()) {
-                photoManager.setTaskPhoto(t.task_id, 'after_photo', photo2, photo2, normMonth);
+                photoManager.setTaskPhoto(t.task_id, 'after_photo', photo2, photo2, normMonth, null, true);
                 if (localMatch) {
                   localMatch.photo_2 = photo2;
                   localMatch.after_photo = photo2;
@@ -1073,7 +1073,7 @@ const FirebaseSyncService = {
         if (v && typeof v === 'string' && v.trim()) {
           mergedTask[k] = v;
           if (typeof photoManager !== 'undefined') {
-            photoManager.setTaskPhoto(taskId, 'after_photo', v, v, month);
+            photoManager.setTaskPhoto(taskId, 'after_photo', v, v, month, null, true);
           }
           continue;
         }
@@ -1082,7 +1082,7 @@ const FirebaseSyncService = {
         if (v && typeof v === 'string' && v.trim()) {
           mergedTask[k] = v;
           if (typeof photoManager !== 'undefined') {
-            photoManager.setTaskPhoto(taskId, 'before_photo', v, v, month);
+            photoManager.setTaskPhoto(taskId, 'before_photo', v, v, month, null, true);
           }
           continue;
         }
@@ -1305,7 +1305,7 @@ const FirebaseSyncService = {
           } catch(e) {}
 
           if (typeof photoManager !== 'undefined') {
-            photoManager.setTaskPhoto(taskId, slot, val, val, month);
+            photoManager.setTaskPhoto(taskId, slot, val, val, month, null, true);
           }
           if (window.appState && window.appState.workbookMgr) {
             const lt = window.appState.workbookMgr.getTask(month, taskId);
