@@ -28,9 +28,16 @@ const DashboardCharts = {
     if (!canvas || typeof Chart === 'undefined') return;
 
     if (this.instances[canvasId]) {
+      const existing = this.instances[canvasId];
+      if (existing.ctx && existing.ctx.canvas === canvas) {
+        existing.data.labels = labels;
+        existing.data.datasets[0].data = dataValues;
+        existing.update('none');
+        return;
+      }
       try {
-        if (typeof this.instances[canvasId].stop === 'function') this.instances[canvasId].stop();
-        this.instances[canvasId].destroy();
+        if (typeof existing.stop === 'function') existing.stop();
+        existing.destroy();
       } catch(e) {}
       delete this.instances[canvasId];
     }
@@ -101,9 +108,16 @@ const DashboardCharts = {
     if (!canvas || typeof Chart === 'undefined') return;
 
     if (this.instances[canvasId]) {
+      const existing = this.instances[canvasId];
+      if (existing.ctx && existing.ctx.canvas === canvas) {
+        existing.data.labels = labels;
+        existing.data.datasets[0].data = values;
+        existing.update('none');
+        return;
+      }
       try {
-        if (typeof this.instances[canvasId].stop === 'function') this.instances[canvasId].stop();
-        this.instances[canvasId].destroy();
+        if (typeof existing.stop === 'function') existing.stop();
+        existing.destroy();
       } catch(e) {}
       delete this.instances[canvasId];
     }

@@ -156,28 +156,16 @@ const FirebaseSyncService = {
         const cloudTombs = tombSnap.val();
         if (cloudTombs && typeof cloudTombs === 'object') {
           Object.keys(cloudTombs).forEach(id => {
-            if (typeof SAZZAD_PROTECTED_TASK_IDS === 'undefined' || !SAZZAD_PROTECTED_TASK_IDS.has(id)) {
+            const isProtected = (typeof SAZZAD_PROTECTED_TASK_IDS !== 'undefined' && SAZZAD_PROTECTED_TASK_IDS.has(id)) ||
+              (typeof ALL_VERIFIED_TASK_IDS !== 'undefined' && ALL_VERIFIED_TASK_IDS.has(id));
+            if (isProtected) {
+              this.db.ref(`walton_monthly_report/deleted_task_ids/${id}`).remove().catch(() => {});
+            } else {
               deletedSet.add(id);
             }
           });
         }
       } catch (e) {}
-
-      // Strictly purge any verified and protected IDs from deletedSet and Firebase deleted_task_ids
-      if (typeof DEFAULT_SEP_2026_TASKS !== 'undefined' && Array.isArray(DEFAULT_SEP_2026_TASKS)) {
-        DEFAULT_SEP_2026_TASKS.forEach(t => {
-          if (t && t.task_id) {
-            deletedSet.delete(t.task_id);
-            this.db.ref(`walton_monthly_report/deleted_task_ids/${t.task_id}`).remove().catch(() => {});
-          }
-        });
-      }
-      if (typeof SAZZAD_PROTECTED_TASK_IDS !== 'undefined') {
-        SAZZAD_PROTECTED_TASK_IDS.forEach(id => {
-          deletedSet.delete(id);
-          this.db.ref(`walton_monthly_report/deleted_task_ids/${id}`).remove().catch(() => {});
-        });
-      }
       try {
         localStorage.setItem('walton_deleted_task_ids', JSON.stringify(Array.from(deletedSet)));
       } catch (e) {}
@@ -437,6 +425,11 @@ const FirebaseSyncService = {
       this.db.ref('walton_monthly_report/deleted_task_ids').on('child_added', (snapshot) => {
         const deletedId = snapshot.key;
         if (!deletedId) return;
+
+        // Never tombstone verified tasks across any engineer
+        const isProtected = (typeof SAZZAD_PROTECTED_TASK_IDS !== 'undefined' && SAZZAD_PROTECTED_TASK_IDS.has(deletedId)) ||
+          (typeof ALL_VERIFIED_TASK_IDS !== 'undefined' && ALL_VERIFIED_TASK_IDS.has(deletedId));
+        if (isProtected) return;
 
         try {
           const deleted = JSON.parse(localStorage.getItem('walton_deleted_task_ids') || '[]');

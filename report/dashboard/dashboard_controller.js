@@ -16,7 +16,7 @@ const DashboardController = {
   _renderTimer: null,
   _chartTimer: null,
 
-  debouncedRender(containerId = 'dashboard-view-container', delay = 50) {
+  debouncedRender(containerId = 'dashboard-view-container', delay = 200) {
     if (this._renderTimer) {
       clearTimeout(this._renderTimer);
     }

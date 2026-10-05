@@ -8,11 +8,6 @@
   <!-- 🛡️ IMMEDIATE SELF-HEALING: Purge corrupted tombstones and restore full 205-task workbook on startup -->
   <script>
     (function() {
-      // Ensure canonical trailing slash if accessed via /report
-      if (window.location.pathname === '/report') {
-        window.location.replace('/report/' + window.location.search + window.location.hash);
-        return;
-      }
       try {
         // Clear corrupted local deleted task IDs so all 9 engineers appear
         localStorage.removeItem('walton_deleted_task_ids');
@@ -271,33 +266,33 @@
 
   <!-- LOAD APPLICATION MODULES IN STRICT DEPENDENCY ORDER -->
   <script src="config/app_config.js"></script>
-  <script src="config/default_sep_2026_tasks.js?v=20261005_2"></script>
-  <script src="config/master_lists.js?v=20261005_2"></script>
+  <script src="config/default_sep_2026_tasks.js?v=20261005_3"></script>
+  <script src="config/master_lists.js?v=20261005_3"></script>
   <script src="config/slide_theme.js"></script>
   <script src="utils/helpers.js"></script>
   <script src="database/schema.js?v=20261003_8"></script>
   <script src="database/seed_data.js?v=20261003_8"></script>
   <script src="database/imported_2026_dataset.js?v=20261003_8"></script>
   <script src="database/db_adapter.js?v=20261003_8"></script>
-  <script src="tasks/month_workbook_manager.js?v=20261005_2"></script>
+  <script src="tasks/month_workbook_manager.js?v=20261005_3"></script>
   <!-- Google Firebase Realtime Database (Sub-50ms Collaborative Sync Engine) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <script src="database/firebase_sync_service.js?v=20261005_2"></script>
+  <script src="database/firebase_sync_service.js?v=20261005_3"></script>
   <script src="database/gas_sync_service.js?v=20261003_10"></script>
   <script src="auth/auth_manager.js?v=20261003_10"></script>
   <script src="tasks/excel_sync_service.js?v=20261003_10"></script>
   <script src="tasks/task_manager.js?v=20261003_10"></script>
   <script src="tasks/task_form_view.js?v=20261003_10"></script>
   <script src="tasks/tms_sync_service.js?v=20261003_10"></script>
-  <script src="tasks/monthly_input_view.js?v=20261005_2"></script>
+  <script src="tasks/monthly_input_view.js?v=20261005_3"></script>
   <script src="ai/prompt_templates.js?v=20261003_10"></script>
   <script src="ai/ai_cache_manager.js?v=20261003_10"></script>
   <script src="ai/gemini_client.js?v=20261003_10"></script>
   <script src="ai/ai_breakdown_sheet.js?v=20261003_10"></script>
   <script src="ai/ai_breakdown_view.js?v=20261003_10"></script>
   <script src="photos/storage_provider.js?v=20261004_10"></script>
-  <script src="photos/photo_manager.js?v=20261005_2"></script>
+  <script src="photos/photo_manager.js?v=20261005_3"></script>
   <script src="photos/photo_view_modal.js?v=20261004_1"></script>
   <script src="photos/photo_manager_view.js?v=20261004_1"></script>
   <script src="slides/radial_gauge_component.js?v=20261004_1"></script>
@@ -309,15 +304,15 @@
   <script src="report/builder_view.js?v=20261004_1"></script>
   <script src="report/top_works_manager.js?v=20261004_4"></script>
   <script src="report/final_editor_view.js?v=20261004_4"></script>
-  <script src="report/monthly_report_view.js?v=20261005_2"></script>
+  <script src="report/monthly_report_view.js?v=20261005_3"></script>
   <script src="dashboard/cost_saving_tracker.js?v=20261004_3"></script>
   <script src="dashboard/workshop_cost_manager.js?v=20261004_3"></script>
   <script src="dashboard/cost_savings_view.js?v=20261004_7"></script>
   <script src="dashboard/bom_tracker.js?v=20261004_1"></script>
   <script src="dashboard/project_tracker.js?v=20261004_1"></script>
   <script src="projects/projects_view.js?v=20261004_1"></script>
-  <script src="dashboard/charts.js?v=20261005_2"></script>
-  <script src="dashboard/dashboard_controller.js?v=20261005_2"></script>
+  <script src="dashboard/charts.js?v=20261005_3"></script>
+  <script src="dashboard/dashboard_controller.js?v=20261005_3"></script>
   <script src="database/master_data_view.js?v=20261004_1"></script>
   <script src="config/settings_view.js?v=20261004_1"></script>
   <script src="export/pptx_generator.js?v=20261004_10"></script>
@@ -331,7 +326,7 @@
   <script src="history/version_view.js?v=20261004_1"></script>
   <script src="audit/audit_logger.js?v=20261004_1"></script>
   <script src="export/export_controller.js?v=20261004_10"></script>
-  <script src="app.js?v=20261005_2"></script>
+  <script src="app.js?v=20261005_3"></script>
 
   <!-- Top 5 Entry Modal Container -->
   <div id="top5-editor-modal-container"></div>
