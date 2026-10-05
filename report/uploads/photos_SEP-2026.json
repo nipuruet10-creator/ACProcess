@@ -218,5 +218,35 @@
     "photo_2": "uploads/photos/SEP-2026/SEP-2026-055-VNRK_after_photo.jpg",
     "photo": "uploads/photos/SEP-2026/SEP-2026-055-VNRK_after_photo.jpg",
     "updated_at": "2026-10-04T07:16:38.393Z"
+  },
+  "SEP-2026-152-9DLZ": {
+    "taskId": "SEP-2026-152-9DLZ",
+    "month": "SEP-2026",
+    "before_photo": null,
+    "after_photo": "uploads/photos/SEP-2026/SEP-2026-152-9DLZ_after_photo.jpg",
+    "photo_1": null,
+    "photo_2": "uploads/photos/SEP-2026/SEP-2026-152-9DLZ_after_photo.jpg",
+    "photo": "uploads/photos/SEP-2026/SEP-2026-152-9DLZ_after_photo.jpg",
+    "updated_at": "2026-10-05T01:41:24.655Z"
+  },
+  "SEP-2026-153-82EE": {
+    "taskId": "SEP-2026-153-82EE",
+    "month": "SEP-2026",
+    "before_photo": null,
+    "after_photo": "uploads/photos/SEP-2026/SEP-2026-153-82EE_after_photo.jpg",
+    "photo_1": null,
+    "photo_2": "uploads/photos/SEP-2026/SEP-2026-153-82EE_after_photo.jpg",
+    "photo": "uploads/photos/SEP-2026/SEP-2026-153-82EE_after_photo.jpg",
+    "updated_at": "2026-10-05T01:41:24.660Z"
+  },
+  "SEP-2026-068-L0E1": {
+    "taskId": "SEP-2026-068-L0E1",
+    "month": "SEP-2026",
+    "before_photo": null,
+    "after_photo": "uploads/photos/SEP-2026/SEP-2026-068-L0E1_after_photo.jpg",
+    "photo_1": null,
+    "photo_2": "uploads/photos/SEP-2026/SEP-2026-068-L0E1_after_photo.jpg",
+    "photo": "uploads/photos/SEP-2026/SEP-2026-068-L0E1_after_photo.jpg",
+    "updated_at": "2026-10-05T01:42:40.881Z"
   }
 }

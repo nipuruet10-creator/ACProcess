@@ -1221,17 +1221,6 @@ class PhotoManager {
       this._inFlightSet.delete(callKey);
     }
   }
-      if (typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
-        MonthlyReportView.updateSlideCardPhoto(taskId);
-      }
-      if (MonthlyReportView._activeModalTaskId === taskId) {
-        if (typeof MonthlyReportView.renderModalPhotoSlots === 'function') MonthlyReportView.renderModalPhotoSlots(taskId);
-        if (typeof MonthlyReportView.renderModalLivePreview === 'function') MonthlyReportView.renderModalLivePreview(taskId);
-      }
-    }
-
-    return serverUrl || base64Url;
-  }
 
   purgeTaskPhotosMemory(taskId) {
     if (!taskId) return;
