@@ -13,6 +13,18 @@ const DashboardController = {
     status: "",
     monthly_report: ""
   },
+  _renderTimer: null,
+  _chartTimer: null,
+
+  debouncedRender(containerId = 'dashboard-view-container', delay = 50) {
+    if (this._renderTimer) {
+      clearTimeout(this._renderTimer);
+    }
+    this._renderTimer = setTimeout(() => {
+      this._renderTimer = null;
+      this.render(containerId);
+    }, delay);
+  },
 
   /**
    * Resolves tasks for dashboard from MonthWorkbookManager (Jan-Aug 2026) or fallback db
@@ -72,8 +84,21 @@ const DashboardController = {
   },
 
   async render(containerId = 'dashboard-view-container') {
+    if (this._renderTimer) {
+      clearTimeout(this._renderTimer);
+      this._renderTimer = null;
+    }
+    if (this._chartTimer) {
+      clearTimeout(this._chartTimer);
+      this._chartTimer = null;
+    }
+
     const container = document.getElementById(containerId);
     if (!container) return;
+
+    if (typeof DashboardCharts !== 'undefined' && DashboardCharts.destroyAll) {
+      DashboardCharts.destroyAll();
+    }
 
     // 1. Fetch real month dataset
     const allMonthTasks = await this.getTasksForDashboard(this.currentFilters.month);
@@ -801,11 +826,14 @@ const DashboardController = {
       </div>
     `;
 
-    // Render Charts after DOM injection
-    setTimeout(() => {
-      DashboardCharts.renderSavingsTrendChart('chart-savings-trend', savingsData.monthlyTrend);
-      DashboardCharts.renderCategoryChart('chart-categories', filteredTasks);
-    }, 50);
+    // Render Charts after DOM injection with protected timer
+    this._chartTimer = setTimeout(() => {
+      this._chartTimer = null;
+      if (typeof DashboardCharts !== 'undefined') {
+        DashboardCharts.renderSavingsTrendChart('chart-savings-trend', savingsData.monthlyTrend);
+        DashboardCharts.renderCategoryChart('chart-categories', filteredTasks);
+      }
+    }, 40);
   },
 
   handleFilter(key, val) {

@@ -11,7 +11,10 @@ const DashboardCharts = {
   destroyAll() {
     Object.keys(this.instances).forEach(k => {
       if (this.instances[k]) {
-        this.instances[k].destroy();
+        try {
+          if (typeof this.instances[k].stop === 'function') this.instances[k].stop();
+          this.instances[k].destroy();
+        } catch(e) {}
         delete this.instances[k];
       }
     });
@@ -25,7 +28,11 @@ const DashboardCharts = {
     if (!canvas || typeof Chart === 'undefined') return;
 
     if (this.instances[canvasId]) {
-      this.instances[canvasId].destroy();
+      try {
+        if (typeof this.instances[canvasId].stop === 'function') this.instances[canvasId].stop();
+        this.instances[canvasId].destroy();
+      } catch(e) {}
+      delete this.instances[canvasId];
     }
 
     const labels = trendData.map(d => d.month);
@@ -57,6 +64,7 @@ const DashboardCharts = {
         }]
       },
       options: {
+        animation: false,
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -93,7 +101,11 @@ const DashboardCharts = {
     if (!canvas || typeof Chart === 'undefined') return;
 
     if (this.instances[canvasId]) {
-      this.instances[canvasId].destroy();
+      try {
+        if (typeof this.instances[canvasId].stop === 'function') this.instances[canvasId].stop();
+        this.instances[canvasId].destroy();
+      } catch(e) {}
+      delete this.instances[canvasId];
     }
 
     const counts = {};
@@ -119,6 +131,7 @@ const DashboardCharts = {
         }]
       },
       options: {
+        animation: false,
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -139,7 +152,11 @@ const DashboardCharts = {
     if (!canvas || typeof Chart === 'undefined') return;
 
     if (this.instances[canvasId]) {
-      this.instances[canvasId].destroy();
+      try {
+        if (typeof this.instances[canvasId].stop === 'function') this.instances[canvasId].stop();
+        this.instances[canvasId].destroy();
+      } catch(e) {}
+      delete this.instances[canvasId];
     }
 
     const counts = {};
@@ -165,6 +182,7 @@ const DashboardCharts = {
         }]
       },
       options: {
+        animation: false,
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },

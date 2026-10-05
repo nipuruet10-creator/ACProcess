@@ -40,33 +40,35 @@ const App = {
         }
       });
 
-      // Check walton_pd_monthly_workbooks_v2 for bloated base64 photos and sanitize
-      const wbRaw = localStorage.getItem("walton_pd_monthly_workbooks_v2");
-      if (wbRaw && wbRaw.includes('data:image/')) {
-        try {
-          const wbParsed = JSON.parse(wbRaw);
-          let cleaned = false;
-          for (const m of Object.keys(wbParsed)) {
-            if (Array.isArray(wbParsed[m])) {
-              wbParsed[m].forEach(t => {
-                if (t.before_photo && t.before_photo.startsWith('data:image/')) {
-                  t.before_photo = ""; cleaned = true;
-                }
-                if (t.after_photo && t.after_photo.startsWith('data:image/')) {
-                  t.after_photo = ""; cleaned = true;
-                }
-                if (t.photo && t.photo.startsWith('data:image/')) {
-                  t.photo = ""; cleaned = true;
-                }
-              });
+      // Check workbook storage keys for bloated base64 photos and sanitize
+      ['walton_pd_month_workbooks_v2', 'walton_pd_monthly_workbooks_v2'].forEach(wbKey => {
+        const wbRaw = localStorage.getItem(wbKey);
+        if (wbRaw && wbRaw.includes('data:image/')) {
+          try {
+            const wbParsed = JSON.parse(wbRaw);
+            let cleaned = false;
+            for (const m of Object.keys(wbParsed)) {
+              if (Array.isArray(wbParsed[m])) {
+                wbParsed[m].forEach(t => {
+                  if (t.before_photo && t.before_photo.startsWith('data:image/')) {
+                    t.before_photo = ""; cleaned = true;
+                  }
+                  if (t.after_photo && t.after_photo.startsWith('data:image/')) {
+                    t.after_photo = ""; cleaned = true;
+                  }
+                  if (t.photo && t.photo.startsWith('data:image/')) {
+                    t.photo = ""; cleaned = true;
+                  }
+                });
+              }
             }
-          }
-          if (cleaned) {
-            localStorage.setItem("walton_pd_monthly_workbooks_v2", JSON.stringify(wbParsed));
-            console.log("Sanitized heavy base64 strings from local workbook cache.");
-          }
-        } catch(e) {}
-      }
+            if (cleaned) {
+              localStorage.setItem(wbKey, JSON.stringify(wbParsed));
+              console.log(`Sanitized heavy base64 strings from ${wbKey} cache.`);
+            }
+          } catch(e) {}
+        }
+      });
     } catch (e) {
       console.warn("Storage self-healing notice:", e);
     }
@@ -184,7 +186,7 @@ const App = {
         }
       });
       // Purge legacy v1 workbook keys if v2 is present to free local memory
-      if (localStorage.getItem("walton_pd_monthly_workbooks_v2")) {
+      if (localStorage.getItem("walton_pd_month_workbooks_v2") || localStorage.getItem("walton_pd_monthly_workbooks_v2")) {
         localStorage.removeItem("walton_pd_month_workbooks_v1");
         localStorage.removeItem("walton_pd_monthly_workbooks_v1");
       }
@@ -411,11 +413,14 @@ const App = {
     // 1. Check path: /report/:month/:pattern?
     const pathMatch = path.match(/\/report\/([^\/]+)(?:\/([^\/]+))?/i);
     if (pathMatch) {
-      return {
-        isReport: true,
-        month: this.normalizeMonth(pathMatch[1]),
-        template: this.normalizeTemplate(pathMatch[2])
-      };
+      const seg = pathMatch[1].toLowerCase();
+      if (!seg.includes('.') && (seg.includes('202') || /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(seg))) {
+        return {
+          isReport: true,
+          month: this.normalizeMonth(pathMatch[1]),
+          template: this.normalizeTemplate(pathMatch[2])
+        };
+      }
     }
 
     // 2. Check hash: #/report/:month/:pattern?

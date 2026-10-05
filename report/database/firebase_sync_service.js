@@ -163,7 +163,15 @@ const FirebaseSyncService = {
         }
       } catch (e) {}
 
-      // Strictly purge any protected IDs from deletedSet and Firebase deleted_task_ids
+      // Strictly purge any verified and protected IDs from deletedSet and Firebase deleted_task_ids
+      if (typeof DEFAULT_SEP_2026_TASKS !== 'undefined' && Array.isArray(DEFAULT_SEP_2026_TASKS)) {
+        DEFAULT_SEP_2026_TASKS.forEach(t => {
+          if (t && t.task_id) {
+            deletedSet.delete(t.task_id);
+            this.db.ref(`walton_monthly_report/deleted_task_ids/${t.task_id}`).remove().catch(() => {});
+          }
+        });
+      }
       if (typeof SAZZAD_PROTECTED_TASK_IDS !== 'undefined') {
         SAZZAD_PROTECTED_TASK_IDS.forEach(id => {
           deletedSet.delete(id);
@@ -322,7 +330,7 @@ const FirebaseSyncService = {
           MonthlyInputView.render();
         }
         if (window.appState && window.appState.activeTab === 'dashboard' && typeof DashboardController !== 'undefined' && DashboardController.render) {
-          DashboardController.render();
+          if (DashboardController.debouncedRender) DashboardController.debouncedRender(); else DashboardController.render();
         }
         return true;
       } else {
@@ -336,7 +344,7 @@ const FirebaseSyncService = {
           MonthlyInputView.render();
         }
         if (window.appState && window.appState.activeTab === 'dashboard' && typeof DashboardController !== 'undefined' && DashboardController.render) {
-          DashboardController.render();
+          if (DashboardController.debouncedRender) DashboardController.debouncedRender(); else DashboardController.render();
         }
         return true;
       }
@@ -912,7 +920,7 @@ const FirebaseSyncService = {
       }
     }
     if (window.appState && window.appState.activeTab === 'dashboard' && typeof DashboardController !== 'undefined' && DashboardController.render) {
-      DashboardController.render();
+      if (DashboardController.debouncedRender) DashboardController.debouncedRender(); else DashboardController.render();
     }
   },
 
@@ -1124,7 +1132,7 @@ const FirebaseSyncService = {
         if (MonthlyInputView.updateTaskPointDisplay) MonthlyInputView.updateTaskPointDisplay(taskId, cleanPts);
       }
       if (typeof DashboardController !== 'undefined' && window.appState && window.appState.activeTab === 'dashboard') {
-        DashboardController.render();
+        if (DashboardController.debouncedRender) DashboardController.debouncedRender(); else DashboardController.render();
       }
     }
 
@@ -1175,7 +1183,7 @@ const FirebaseSyncService = {
           if (MonthlyInputView.updateTaskPointDisplay) MonthlyInputView.updateTaskPointDisplay(taskId, cleanPts);
         }
         if (typeof DashboardController !== 'undefined' && window.appState && window.appState.activeTab === 'dashboard') {
-          DashboardController.render();
+          if (DashboardController.debouncedRender) DashboardController.debouncedRender(); else DashboardController.render();
         }
       }
 
@@ -1372,7 +1380,7 @@ const FirebaseSyncService = {
       MonthlyInputView.updateEngineerSummary();
     }
     if (window.appState && window.appState.activeTab === 'dashboard' && typeof DashboardController !== 'undefined' && DashboardController.render) {
-      DashboardController.render();
+      if (DashboardController.debouncedRender) DashboardController.debouncedRender(); else DashboardController.render();
     }
   },
 
@@ -1433,12 +1441,12 @@ const FirebaseSyncService = {
           }
         }
         if (window.appState && window.appState.activeTab === 'dashboard' && typeof DashboardController !== 'undefined' && DashboardController.render) {
-          DashboardController.render();
+          if (DashboardController.debouncedRender) DashboardController.debouncedRender(); else DashboardController.render();
         }
       }, 250);
     } else {
       if (window.appState && window.appState.activeTab === 'dashboard' && typeof DashboardController !== 'undefined' && DashboardController.render) {
-        DashboardController.render();
+        if (DashboardController.debouncedRender) DashboardController.debouncedRender(); else DashboardController.render();
       }
     }
   },
