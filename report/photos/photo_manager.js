@@ -477,7 +477,10 @@ class PhotoManager {
     if (!m && typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
       m = window.appState.workbookMgr.activeMonth;
     }
-    if (!m) m = 'SEP-2026';
+    if (!m && typeof MonthlyInputView !== 'undefined' && MonthlyInputView.selectedMonth) {
+      m = MonthlyInputView.selectedMonth;
+    }
+    if (!m) m = 'OCT-2026';
 
     if (typeof onProgress === 'function') onProgress(15, 'Sending to Hostinger...');
 

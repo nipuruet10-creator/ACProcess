@@ -150,7 +150,7 @@ const REPORT_CATEGORY_META = {
 };
 
 const MonthlyReportView = {
-  selectedMonth: "SEP-2026",
+  selectedMonth: "OCT-2026",
   filterEngineer: "",
   filterCategory: "",
   searchQuery: "",
@@ -1474,13 +1474,24 @@ const MonthlyReportView = {
     const previewEl = document.getElementById('modal-slide-live-preview');
     if (!previewEl) return;
 
-    // Attach dynamic ResizeObserver so preview recalculates scale instantly on modal resize
+    // Attach dynamic ResizeObserver so preview recalculates scale smoothly on modal resize
     if (typeof window !== 'undefined' && window.ResizeObserver && !previewEl._mrvResizeObsAttached) {
       previewEl._mrvResizeObsAttached = true;
-      const ro = new ResizeObserver(() => {
-        if (MonthlyReportView._activeModalTaskId) {
-          MonthlyReportView.renderModalLivePreview(MonthlyReportView._activeModalTaskId);
-        }
+      const ro = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (!entry || !entry.contentRect) return;
+        const w = Math.round(entry.contentRect.width);
+        const h = Math.round(entry.contentRect.height);
+        if (w <= 0 || h <= 0) return;
+        if (previewEl._lastObsW === w && previewEl._lastObsH === h) return;
+        previewEl._lastObsW = w;
+        previewEl._lastObsH = h;
+        if (previewEl._roTimer) cancelAnimationFrame(previewEl._roTimer);
+        previewEl._roTimer = requestAnimationFrame(() => {
+          if (MonthlyReportView._activeModalTaskId) {
+            MonthlyReportView.renderModalLivePreview(MonthlyReportView._activeModalTaskId);
+          }
+        });
       });
       ro.observe(previewEl);
     }
@@ -1951,8 +1962,11 @@ const MonthlyReportView = {
       ? window.appState.syncEngine.getActiveSlides(month)
       : [];
 
-    // 1-to-1 Mapping Guarantee: Active slides must correspond exclusively to registered monthly tasks marked YES (Requirement 3: Anam 35 NO, 1 YES -> Only 1 slide)
-    if (allTasks && allTasks.length > 0) {
+    // 1-to-1 Mapping Guarantee: Active slides must correspond exclusively to registered monthly tasks marked YES.
+    // If a month has no tasks (e.g. fresh new active month like OCT-2026), active slides must be clean (0 slides)!
+    if (!allTasks || allTasks.length === 0) {
+      activeSlides = [];
+    } else {
       activeSlides = activeSlides.filter(s => {
         if (!s || !s.task_id) return false;
         const sId = String(s.task_id).toLowerCase();
@@ -2006,6 +2020,8 @@ const MonthlyReportView = {
         s.photo_fit = (savedFit === 'cover' || savedFit === 'fill') ? 'cover' : 'blur';
       });
     }
+
+    this.activeSlides = activeSlides;
 
     // Filter by engineer if selected
     const norm = s => (s || '').trim().toLowerCase();
@@ -2348,7 +2364,22 @@ const MonthlyReportView = {
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
-                ${displayedSlides.map((s, idx) => {
+                ${displayedSlides.length === 0 ? `
+                  <tr>
+                    <td colspan="7" class="py-14 text-center text-slate-400 font-mono text-xs">
+                      <div class="max-w-md mx-auto space-y-2.5">
+                        <div class="text-3xl">📑</div>
+                        <div class="font-bold text-slate-700 text-sm">${month} Presentation Hub is Clean &amp; Ready</div>
+                        <div class="text-[11.5px] text-slate-500">No task presentation slides recorded yet for ${month}. Switch to 'Monthly Input' to record engineering tasks or import from Excel.</div>
+                        <div class="pt-2">
+                          <button type="button" onclick="App.switchTab('monthly-input')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
+                            ➕ Record Tasks in Monthly Input
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ` : displayedSlides.map((s, idx) => {
                   const hasPhoto = Boolean(s.photo_before || s.photo_after || s.photo);
                   const isOverridden = Boolean(s.has_manual_override);
                   return `
@@ -2397,8 +2428,17 @@ const MonthlyReportView = {
         ${renderPaginationControls()}
 
         <div id="monthly-report-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
-          <div id="monthly-report-no-slides-msg" style="${displayedSlides.length === 0 ? '' : 'display: none;'}" class="col-span-full py-12 text-center bg-slate-50 border border-slate-200 rounded-2xl text-slate-400 text-xs font-mono">
-            No active slides match the current filter in ${month}.
+          <div id="monthly-report-no-slides-msg" style="${displayedSlides.length === 0 ? '' : 'display: none;'}" class="col-span-full py-14 text-center bg-slate-50 border border-slate-200 rounded-2xl text-slate-400 text-xs font-mono">
+            <div class="max-w-md mx-auto space-y-2.5">
+              <div class="text-3xl">📑</div>
+              <div class="font-bold text-slate-700 text-sm">${month} Presentation Hub is Clean &amp; Ready</div>
+              <div class="text-[11.5px] text-slate-500">No active presentation slides recorded yet for ${month}. Switch to 'Monthly Input' to record new tasks.</div>
+              <div class="pt-2">
+                <button type="button" onclick="App.switchTab('monthly-input')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
+                  ➕ Record Tasks in Monthly Input
+                </button>
+              </div>
+            </div>
           </div>
           ${paginatedSlides.map((s, pIdx) => {
             const globalIdx = (this.pageSize === 'all') ? pIdx : ((this.currentPage - 1) * ps + pIdx);

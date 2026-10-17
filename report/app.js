@@ -160,14 +160,14 @@ const App = {
     }
 
     // Hydrate server editorial overrides on startup across devices
-    if (this.syncEngine && typeof this.syncEngine.fetchServerOverrides === 'function') {
-      const initM = this.workbookMgr ? this.workbookMgr.activeMonth : 'SEP-2026';
-      this.syncEngine.fetchServerOverrides(initM).catch(() => {});
+    if (window.appState && window.appState.syncEngine && typeof window.appState.syncEngine.fetchServerOverrides === 'function') {
+      const initM = window.appState.workbookMgr ? window.appState.workbookMgr.activeMonth : ((typeof MonthWorkbookManager !== 'undefined' && MonthWorkbookManager.getActiveRunningMonth) ? MonthWorkbookManager.getActiveRunningMonth() : 'OCT-2026');
+      window.appState.syncEngine.fetchServerOverrides(initM).catch(() => {});
     }
 
     // Hydrate Top 5 Works (Completed & Ongoing) on startup across devices
     if (typeof TopWorksManager !== 'undefined' && TopWorksManager.fetchFromServer) {
-      const initM = this.workbookMgr ? this.workbookMgr.activeMonth : 'SEP-2026';
+      const initM = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : ((typeof MonthWorkbookManager !== 'undefined' && MonthWorkbookManager.getActiveRunningMonth) ? MonthWorkbookManager.getActiveRunningMonth() : 'OCT-2026');
       TopWorksManager.fetchFromServer(initM).catch(() => {});
     }
 
@@ -390,7 +390,11 @@ const App = {
   },
 
   normalizeMonth(rawMonth) {
-    if (!rawMonth) return "SEP-2026";
+    if (!rawMonth) {
+      return (typeof MonthWorkbookManager !== 'undefined' && MonthWorkbookManager.getActiveRunningMonth)
+        ? MonthWorkbookManager.getActiveRunningMonth()
+        : "OCT-2026";
+    }
     const clean = rawMonth.trim().toUpperCase().replace(/_/g, '-');
     return clean;
   },
@@ -451,8 +455,11 @@ const App = {
   /**
    * Renders the interactive full-screen Online Report presentation stage
    */
-  async renderOnlineReport(selectedMonth = "SEP-2026", template = "walton_executive_crimson") {
-    const month = this.normalizeMonth(selectedMonth);
+  async renderOnlineReport(selectedMonth = null, template = "walton_executive_crimson") {
+    const defaultM = (typeof MonthWorkbookManager !== 'undefined' && MonthWorkbookManager.getActiveRunningMonth)
+      ? MonthWorkbookManager.getActiveRunningMonth()
+      : "OCT-2026";
+    const month = this.normalizeMonth(selectedMonth || defaultM);
     const tmpl = this.normalizeTemplate(template);
 
     // Ensure database initialized

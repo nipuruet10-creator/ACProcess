@@ -21,11 +21,12 @@ const APP_CONFIG = {
     AI_CACHE: "walton_pd_ai_cache_v1"
   },
 
-  // Current Active Operating Month
-  DEFAULT_MONTH: "2026-09",
+  // Current Active Operating Month (Every month on the 10th, previous month rolls to Archive)
+  DEFAULT_MONTH: "2026-10",
   SUPPORTED_MONTHS: [
     { id: "2026-08", label: "August 2026", status: "Closed", code: "AUG-2026" },
-    { id: "2026-09", label: "September 2026", status: "Active", code: "SEP-2026" }
+    { id: "2026-09", label: "September 2026", status: "Archived", code: "SEP-2026" },
+    { id: "2026-10", label: "October 2026", status: "Active", code: "OCT-2026" }
   ],
 
   // Gemini AI Settings

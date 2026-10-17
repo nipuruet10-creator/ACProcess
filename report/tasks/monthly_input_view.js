@@ -7,7 +7,7 @@
  */
 
 const MonthlyInputView = {
-  selectedMonth: "SEP-2026",
+  selectedMonth: "OCT-2026",
   filterEngineer: "",
   searchQuery: "",
   filterCategory: "",
@@ -462,12 +462,20 @@ const MonthlyInputView = {
       if (typeof window.showToast === 'function') {
         window.showToast(`📸 Photo attached to ${taskId}!`, "success");
       }
-      await this.render();
-      if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
-        MonthlyReportView.render();
+      if (typeof this.updateTaskCardPhoto === 'function') {
+        this.updateTaskCardPhoto(taskId);
+      }
+      if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
+        MonthlyReportView.updateSlideCardPhoto(taskId);
       }
     } catch (err) {
       alert("Failed to save photo: " + err.message);
+    }
+  },
+
+  updateTaskCardPhoto(taskId) {
+    if (typeof TaskFormView !== 'undefined' && TaskFormView.updatePhotoPreview) {
+      TaskFormView.updatePhotoPreview(taskId);
     }
   },
 
@@ -480,9 +488,11 @@ const MonthlyInputView = {
       if (typeof window.showToast === 'function') {
         window.showToast(`📸 Photo attached to ${taskId}!`, "success");
       }
-      await this.render();
-      if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
-        MonthlyReportView.render();
+      if (typeof this.updateTaskCardPhoto === 'function') {
+        this.updateTaskCardPhoto(taskId);
+      }
+      if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
+        MonthlyReportView.updateSlideCardPhoto(taskId);
       }
     } catch (err) {
       alert("Failed to save photo: " + err.message);

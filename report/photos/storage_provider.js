@@ -186,7 +186,7 @@ const PhotoStorageProvider = {
    * Guarantees zero blur, crystal-clear text/labels/serial numbers and machine details.
    * Runs non-blockingly to guarantee zero main-thread freezing and instant upload.
    */
-  async compressImageFile(file, maxWidth = 2560, maxHeight = 1600, quality = 0.90) {
+  async compressImageFile(file, maxWidth = 1600, maxHeight = 1000, quality = 0.82) {
     if (!file) return "";
 
     // If string input (e.g. data URI from clipboard)

@@ -10,7 +10,21 @@
 
 const ExportController = {
   selectedTemplate: "walton_executive_crimson",
-  activeExportMonth: "SEP-2026",
+  _activeExportMonth: null,
+
+  getDefaultMonth() {
+    if (typeof MonthWorkbookManager !== 'undefined' && MonthWorkbookManager.getActiveRunningMonth) {
+      return MonthWorkbookManager.getActiveRunningMonth();
+    }
+    return "OCT-2026";
+  },
+
+  get activeExportMonth() {
+    return this._activeExportMonth || this.getDefaultMonth();
+  },
+  set activeExportMonth(val) {
+    this._activeExportMonth = val;
+  },
 
   handleSelectTemplate(tmpl) {
     this.selectedTemplate = tmpl || "walton_executive_crimson";
@@ -41,12 +55,13 @@ const ExportController = {
 
   /**
    * Generates unique shareable Online Report URL for given month and pattern
-   * E.g. /report/sep-2026/pattern-1 or /report/sep-2026/pattern-2
+   * E.g. /report/sep-2026/pattern-1 or /report/oct-2026/pattern-2
    */
-  getOnlineReportUrl(selectedMonth = "SEP-2026", template = null) {
+  getOnlineReportUrl(selectedMonth = null, template = null) {
+    const sMonth = selectedMonth || this.activeExportMonth || this.getDefaultMonth();
     const tmpl = template || this.selectedTemplate || "walton_executive_crimson";
     const patternSlug = tmpl === "industrial_innovation_blue" ? "pattern-2" : "pattern-1";
-    const monthSlug = (selectedMonth || "SEP-2026").toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const monthSlug = sMonth.toLowerCase().replace(/[^a-z0-9]/g, "-");
 
     if (typeof window === 'undefined') {
       return `/#/report/${monthSlug}/${patternSlug}`;
@@ -64,8 +79,8 @@ const ExportController = {
   /**
    * Copies shareable Online Report URL to clipboard
    */
-  copyOnlineReportUrl(selectedMonth = "SEP-2026") {
-    const month = selectedMonth || this.activeExportMonth || "SEP-2026";
+  copyOnlineReportUrl(selectedMonth = null) {
+    const month = selectedMonth || this.activeExportMonth || this.getDefaultMonth();
     const url = this.getOnlineReportUrl(month, this.selectedTemplate);
     if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(() => {
@@ -85,8 +100,8 @@ const ExportController = {
   /**
    * Opens the Online Report in a new browser tab or current stage
    */
-  openOnlineReport(selectedMonth = "SEP-2026", inSameTab = false) {
-    const month = selectedMonth || this.activeExportMonth || "SEP-2026";
+  openOnlineReport(selectedMonth = null, inSameTab = false) {
+    const month = selectedMonth || this.activeExportMonth || this.getDefaultMonth();
     const url = this.getOnlineReportUrl(month, this.selectedTemplate);
     if (inSameTab && typeof App !== 'undefined' && App.renderOnlineReport) {
       this.closeExportModal();
@@ -99,21 +114,22 @@ const ExportController = {
   /**
    * Opens the report generation modal with layout options
    */
-  generateReport(selectedMonth = "SEP-2026") {
-    return this.openExportModal(selectedMonth);
+  generateReport(selectedMonth = null) {
+    return this.openExportModal(selectedMonth || this.getDefaultMonth());
   },
 
   /**
    * Constructs comprehensive report data bundle including dashboard and top works datasets
    */
-  async buildReportPayload(selectedMonth = "SEP-2026", template = null) {
+  async buildReportPayload(selectedMonth = null, template = null) {
+    const sMonth = selectedMonth || this.activeExportMonth || this.getDefaultMonth();
     const syncEngine = window.appState && window.appState.syncEngine
       ? window.appState.syncEngine
       : new SyncEngine();
 
     // Ensure sync has run
-    await syncEngine.syncMonth(selectedMonth);
-    let activeSlides = syncEngine.getActiveSlides(selectedMonth) || [];
+    await syncEngine.syncMonth(sMonth);
+    let activeSlides = syncEngine.getActiveSlides(sMonth) || [];
 
     // Filter out any slide where include_in_report is NO (Requirement 2)
     activeSlides = activeSlides.filter(s => s.include_in_report !== "NO" && s.monthly_report !== "NO");
@@ -330,12 +346,13 @@ const ExportController = {
   /**
    * Export 100% Editable PowerPoint (PPTX)
    */
-  async exportPPTX(selectedMonth = "SEP-2026", template = null) {
+  async exportPPTX(selectedMonth = null, template = null) {
+    const sMonth = selectedMonth || this.activeExportMonth || this.getDefaultMonth();
     const tmpl = template || this.selectedTemplate || "walton_executive_crimson";
     try {
-      const { reportData, activeSlides } = await this.buildReportPayload(selectedMonth, tmpl);
+      const { reportData, activeSlides } = await this.buildReportPayload(sMonth, tmpl);
       if (activeSlides.length === 0) {
-        alert(`No active report slides found for ${selectedMonth}. Please add tasks and include them.`);
+        alert(`No active report slides found for ${sMonth}. Please add tasks and include them.`);
         return null;
       }
 
@@ -360,12 +377,13 @@ const ExportController = {
   /**
    * Export Standalone Portable HTML Deck
    */
-  async exportHTML(selectedMonth = "SEP-2026", template = null) {
+  async exportHTML(selectedMonth = null, template = null) {
+    const sMonth = selectedMonth || this.activeExportMonth || this.getDefaultMonth();
     const tmpl = template || this.selectedTemplate || "walton_executive_crimson";
     try {
-      const { reportData, activeSlides } = await this.buildReportPayload(selectedMonth, tmpl);
+      const { reportData, activeSlides } = await this.buildReportPayload(sMonth, tmpl);
       if (activeSlides.length === 0) {
-        alert(`No active report slides found for ${selectedMonth}. Please add tasks and include them.`);
+        alert(`No active report slides found for ${sMonth}. Please add tasks and include them.`);
         return null;
       }
 
@@ -375,7 +393,7 @@ const ExportController = {
       const a = document.createElement('a');
       a.href = htmlUrl;
       const tmplTag = tmpl === 'industrial_innovation_blue' ? 'Industrial_Blue' : 'Executive_Crimson';
-      a.download = `Monthly_Report_${selectedMonth.replace(/[^a-zA-Z0-9]/g, '_')}_${tmplTag}.html`;
+      a.download = `Monthly_Report_${sMonth.replace(/[^a-zA-Z0-9]/g, '_')}_${tmplTag}.html`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(htmlUrl), 1000);
       return a.download;
@@ -389,12 +407,13 @@ const ExportController = {
   /**
    * Export Vector PDF
    */
-  async exportPDF(selectedMonth = "SEP-2026", template = null) {
+  async exportPDF(selectedMonth = null, template = null) {
+    const sMonth = selectedMonth || this.activeExportMonth || this.getDefaultMonth();
     const tmpl = template || this.selectedTemplate || "walton_executive_crimson";
     try {
-      const { reportData, activeSlides } = await this.buildReportPayload(selectedMonth, tmpl);
+      const { reportData, activeSlides } = await this.buildReportPayload(sMonth, tmpl);
       if (activeSlides.length === 0) {
-        alert(`No active report slides found for ${selectedMonth}. Please add tasks and include them.`);
+        alert(`No active report slides found for ${sMonth}. Please add tasks and include them.`);
         return null;
       }
 
@@ -424,11 +443,12 @@ const ExportController = {
   /**
    * Opens the Walton Executive Export Center modal with direct template format selection
    */
-  async openExportModal(selectedMonth = "SEP-2026") {
-    this.activeExportMonth = selectedMonth;
-    const { reportData, activeSlides } = await this.buildReportPayload(selectedMonth);
+  async openExportModal(selectedMonth = null) {
+    const sMonth = selectedMonth || this.activeExportMonth || this.getDefaultMonth();
+    this.activeExportMonth = sMonth;
+    const { reportData, activeSlides } = await this.buildReportPayload(sMonth);
     if (activeSlides.length === 0) {
-      alert(`No active report slides found for ${selectedMonth}. Please add tasks and set inclusion to YES first.`);
+      alert(`No active report slides found for ${sMonth}. Please add tasks and set inclusion to YES first.`);
       return;
     }
 

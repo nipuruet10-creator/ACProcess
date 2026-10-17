@@ -7,7 +7,7 @@
 
 const DashboardController = {
   currentFilters: {
-    month: (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.DEFAULT_MONTH) ? APP_CONFIG.DEFAULT_MONTH : "2026-09",
+    month: (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.DEFAULT_MONTH) ? APP_CONFIG.DEFAULT_MONTH : "2026-10",
     engineer: "",
     category: "",
     status: "",
@@ -27,15 +27,17 @@ const DashboardController = {
   },
 
   /**
-   * Resolves tasks for dashboard from MonthWorkbookManager (Jan-Aug 2026) or fallback db
+   * Resolves tasks for dashboard from MonthWorkbookManager (Jan-Oct 2026) or fallback db
    */
   async getTasksForDashboard(monthFilter) {
     let workbookMgr = (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr)
       ? window.appState.workbookMgr
       : (typeof MonthWorkbookManager !== 'undefined' ? new MonthWorkbookManager() : null);
 
-    // Normalize month: "2026-09" -> "SEP-2026", "2026-08" -> "AUG-2026", "2026-01" -> "JAN-2026"
-    let normMonth = "SEP-2026";
+    // Normalize month: "2026-10" -> "OCT-2026", "2026-09" -> "SEP-2026", "2026-08" -> "AUG-2026"
+    let normMonth = (typeof MonthWorkbookManager !== 'undefined' && MonthWorkbookManager.getActiveRunningMonth)
+      ? MonthWorkbookManager.getActiveRunningMonth()
+      : "OCT-2026";
     if (monthFilter) {
       if (monthFilter.includes("-") && monthFilter.length === 7 && /^\d{4}-\d{2}$/.test(monthFilter)) {
         const [yr, mNum] = monthFilter.split("-");

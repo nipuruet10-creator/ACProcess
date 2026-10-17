@@ -11,8 +11,56 @@ class MonthWorkbookManager {
   constructor(storageKey = "walton_pd_month_workbooks_v2") {
     this.storageKey = storageKey;
     this.workbooks = {}; // Map of month -> Array of task rows
-    this.activeMonth = "SEP-2026";
+    this.activeMonth = this.getActiveRunningMonth();
     this.init();
+  }
+
+  static getActiveRunningMonth() {
+    if (typeof APP_CONFIG !== 'undefined' && APP_CONFIG.DEFAULT_MONTH) {
+      const def = APP_CONFIG.DEFAULT_MONTH;
+      if (def.includes("-") && def.length === 7) {
+        const [yr, mNum] = def.split("-");
+        const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+        const mIdx = parseInt(mNum, 10) - 1;
+        return `${monthNames[mIdx] || "OCT"}-${yr}`;
+      }
+      return def.toUpperCase();
+    }
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthIdx = now.getMonth(); // 0 = Jan, 9 = Oct
+    const currentDay = now.getDate();
+    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+    // Rule: Every month on the 10th, previous month rolls into archive.
+    // If day >= 10: current calendar month is the active running month.
+    // If day < 10: previous calendar month is still the running month being finalized.
+    if (currentDay >= 10) {
+      return `${monthNames[currentMonthIdx]}-${currentYear}`;
+    } else {
+      const prevIdx = (currentMonthIdx === 0) ? 11 : (currentMonthIdx - 1);
+      const prevYear = (currentMonthIdx === 0) ? (currentYear - 1) : currentYear;
+      return `${monthNames[prevIdx]}-${prevYear}`;
+    }
+  }
+
+  static getHistoricalArchiveMonth() {
+    const running = MonthWorkbookManager.getActiveRunningMonth();
+    const [mPart, yPart] = running.split('-');
+    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    const curIdx = monthNames.indexOf(mPart.toUpperCase());
+    const yr = parseInt(yPart, 10);
+    const prevIdx = curIdx <= 0 ? 11 : curIdx - 1;
+    const prevYr = curIdx <= 0 ? yr - 1 : yr;
+    return `${monthNames[prevIdx]}-${prevYr}`;
+  }
+
+  getActiveRunningMonth() {
+    return MonthWorkbookManager.getActiveRunningMonth();
+  }
+
+  getHistoricalArchiveMonth() {
+    return MonthWorkbookManager.getHistoricalArchiveMonth();
   }
 
   init() {
@@ -129,6 +177,12 @@ class MonthWorkbookManager {
     if (defaultAdded) {
       this.save();
     }
+
+    // OCT-2026 initialized if missing (clean and blank for new entries)
+    if (!this.workbooks["OCT-2026"] || !Array.isArray(this.workbooks["OCT-2026"])) {
+      this.workbooks["OCT-2026"] = [];
+    }
+
     this.deduplicateAllWorkbooks();
   }
 
@@ -467,15 +521,20 @@ class MonthWorkbookManager {
   }
 
   getAllMonths() {
-    const list = [];
-    if (!this.isMonthExpired("AUG-2026") && this.workbooks["AUG-2026"]) {
-      list.push("AUG-2026");
+    const running = this.getActiveRunningMonth();
+    const archive = this.getHistoricalArchiveMonth();
+    const list = [running];
+    if (archive && this.workbooks[archive] && !list.includes(archive)) {
+      list.push(archive);
     }
-    if (this.workbooks["SEP-2026"]) {
+    if (this.workbooks["OCT-2026"] && !list.includes("OCT-2026")) {
+      list.push("OCT-2026");
+    }
+    if (this.workbooks["SEP-2026"] && !list.includes("SEP-2026")) {
       list.push("SEP-2026");
     }
-    if (this.workbooks["OCT-2026"]) {
-      list.push("OCT-2026");
+    if (!this.isMonthExpired("AUG-2026") && this.workbooks["AUG-2026"] && !list.includes("AUG-2026")) {
+      list.push("AUG-2026");
     }
     Object.keys(this.workbooks).forEach(k => {
       const norm = this.normalizeMonth(k);
@@ -483,7 +542,7 @@ class MonthWorkbookManager {
         list.push(norm);
       }
     });
-    return list.length > 0 ? list : ["AUG-2026", "SEP-2026"];
+    return list.length > 0 ? list : ["OCT-2026", "SEP-2026"];
   }
 
   createMonth(monthCode) {
@@ -670,6 +729,18 @@ class MonthWorkbookManager {
     const m = this.normalizeMonth(month);
     if (!this.workbooks[m]) {
       this.workbooks[m] = [];
+    }
+
+    if (typeof engineerOrAssignee === 'object' && engineerOrAssignee !== null) {
+      const obj = engineerOrAssignee;
+      engineerOrAssignee = obj.engineer_name || obj.engineer || "Sazzad (50463)";
+      taskName = obj.task_name || obj.name || taskName;
+      includeInReport = obj.include_in_report || obj.monthly_report || includeInReport;
+      taskDetails = obj.task_details || obj.details || taskDetails;
+      category = obj.category || category;
+      points = obj.points !== undefined ? obj.points : points;
+      supervisor = obj.supervisor || supervisor;
+      options = Object.assign({}, obj, options);
     }
 
     if (!engineerOrAssignee || !engineerOrAssignee.trim()) {
