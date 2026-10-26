@@ -2096,11 +2096,35 @@ const SlideLayoutEngine = {
       });
     });
 
-    const top5Page = currentSlide;
+    // Special Sections in sequence: Workshop > BOM > Completed Project > Cost Saving > Top 5
+    items.push({
+      title: "Process Workshop",
+      sub: "In-House Fabrication & Value Impact",
+      page: `Page No. ${String(currentSlide++).padStart(2, '0')}`
+    });
+
+    items.push({
+      title: "BOM Findings Executive Nexus",
+      sub: "Variance Analysis & Audit Intelligence",
+      page: `Page No. ${String(currentSlide++).padStart(2, '0')}`
+    });
+
+    items.push({
+      title: "Completed Projects Showcase",
+      sub: "Die Development & Line Optimization",
+      page: `Page No. ${String(currentSlide++).padStart(2, '0')}`
+    });
+
+    items.push({
+      title: "Cost Saving Initiatives",
+      sub: "Annual & Monthly Kaizen Impact",
+      page: `Page No. ${String(currentSlide++).padStart(2, '0')}`
+    });
+
     items.push({
       title: "Top 5 Works & Projects",
       sub: "Executive Summary & Milestones",
-      page: `Page No. ${String(top5Page).padStart(2, '0')}`
+      page: `Page No. ${String(currentSlide++).padStart(2, '0')}`
     });
 
     items.forEach((item, idx) => {
@@ -3997,9 +4021,8 @@ const SlideLayoutEngine = {
 
     // Sequence: Standard Tasks -> Completed Projects -> Ongoing Projects
     const taskSlides = [...sequencedStandardTasks, ...completedProjectSlides, ...ongoingProjectSlides];
-    // Workshop Cost Saving Report slide inclusion (Positioned sequentially immediately before Top 5 Summary)
-    const hasWorkshopSlide = (typeof WorkshopCostManager !== 'undefined' && WorkshopCostManager.hasWorkshopData && WorkshopCostManager.hasWorkshopData(month)) || (reportData && reportData.workshopCostData);
-    const totalSlideCount = taskSlides.length + (hasWorkshopSlide ? 6 : 5);
+    // Sequence after tasks: Workshop > BOM > Completed Project > Cost Saving > Top 5 Works > Closing
+    const totalSlideCount = taskSlides.length + 9;
 
     // Slide 1: Cover Page
     if (isBlue) {
@@ -4030,13 +4053,33 @@ const SlideLayoutEngine = {
 
     let currentSlideIndex = taskSlides.length + 4;
 
-    // Slide: AC Process Workshop Cost Saving Report (16:9 Landscape - positioned immediately before Top 5 Summary)
-    if (hasWorkshopSlide) {
+    // Slide N+4: Special Section 1: Process Workshop Achievements (Photo 1)
+    if (typeof SpecialSectionsManager !== 'undefined') {
+      deck.push(SpecialSectionsManager.renderSlideHtml('workshop', month, currentSlideIndex, totalSlideCount));
+    } else {
       deck.push(this.renderWorkshopCostSavingSlide(month, reportData.workshopCostData || null, currentSlideIndex, totalSlideCount));
-      currentSlideIndex++;
     }
+    currentSlideIndex++;
 
-    // Slide: Top 5 Works & Projects Summary
+    // Slide N+5: Special Section 2: BOM Findings Executive Nexus (Photo 2)
+    if (typeof SpecialSectionsManager !== 'undefined') {
+      deck.push(SpecialSectionsManager.renderSlideHtml('bom', month, currentSlideIndex, totalSlideCount));
+    }
+    currentSlideIndex++;
+
+    // Slide N+6: Special Section 3: Completed Projects Showcase (Photo 3)
+    if (typeof SpecialSectionsManager !== 'undefined') {
+      deck.push(SpecialSectionsManager.renderSlideHtml('completed_project', month, currentSlideIndex, totalSlideCount));
+    }
+    currentSlideIndex++;
+
+    // Slide N+7: Special Section 4: Cost Saving Initiatives
+    if (typeof SpecialSectionsManager !== 'undefined') {
+      deck.push(SpecialSectionsManager.renderSlideHtml('cost_saving', month, currentSlideIndex, totalSlideCount));
+    }
+    currentSlideIndex++;
+
+    // Slide N+8: Top 5 Works & Projects Summary
     if (isBlue) {
       deck.push(this.renderIndustrialBlueTopWorksSlide(month, reportData.topWorksData || reportData));
     } else {
@@ -4044,7 +4087,7 @@ const SlideLayoutEngine = {
     }
     currentSlideIndex++;
 
-    // Slide: Thank You / Continuous Process Improvement
+    // Slide N+9: Thank You / Continuous Process Improvement
     if (isBlue) {
       deck.push(this.renderIndustrialBlueThankYouSlide(month));
     } else {

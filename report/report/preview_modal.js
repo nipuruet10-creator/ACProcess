@@ -109,12 +109,12 @@ const SlidePreviewModal = {
       }
       this.deckTitles.push(`${i + 4}. ${prefix} ${cleanTitle}`);
     });
-    const hasWorkshopSlide = (typeof WorkshopCostManager !== 'undefined' && WorkshopCostManager.hasWorkshopData && WorkshopCostManager.hasWorkshopData(this.currentMonth)) || (reportData && reportData.workshopCostData);
-    if (hasWorkshopSlide) {
-      this.deckTitles.push(`${total - 2}. AC Process Workshop Cost Saving Report`);
-    }
-    this.deckTitles.push(`${total - 1}. Top 5 Works & Projects Summary`);
-    this.deckTitles.push(`${total}. Thank You / Closing Slide`);
+    this.deckTitles.push(`${total - 5}. 🛠️ Process Workshop Achievements`);
+    this.deckTitles.push(`${total - 4}. 🧩 BOM Findings Executive Nexus`);
+    this.deckTitles.push(`${total - 3}. 🏆 Completed Projects Showcase`);
+    this.deckTitles.push(`${total - 2}. 💰 Cost Saving Initiatives`);
+    this.deckTitles.push(`${total - 1}. ⭐ Top 5 Works & Projects Summary`);
+    this.deckTitles.push(`${total}. 🎯 Thank You / Closing Slide`);
 
     const container = this.renderContainer();
     this._renderModal(container);

@@ -1847,7 +1847,25 @@ const MonthlyReportView = {
     this.previewFullDeck(2);
   },
 
+  previewSpecialSlide(sectionId) {
+    if (typeof SpecialSectionsManager !== 'undefined') {
+      SpecialSectionsManager.previewSlide(sectionId, this.selectedMonth);
+    }
+  },
+
+  renderBottomSpecialSlides() {
+    const container = document.getElementById('monthly-report-bottom-special-slides');
+    if (container && typeof SpecialSectionsManager !== 'undefined') {
+      const activeCount = Array.isArray(this.activeSlides) ? this.activeSlides.length : 0;
+      container.outerHTML = SpecialSectionsManager.renderBottomCardsHtml(this.selectedMonth, activeCount);
+    }
+  },
+
   previewWorkshopCostSlide() {
+    if (typeof SpecialSectionsManager !== 'undefined') {
+      SpecialSectionsManager.previewSlide('workshop', this.selectedMonth);
+      return;
+    }
     const month = this.selectedMonth;
     const rawData = (typeof WorkshopCostManager !== 'undefined') ? WorkshopCostManager.getWorkshopData(month) : null;
     const slideHtml = (typeof SlideLayoutEngine !== 'undefined')
@@ -2149,9 +2167,8 @@ const MonthlyReportView = {
     }))).filter(Boolean);
     uniqueEngineers.sort((a, b) => (engineerCounts[b] || 0) - (engineerCounts[a] || 0));
 
-    // Total sequence slide count calculation: Cover(1) + Agenda(2) + Dashboard(3) + Tasks(N) + Workshop(N+4) + Top 5(N+5) + Closing(N+6)
-    const hasWorkshopSlide = (typeof WorkshopCostManager !== 'undefined' && WorkshopCostManager.hasWorkshopData && WorkshopCostManager.hasWorkshopData(this.selectedMonth));
-    const totalPresentationSlides = activeSlides.length + (hasWorkshopSlide ? 6 : 5);
+    // Total sequence slide count calculation: Cover(1) + Agenda(2) + Dashboard(3) + Tasks(N) + Workshop(N+4) + BOM(N+5) + Completed Project(N+6) + Cost Saving(N+7) + Top 5(N+8) + Closing(N+9)
+    const totalPresentationSlides = activeSlides.length + 9;
 
     const totalMatchingSlides = displayedSlides.length;
     let paginatedSlides = displayedSlides;
@@ -2274,24 +2291,36 @@ const MonthlyReportView = {
             </span>
             <div class="flex items-center gap-1.5 flex-wrap">
               <button onclick="MonthlyReportView.previewCoverSlide()" title="Slide #1: Opening Cover Presentation"
-                      class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-600 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>#1 Cover Page</span> <span class="text-[10px]">👁️</span>
+                      class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-600 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>#1 Cover</span> 👁️
               </button>
-              <button onclick="MonthlyReportView.previewDashboardSlide()" title="Slide #2: Executive Performance Matrix & Points"
-                      class="px-2.5 py-1 rounded-lg bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 hover:text-white border border-indigo-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>#2 Dashboard Slide</span> <span class="text-[10px]">👁️</span>
+              <button onclick="MonthlyReportView.previewDashboardSlide()" title="Slide #3: Executive Dashboard"
+                      class="px-2 py-1 rounded-lg bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 hover:text-white border border-indigo-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>#3 Dashboard</span> 👁️
               </button>
-              <button onclick="MonthlyReportView.openTop5Modal()" title="Edit Top 5 Completed &amp; Ongoing Summary"
-                      class="px-2.5 py-1 rounded-lg bg-rose-900/80 hover:bg-rose-800 text-rose-200 hover:text-white border border-rose-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>🏆 Top 5 Projects Summary</span> <span class="text-[10px]">✏️</span>
+              <button onclick="SpecialSectionsManager.previewSlide('workshop', MonthlyReportView.selectedMonth)" title="Slide #Workshop: Process Workshop Achievements"
+                      class="px-2 py-1 rounded-lg bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 hover:text-white border border-emerald-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>🛠️ Workshop</span> 👁️
               </button>
-              <button onclick="MonthlyReportView.previewTop5Slide()" title="Preview Slide #Summary: Top 5 Completed &amp; Ongoing Summary"
-                      class="px-2.5 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>👁️</span>
+              <button onclick="SpecialSectionsManager.previewSlide('bom', MonthlyReportView.selectedMonth)" title="Slide #BOM: BOM Findings Executive Nexus"
+                      class="px-2 py-1 rounded-lg bg-cyan-900/80 hover:bg-cyan-800 text-cyan-200 hover:text-white border border-cyan-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>🧩 BOM</span> 👁️
+              </button>
+              <button onclick="SpecialSectionsManager.previewSlide('completed_project', MonthlyReportView.selectedMonth)" title="Slide #Project: Completed Projects Showcase"
+                      class="px-2 py-1 rounded-lg bg-blue-900/80 hover:bg-blue-800 text-blue-200 hover:text-white border border-blue-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>🏆 Completed Proj</span> 👁️
+              </button>
+              <button onclick="SpecialSectionsManager.previewSlide('cost_saving', MonthlyReportView.selectedMonth)" title="Slide #CostSaving: Cost Saving Initiatives"
+                      class="px-2 py-1 rounded-lg bg-amber-900/80 hover:bg-amber-800 text-amber-200 hover:text-white border border-amber-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>💰 Cost Saving</span> 👁️
+              </button>
+              <button onclick="MonthlyReportView.previewTop5Slide()" title="Slide #Top5: Top 5 Completed &amp; Ongoing Summary"
+                      class="px-2 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>⭐ Top 5</span> 👁️
               </button>
               <button onclick="MonthlyReportView.previewClosingSlide()" title="Slide #Closing: Thank You &amp; Conclusion"
-                      class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>#Closing Slide</span> <span class="text-[10px]">👁️</span>
+                      class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                <span>#Closing</span> 👁️
               </button>
             </div>
           </div>
@@ -2583,76 +2612,14 @@ const MonthlyReportView = {
 
         ${renderPaginationControls()}
       `}
-        <!-- 4. BOTTOM SPECIAL SLIDES CARDS (Summary & Concluding Deck Slides) -->
-        <div class="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-3">
-          
-          <!-- Slide N+1: AC Process Workshop Cost Saving Report Card (Immediately before Top 5 Summary) -->
-          <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-4 shadow-2xs flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <span class="w-9 h-9 rounded-xl bg-emerald-600 text-white font-mono font-black text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
-                #${activeSlides.length + 4}
-              </span>
-              <div>
-                <div class="flex items-center gap-1.5">
-                  <span class="px-2 py-0.5 rounded text-[9.5px] font-mono font-bold bg-emerald-600 text-white">WORKSHOP COSTING</span>
-                  <span class="text-[11px] font-mono text-emerald-700">16:9 Landscape</span>
-                </div>
-                <h4 class="text-xs font-black text-slate-900 mt-0.5">AC Process Workshop Cost Saving Report</h4>
-              </div>
-            </div>
-            <div class="flex items-center gap-1.5 flex-shrink-0">
-              <button onclick="App.switchTab('cost-savings')" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-emerald-700 border border-emerald-200 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer" title="Manage Excel Data & Initiatives">
-                <span>📊</span> <span>Excel</span>
-              </button>
-              <button onclick="MonthlyReportView.previewWorkshopCostSlide()" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer" title="Preview 16:9 Landscape Presentation Slide">
-                <span>👁️</span> <span>Preview</span>
-              </button>
-            </div>
+        <!-- 4. BOTTOM STRATEGIC EXECUTIVE SLIDES SECTION (Workshop > BOM > Completed Project > Cost Saving > Top 5 > Closing) -->
+        ${(typeof SpecialSectionsManager !== 'undefined')
+          ? SpecialSectionsManager.renderBottomCardsHtml(this.selectedMonth, activeSlides.length)
+          : `
+          <div class="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="p-4 rounded-xl bg-slate-100 text-slate-700">Strategic Slides Loading...</div>
           </div>
-
-          <!-- Slide N+2: Top 5 Summary Card -->
-          <div class="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/80 rounded-2xl p-4 shadow-2xs flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <span class="w-9 h-9 rounded-xl bg-red-600 text-white font-mono font-black text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
-                #${activeSlides.length + 5}
-              </span>
-              <div>
-                <div class="flex items-center gap-1.5">
-                  <span class="px-2 py-0.5 rounded text-[9.5px] font-mono font-bold bg-red-600 text-white">SUMMARY SLIDE</span>
-                  <span class="text-[11px] font-mono text-red-700">Strategic Milestones</span>
-                </div>
-                <h4 class="text-xs font-black text-slate-900 mt-0.5">Top 5 Completed &amp; Ongoing Works Summary</h4>
-              </div>
-            </div>
-            <div class="flex items-center gap-1.5 flex-shrink-0">
-              <button onclick="MonthlyReportView.openTop5Modal()" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-red-700 border border-red-200 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>✏️</span> <span>Edit</span>
-              </button>
-              <button onclick="MonthlyReportView.previewTop5Slide()" class="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>👁️</span> <span>Preview</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Slide N+3: Concluding Slide Card -->
-          <div class="bg-slate-900 text-white rounded-2xl p-4 border border-slate-700 shadow-2xs flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <span class="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-mono font-black text-xs flex items-center justify-center flex-shrink-0">
-                #${activeSlides.length + 6}
-              </span>
-              <div>
-                <div class="flex items-center gap-1.5">
-                  <span class="px-2 py-0.5 rounded text-[9.5px] font-mono font-bold bg-slate-700 text-white">CLOSING SLIDE</span>
-                  <span class="text-[11px] font-mono text-slate-400">Final Slide</span>
-                </div>
-                <h4 class="text-xs font-black text-white mt-0.5">Thank You &bull; Continuous Process Improvement</h4>
-              </div>
-            </div>
-            <button onclick="MonthlyReportView.previewClosingSlide()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1 flex-shrink-0 border border-white/20 cursor-pointer">
-              <span>👁️</span> <span>Preview</span>
-            </button>
-          </div>
-        </div>
+          `}
 
         <!-- 5. PROCESS ENGINEERING CORE WORK HIGHLIGHTS (Inside the single container at bottom) -->
         <div class="pt-4 border-t border-slate-100 space-y-3">

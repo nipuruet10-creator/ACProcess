@@ -374,10 +374,27 @@ class PPTXGenerator {
       }
     }));
 
+    // Pre-resolve special section photos (Workshop, BOM, Completed Project, Cost Saving) to Base64
+    const specialPhotos = {};
+    const specialIds = ['workshop', 'bom', 'completed_project', 'cost_saving'];
+    await Promise.all(specialIds.map(async (secId) => {
+      let rawUrl = null;
+      if (typeof SpecialSectionsManager !== 'undefined') {
+        rawUrl = SpecialSectionsManager.getSectionPhoto(secId, monthName);
+      }
+      if (rawUrl) {
+        try {
+          specialPhotos[secId] = await this._resolvePhotoBase64(rawUrl);
+        } catch(e) {
+          specialPhotos[secId] = rawUrl;
+        }
+      }
+    }));
+
     const activeTemplate = template || reportData.template || "walton_executive_crimson";
     const isBlue = (activeTemplate === "industrial_innovation_blue" || activeTemplate === "walton_blue_dual");
-    const hasWorkshopSlide = (typeof WorkshopCostManager !== 'undefined' && WorkshopCostManager.hasWorkshopData && WorkshopCostManager.hasWorkshopData(monthName)) || (reportData && reportData.workshopCostData) || (typeof WorkshopCostManager !== 'undefined');
-    const totalSlideCount = taskSlides.length + (hasWorkshopSlide ? 6 : 5); // Cover + TOC + Dashboard + Tasks + (Workshop Cost Saving) + Top 5 Works + Thank You Closing Slide
+    // Sequence after regular tasks: Workshop > BOM > Completed Project > Cost Saving > Top 5 Works > Closing
+    const totalSlideCount = taskSlides.length + 9;
 
     // -------------------------------------------------------------
     // SLIDE 1: COVER PAGE (Crimson or Blue)
@@ -429,18 +446,39 @@ class PPTXGenerator {
     }
 
     // -------------------------------------------------------------
-    // SLIDE N+4: AC PROCESS WORKSHOP COST SAVING REPORT (Image 2 Replica)
-    // Placed sequentially immediately before Top 5 Works & Projects Summary
+    // SLIDE N+4: PROCESS WORKSHOP ACHIEVEMENTS (Photo 1)
     // -------------------------------------------------------------
-    if (hasWorkshopSlide) {
-      const slideWorkshop = pptx.addSlide();
-      slideWorkshop.background = { color: bgWhite };
-      this._addWorkshopCostSavingSlide(slideWorkshop, pptx, font, monthName, currentSlideNum, totalSlideCount, isBlue, reportData.workshopCostData || null);
-      currentSlideNum++;
+    const slideWorkshop = pptx.addSlide();
+    slideWorkshop.background = { color: bgWhite };
+    this._addSpecialSectionSlide(slideWorkshop, pptx, 'workshop', specialPhotos['workshop'], monthName, currentSlideNum++, totalSlideCount, font, isBlue);
+
+    // -------------------------------------------------------------
+    // SLIDE N+5: BOM FINDINGS EXECUTIVE NEXUS (Photo 2)
+    // -------------------------------------------------------------
+    const slideBOM = pptx.addSlide();
+    slideBOM.background = { color: bgWhite };
+    this._addSpecialSectionSlide(slideBOM, pptx, 'bom', specialPhotos['bom'], monthName, currentSlideNum++, totalSlideCount, font, isBlue);
+
+    // -------------------------------------------------------------
+    // SLIDE N+6: COMPLETED PROJECTS SHOWCASE (Photo 3)
+    // -------------------------------------------------------------
+    const slideCompletedProj = pptx.addSlide();
+    slideCompletedProj.background = { color: bgWhite };
+    this._addSpecialSectionSlide(slideCompletedProj, pptx, 'completed_project', specialPhotos['completed_project'], monthName, currentSlideNum++, totalSlideCount, font, isBlue);
+
+    // -------------------------------------------------------------
+    // SLIDE N+7: COST SAVING INITIATIVES (Photo 4 / Workshop Costing)
+    // -------------------------------------------------------------
+    const slideCostSaving = pptx.addSlide();
+    slideCostSaving.background = { color: bgWhite };
+    if (specialPhotos['cost_saving']) {
+      this._addSpecialSectionSlide(slideCostSaving, pptx, 'cost_saving', specialPhotos['cost_saving'], monthName, currentSlideNum++, totalSlideCount, font, isBlue);
+    } else {
+      this._addWorkshopCostSavingSlide(slideCostSaving, pptx, font, monthName, currentSlideNum++, totalSlideCount, isBlue, reportData.workshopCostData || null);
     }
 
     // -------------------------------------------------------------
-    // SLIDE N+5: TOP 5 WORKS & PROJECTS SUMMARY (Image 2)
+    // SLIDE N+8: TOP 5 WORKS & PROJECTS SUMMARY (Image 2)
     // -------------------------------------------------------------
     const slideTopWorks = pptx.addSlide();
     slideTopWorks.background = { color: bgWhite };
@@ -452,7 +490,7 @@ class PPTXGenerator {
     currentSlideNum++;
 
     // -------------------------------------------------------------
-    // SLIDE N+5 (CLOSING SLIDE): THANK YOU
+    // SLIDE N+9 (CLOSING SLIDE): THANK YOU
     // -------------------------------------------------------------
     const slideThankYou = pptx.addSlide();
     slideThankYou.background = { color: "07172B" };
@@ -1556,22 +1594,35 @@ class PPTXGenerator {
       }
     });
 
-    // Workshop Cost Saving Slide (Positioned immediately before Top 5 Works)
-    const hasWorkshop = (typeof WorkshopCostManager !== 'undefined');
-    if (hasWorkshop) {
-      const workshopPageStr = String(totalSlideCount - 2).padStart(2, '0');
-      activeSections.push({
-        title: "Workshop Cost Saving",
-        sub: "In-House Fabrication & Value Impact",
-        page: `Page No. ${workshopPageStr}`
-      });
-    }
+    // Sequence after regular tasks: Workshop > BOM > Completed Project > Cost Saving > Top 5 Works
+    activeSections.push({
+      title: "Process Workshop",
+      sub: "In-House Fabrication & Value Impact",
+      page: `Page No. ${String(totalSlideCount - 5).padStart(2, '0')}`
+    });
 
-    const top5PageStr = hasWorkshop ? String(totalSlideCount - 1).padStart(2, '0') : finalPageStr;
+    activeSections.push({
+      title: "BOM Findings Executive Nexus",
+      sub: "Variance Analysis & Audit Intelligence",
+      page: `Page No. ${String(totalSlideCount - 4).padStart(2, '0')}`
+    });
+
+    activeSections.push({
+      title: "Completed Projects Showcase",
+      sub: "Die Development & Line Optimization",
+      page: `Page No. ${String(totalSlideCount - 3).padStart(2, '0')}`
+    });
+
+    activeSections.push({
+      title: "Cost Saving Initiatives",
+      sub: "Annual & Monthly Kaizen Impact",
+      page: `Page No. ${String(totalSlideCount - 2).padStart(2, '0')}`
+    });
+
     activeSections.push({
       title: "Top 5 Works & Projects",
       sub: "Executive Summary & Milestones",
-      page: `Page No. ${top5PageStr}`
+      page: `Page No. ${String(totalSlideCount - 1).padStart(2, '0')}`
     });
 
     return activeSections.map((item, idx) => ({
@@ -2126,6 +2177,75 @@ class PPTXGenerator {
       align: "left", valign: "middle"
     });
 
+    this._addExecutiveRedFooter(slide, pptx, font, monthName, currentSlideNum, totalSlideCount);
+  }
+
+  /**
+   * Adds a dedicated full-bleed 16:9 widescreen presentation slide for Special Executive Sections:
+   * (Workshop, BOM, Completed Project, Cost Saving)
+   */
+  _addSpecialSectionSlide(slide, pptx, sectionId, photoData, monthName, currentSlideNum, totalSlideCount, font, isBlue = false) {
+    if (photoData) {
+      try {
+        const opt = photoData.startsWith('data:image/') ? { data: photoData } : { path: photoData };
+        slide.addImage({ ...opt, x: 0, y: 0, w: 13.333, h: 7.5 });
+        return;
+      } catch (err) {
+        console.warn(`[PPTX] Error embedding special slide photo for ${sectionId}:`, err);
+      }
+    }
+
+    // Modern Branded Layout Fallback if no image uploaded yet
+    let title = "Executive Special Section";
+    let sub = "Process Development Department";
+    let badge = "SPECIAL SECTION";
+    if (typeof SpecialSectionsManager !== 'undefined') {
+      const sec = SpecialSectionsManager.getSection(sectionId);
+      if (sec) {
+        title = sec.title;
+        sub = sec.description;
+        badge = sec.badge;
+      }
+    }
+
+    const brandColor = isBlue ? "0284C7" : "C5161D";
+    const charcoalDark = "0F172A";
+    const textMuted = "64748B";
+
+    // Header
+    slide.addText("WALTON  |  PROCESS DEVELOPMENT DEPARTMENT", {
+      x: 0.8, y: 0.4, w: 8.0, h: 0.3,
+      fontFace: font, fontSize: 10, bold: true, color: textMuted
+    });
+    slide.addText(badge, {
+      x: 9.5, y: 0.4, w: 3.0, h: 0.3,
+      fontFace: font, fontSize: 9.5, bold: true, color: brandColor, align: "right"
+    });
+    slide.addShape(pptx.ShapeType.line, {
+      x: 0.8, y: 0.8, w: 11.733, h: 0,
+      line: { color: "E2E8F0", width: 1 }
+    });
+
+    slide.addText(title.toUpperCase(), {
+      x: 0.8, y: 1.1, w: 11.7, h: 0.5,
+      fontFace: font, fontSize: 20, bold: true, color: charcoalDark
+    });
+    slide.addText(sub, {
+      x: 0.8, y: 1.65, w: 11.7, h: 0.35,
+      fontFace: font, fontSize: 10.5, color: textMuted
+    });
+
+    // Main Frame Box
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: 0.8, y: 2.15, w: 11.733, h: 4.7,
+      fill: { color: "F8FAFC" }, line: { color: "CBD5E1", width: 1.5 }, rectRadius: 0.1
+    });
+    slide.addText("16:9 Presentation Graphic Slide\n(Upload photo in Monthly Report to display full-bleed graphic)", {
+      x: 0.8, y: 4.0, w: 11.733, h: 1.0,
+      fontFace: font, fontSize: 12, bold: true, color: "94A3B8", align: "center"
+    });
+
+    // Footer
     this._addExecutiveRedFooter(slide, pptx, font, monthName, currentSlideNum, totalSlideCount);
   }
 
