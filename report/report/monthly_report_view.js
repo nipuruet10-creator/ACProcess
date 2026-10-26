@@ -183,125 +183,28 @@ const MonthlyReportView = {
   handleMonthSelect(month) {
     this.selectedMonth = month;
     this.currentPage = 1;
+    this.filterEngineer = "";
+    this.filterCategory = "";
+    this.searchQuery = "";
     if (typeof FinalEditorView !== 'undefined') FinalEditorView.selectedMonth = month;
     if (typeof MonthlyInputView !== 'undefined') MonthlyInputView.selectedMonth = month;
     this.render();
   },
 
   applyFiltersLocally() {
-    const q = (this.searchQuery || "").trim().toLowerCase();
-    const engFilter = (this.filterEngineer || "").trim().toLowerCase();
-    const engFirst = engFilter ? engFilter.split(/[\s(]/)[0] : "";
-    const catFilter = (this.filterCategory || "").trim().toLowerCase().replace(/–/g, '-');
-
-    const cards = document.querySelectorAll('.task-slide-card');
-    if (cards.length === 0) {
-      this.render();
-      return;
-    }
-
-    let visibleCount = 0;
-
-    for (let i = 0; i < cards.length; i++) {
-      const card = cards[i];
-      const cardEng = (card.dataset.engineer || "").toLowerCase();
-      const cardCat = (card.dataset.category || "").toLowerCase().replace(/–/g, '-');
-      const isProject = card.dataset.isProject === 'true';
-      const cardStatus = (card.dataset.status || "").toLowerCase();
-
-      // 1. Check engineer match
-      let engMatch = true;
-      if (engFilter) {
-        const filterTokens = engFilter.match(/[a-z0-9]+/g) || [];
-        const cardTokens = cardEng.match(/[a-z0-9]+/g) || [];
-        engMatch = cardEng.includes(engFilter) || engFilter.includes(cardEng);
-        if (!engMatch && filterTokens.length > 0) {
-          engMatch = filterTokens.some(tok => tok.length >= 3 && cardTokens.includes(tok));
-        }
-      }
-
-      if (!engMatch) {
-        if (card.style.display !== 'none') card.style.display = 'none';
-        continue;
-      }
-
-      // 2. Check category match
-      let catMatch = true;
-      if (catFilter) {
-        if (catFilter.includes('complete') && (isProject || cardCat.includes('project'))) {
-          catMatch = cardStatus === 'completed' || cardCat.includes('complete');
-        } else if (catFilter.includes('ongoing') && (isProject || cardCat.includes('project'))) {
-          catMatch = cardStatus !== 'completed' && !cardCat.includes('complete');
-        } else {
-          catMatch = cardCat.includes(catFilter) || cardCat === catFilter;
-        }
-      }
-
-      if (!catMatch) {
-        if (card.style.display !== 'none') card.style.display = 'none';
-        continue;
-      }
-
-      // 3. Check search query match (only if q is provided)
-      let searchMatch = true;
-      if (q) {
-        const searchData = card.dataset.searchText || '';
-        searchMatch = searchData ? searchData.includes(q) : card.textContent.toLowerCase().includes(q);
-      }
-
-      if (!searchMatch) {
-        if (card.style.display !== 'none') card.style.display = 'none';
-        continue;
-      }
-
-      if (card.style.display !== '') card.style.display = '';
-      visibleCount++;
-    }
-
-    // Update filter counter
-    const counter = document.getElementById('monthly-report-filtered-counter');
-    if (counter) {
-      counter.textContent = `${visibleCount} slides`;
-    }
-
-    // Update empty state placeholder
-    const emptyState = document.getElementById('monthly-report-no-slides-msg');
-    if (emptyState) {
-      emptyState.style.display = visibleCount === 0 ? '' : 'none';
-    }
+    this.currentPage = 1;
+    this.render();
   },
 
   handleEngineerFilter(eng) {
-    this.filterEngineer = eng || "";
-    // Instant DOM button styling update - 0ms lag!
-    const filterContainer = document.getElementById('monthly-report-engineer-filters');
-    if (filterContainer) {
-      filterContainer.querySelectorAll('.engineer-filter-btn').forEach(btn => {
-        const btnEng = btn.dataset.engineer || "";
-        const isSel = (this.filterEngineer.toLowerCase() === btnEng.toLowerCase());
-        const countBadge = btn.querySelector('.engineer-count-badge');
-        if (isSel) {
-          btn.className = "engineer-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 bg-blue-600 text-white border-blue-600 shadow-2xs";
-          if (countBadge) countBadge.className = "engineer-count-badge px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black bg-white/25 text-white";
-        } else {
-          btn.className = "engineer-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border-slate-200";
-          if (countBadge) countBadge.className = "engineer-count-badge px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black bg-blue-50 text-blue-700";
-        }
-      });
-      const allBtn = document.getElementById('monthly-report-all-engineers-btn');
-      if (allBtn) {
-        const isAll = !this.filterEngineer;
-        const countBadge = allBtn.querySelector('.engineer-count-badge');
-        if (isAll) {
-          allBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 bg-slate-900 text-white border-slate-900 shadow-2xs";
-          if (countBadge) countBadge.className = "engineer-count-badge px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black bg-white/20 text-white";
-        } else {
-          allBtn.className = "px-3 py-1.5 rounded-xl text-xs font-bold transition border flex-shrink-0 flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200";
-          if (countBadge) countBadge.className = "engineer-count-badge px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black bg-slate-200 text-slate-800";
-        }
-      }
+    const target = (eng || "").trim();
+    if (this.filterEngineer && this.filterEngineer.toLowerCase() === target.toLowerCase()) {
+      this.filterEngineer = "";
+    } else {
+      this.filterEngineer = target;
     }
-    this.applyFiltersLocally();
+    this.currentPage = 1;
+    this.render();
   },
 
   handleCategoryFilter(cat) {
@@ -310,12 +213,26 @@ const MonthlyReportView = {
     } else {
       this.filterCategory = cat || "";
     }
+    this.currentPage = 1;
     this.render();
   },
 
+  _searchTimer: null,
   handleSearch(query) {
-    this.searchQuery = (query || "").trim().toLowerCase();
-    this.applyFiltersLocally();
+    this.searchQuery = (query || "").trim();
+    this.currentPage = 1;
+    if (this._searchTimer) clearTimeout(this._searchTimer);
+    this._searchTimer = setTimeout(() => {
+      this.render();
+    }, 150);
+  },
+
+  clearAllFilters() {
+    this.filterEngineer = "";
+    this.filterCategory = "";
+    this.searchQuery = "";
+    this.currentPage = 1;
+    this.render();
   },
 
   renderContainer() {
@@ -2037,16 +1954,46 @@ const MonthlyReportView = {
 
     this.activeSlides = activeSlides;
 
-    // Filter by engineer if selected
-    const norm = s => (s || '').trim().toLowerCase();
-    const filterNorm = norm(this.filterEngineer);
-    const filterFirst = filterNorm.split(/[\s(]/)[0];
-    const isEngMatch = eng => {
-      if (!filterNorm) return true;
-      const e = norm(eng);
-      if (e.includes(filterNorm)) return true;
-      const eFirst = e.split(/[\s(]/)[0];
-      return Boolean(eFirst && filterFirst && eFirst === filterFirst);
+    // Guaranteed complete task details, title, and impact auto-fallback for every single slide
+    activeSlides.forEach(s => {
+      if (!s.slide_title || s.slide_title.trim() === '') {
+        s.slide_title = s.raw_task_name || s.task_name || `Process Engineering - ${s.task_id}`;
+      }
+      if (!s.description || s.description.trim() === '' || s.description === 'No milestone description') {
+        const details = this.generateDetailsFromTitle(s.slide_title, s.category);
+        s.description = details.desc;
+        if (!s.impact || !Array.isArray(s.impact) || s.impact.length === 0) {
+          s.impact = details.bullets;
+        }
+      }
+      if (!s.impact || !Array.isArray(s.impact) || s.impact.length === 0) {
+        const details = this.generateDetailsFromTitle(s.slide_title, s.category);
+        s.impact = details.bullets;
+      }
+    });
+
+    // Robust Engineer Matching
+    const isEngMatch = (filterEng, taskEng) => {
+      if (!filterEng) return true;
+      if (!taskEng) return false;
+      const f = String(filterEng).toLowerCase().trim();
+      const t = String(taskEng).toLowerCase().trim();
+      if (f === t || t.includes(f) || f.includes(t)) return true;
+
+      const ignorePrefixes = new Set(['md', 'md.', 'engr', 'engr.', 'mohammad', 'en', 'mr', 'mr.']);
+      const getTokens = str => {
+        return str
+          .replace(/[()0-9]/g, ' ')
+          .toLowerCase()
+          .split(/[\s\-._]+/)
+          .filter(w => w.length >= 2 && !ignorePrefixes.has(w));
+      };
+
+      const fTokens = getTokens(f);
+      const tTokens = getTokens(t);
+      if (fTokens.length === 0 || tTokens.length === 0) return false;
+
+      return fTokens.some(ft => tTokens.some(tt => tt === ft || tt.includes(ft) || ft.includes(tt)));
     };
 
     // Dynamic Category Highlights (Requirement 6 & 7: Only categories with tasks > 0)
@@ -2146,12 +2093,22 @@ const MonthlyReportView = {
       return sCat.includes(fCat) || sCat === fCat;
     };
 
-    let displayedSlides = this.filterEngineer
-      ? activeSlides.filter(s => isEngMatch(s.engineer))
-      : activeSlides;
+    let displayedSlides = activeSlides;
+
+    if (this.filterEngineer) {
+      displayedSlides = displayedSlides.filter(s => isEngMatch(this.filterEngineer, s.engineer));
+    }
 
     if (this.filterCategory) {
       displayedSlides = displayedSlides.filter(s => isCatMatch(s.category, s));
+    }
+
+    if (this.searchQuery) {
+      const q = this.searchQuery.toLowerCase();
+      displayedSlides = displayedSlides.filter(s => {
+        const text = `${s.task_name || ''} ${s.slide_title || ''} ${s.description || ''} ${s.engineer || ''} ${s.category || ''} ${s.task_id || ''}`.toLowerCase();
+        return text.includes(q);
+      });
     }
 
     // Unique engineers for filter pills and task count calculation
@@ -2328,7 +2285,7 @@ const MonthlyReportView = {
           <!-- Search Box & Slide Counter -->
           <div class="flex items-center gap-2 w-full md:w-auto">
             <div class="relative flex-1 md:w-60">
-              <input type="text" oninput="MonthlyReportView.handleSearch(this.value)" placeholder="Search slides, engineer..." 
+              <input type="text" oninput="MonthlyReportView.handleSearch(this.value)" value="${HELPERS.escapeHtml(this.searchQuery || '')}" placeholder="Search slides, engineer..." 
                      class="w-full bg-slate-800/90 border border-slate-600 rounded-lg pl-7 pr-2.5 py-1 text-xs text-white placeholder-slate-400 focus:bg-slate-900 focus:outline-none focus:border-blue-400 font-medium shadow-2xs" />
               <span class="absolute left-2 top-1.5 text-slate-400 text-xs">🔍</span>
             </div>
@@ -2347,7 +2304,7 @@ const MonthlyReportView = {
             <span class="engineer-count-badge px-1.5 py-0.2 rounded-full text-[10.5px] font-mono font-black ${!this.filterEngineer ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-800'}">(${activeSlides.length})</span>
           </button>
           ${uniqueEngineers.map(eng => {
-            const isSel = (this.filterEngineer.toLowerCase() === eng.toLowerCase());
+            const isSel = Boolean(this.filterEngineer && (this.filterEngineer.toLowerCase() === eng.toLowerCase() || isEngMatch(this.filterEngineer, eng)));
             const count = engineerCounts[eng] || 0;
             return `
               <button data-engineer="${HELPERS.escapeHtml(eng)}" onclick="MonthlyReportView.handleEngineerFilter('${HELPERS.escapeHtml(eng)}')" 
@@ -2394,13 +2351,23 @@ const MonthlyReportView = {
                     <td colspan="7" class="py-14 text-center text-slate-400 font-mono text-xs">
                       <div class="max-w-md mx-auto space-y-2.5">
                         <div class="text-3xl">📑</div>
-                        <div class="font-bold text-slate-700 text-sm">${month} Presentation Hub is Clean &amp; Ready</div>
-                        <div class="text-[11.5px] text-slate-500">No task presentation slides recorded yet for ${month}. Switch to 'Monthly Input' to record engineering tasks or import from Excel.</div>
-                        <div class="pt-2">
-                          <button type="button" onclick="App.switchTab('monthly-input')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
-                            ➕ Record Tasks in Monthly Input
-                          </button>
-                        </div>
+                        ${activeSlides.length === 0 ? `
+                          <div class="font-bold text-slate-700 text-sm">${month} Presentation Hub is Clean &amp; Ready</div>
+                          <div class="text-[11.5px] text-slate-500">No task presentation slides recorded yet for ${month}. Switch to 'Monthly Input' to record engineering tasks or import from Excel.</div>
+                          <div class="pt-2">
+                            <button type="button" onclick="App.switchTab('monthly-input')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
+                              ➕ Record Tasks in Monthly Input
+                            </button>
+                          </div>
+                        ` : `
+                          <div class="font-bold text-slate-700 text-sm">No Slides Match Filter (${HELPERS.escapeHtml(this.filterEngineer || this.filterCategory || this.searchQuery || '')})</div>
+                          <div class="text-[11.5px] text-slate-500">There are ${activeSlides.length} slides recorded for ${month}, but none match the current filter.</div>
+                          <div class="pt-2">
+                            <button type="button" onclick="MonthlyReportView.clearAllFilters()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
+                              🔄 Show All ${activeSlides.length} Slides
+                            </button>
+                          </div>
+                        `}
                       </div>
                     </td>
                   </tr>
@@ -2456,21 +2423,28 @@ const MonthlyReportView = {
           <div id="monthly-report-no-slides-msg" style="${displayedSlides.length === 0 ? '' : 'display: none;'}" class="col-span-full py-14 text-center bg-slate-50 border border-slate-200 rounded-2xl text-slate-400 text-xs font-mono">
             <div class="max-w-md mx-auto space-y-2.5">
               <div class="text-3xl">📑</div>
-              <div class="font-bold text-slate-700 text-sm">${month} Presentation Hub is Clean &amp; Ready</div>
-              <div class="text-[11.5px] text-slate-500">No active presentation slides recorded yet for ${month}. Switch to 'Monthly Input' to record new tasks.</div>
-              <div class="pt-2">
-                <button type="button" onclick="App.switchTab('monthly-input')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
-                  ➕ Record Tasks in Monthly Input
-                </button>
-              </div>
+              ${activeSlides.length === 0 ? `
+                <div class="font-bold text-slate-700 text-sm">${month} Presentation Hub is Clean &amp; Ready</div>
+                <div class="text-[11.5px] text-slate-500">No active presentation slides recorded yet for ${month}. Switch to 'Monthly Input' to record new tasks.</div>
+                <div class="pt-2">
+                  <button type="button" onclick="App.switchTab('monthly-input')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
+                    ➕ Record Tasks in Monthly Input
+                  </button>
+                </div>
+              ` : `
+                <div class="font-bold text-slate-700 text-sm">No Slides Match Filter (${HELPERS.escapeHtml(this.filterEngineer || this.filterCategory || this.searchQuery || '')})</div>
+                <div class="text-[11.5px] text-slate-500">There are ${activeSlides.length} slides recorded for ${month}, but none match the current filter.</div>
+                <div class="pt-2">
+                  <button type="button" onclick="MonthlyReportView.clearAllFilters()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
+                    🔄 Show All ${activeSlides.length} Slides
+                  </button>
+                </div>
+              `}
             </div>
           </div>
           ${paginatedSlides.map((s, pIdx) => {
             const globalIdx = (this.pageSize === 'all') ? pIdx : ((this.currentPage - 1) * ps + pIdx);
-            const initialEngMatch = !this.filterEngineer || isEngMatch(s.engineer);
-            const initialCatMatch = isCatMatch(s.category, s);
-            const initialVisible = initialEngMatch && initialCatMatch;
-            const searchText = `${s.task_name || ''} ${s.description || ''} ${s.engineer || ''} ${s.category || ''} ${s.task_id || ''}`.toLowerCase();
+            const searchText = `${s.task_name || ''} ${s.slide_title || ''} ${s.description || ''} ${s.engineer || ''} ${s.category || ''} ${s.task_id || ''}`.toLowerCase();
             const hasPhoto = Boolean(s.photo_before || s.photo_after || s.photo);
             const isOverridden = Boolean(s.has_manual_override);
             const photoDisplay = s.photo_after || s.photo_before || s.photo;
@@ -2492,7 +2466,6 @@ const MonthlyReportView = {
                    data-is-project="${Boolean(s.is_project)}"
                    data-status="${HELPERS.escapeHtml(s.status || '')}"
                    data-search-text="${HELPERS.escapeHtml(searchText)}"
-                   style="${initialVisible ? '' : 'display: none;'}"
                    onclick="MonthlyReportView.selectSlideCard('${s.task_id}')"
                    onmouseenter="MonthlyReportView.selectSlideCard('${s.task_id}')"
                    class="task-slide-card bg-white border ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/15' : (isOverridden ? 'border-amber-400 bg-amber-50/10' : 'border-slate-200')} rounded-2xl p-4 flex flex-col justify-between shadow-2xs hover:border-blue-300 hover:shadow-sm transition space-y-3 cursor-pointer">
