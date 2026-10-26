@@ -438,10 +438,11 @@ class SyncEngine {
         slides.forEach(s => {
           const p = pMgr.getTaskPhotos(s.task_id, normalizedMonth);
           if (p) {
-            s.photo_before = p.before_photo || null;
-            s.photo_after = p.after_photo || null;
-            s.photo = p.before_photo || p.after_photo || null;
-            s.has_dual_photo = Boolean(s.photo_before && s.photo_after);
+            const photoUrl = p.after_photo || p.photo || p.photo_2 || p.photo_1 || p.before_photo || null;
+            s.photo_before = null;
+            s.photo_after = photoUrl;
+            s.photo = photoUrl;
+            s.has_dual_photo = false;
           } else {
             s.photo_before = null;
             s.photo_after = null;

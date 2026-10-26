@@ -836,7 +836,7 @@ const MonthlyReportView = {
             <img src="${displaySrc}" loading="lazy" decoding="async" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${taskId}', '${photoAfter ? 'after_photo' : 'before_photo'}');" />
             <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
               <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
-                ${photoAfter && photoBefore ? 'Dual Photo' : (photoAfter ? 'After Photo' : 'Before Photo')}
+                Slide Photo
               </span>
             </div>
             <div class="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 opacity-90 hover:opacity-100">
@@ -1508,14 +1508,12 @@ const MonthlyReportView = {
     const engineer = engineerEl ? engineerEl.value.trim() : "Concern Engineer";
     const category = catEl ? catEl.value.trim() : "Process development";
 
-    // Fetch photos
-    let photoBefore = null;
-    let photoAfter = null;
+    // Fetch photos (Always single hero photo in monthly report)
+    let photo = null;
     if (typeof photoManager !== 'undefined') {
       const p = photoManager.getTaskPhotos(taskId, this.selectedMonth);
       if (p) {
-        photoBefore = p.before_photo || p.photo_1 || null;
-        photoAfter = p.after_photo || p.photo_2 || null;
+        photo = p.after_photo || p.photo || p.photo_2 || p.photo_1 || p.before_photo || null;
       }
     }
 
@@ -1537,10 +1535,10 @@ const MonthlyReportView = {
       photo_fit: photoFit,
       status: isCompleted ? "Completed" : (isProj ? "Ongoing" : "Completed"),
       is_project: isProj,
-      photo_before: photoBefore,
-      photo_after: photoAfter,
-      photo: photoBefore || photoAfter,
-      has_dual_photo: Boolean(photoBefore && photoAfter),
+      photo_before: null,
+      photo_after: photo,
+      photo: photo,
+      has_dual_photo: false,
       has_manual_override: true,
       project_type: isProj ? (isCompleted ? "Strategic Project • Completed" : "Strategic Project • Ongoing") : category
     };
@@ -1578,13 +1576,11 @@ const MonthlyReportView = {
     const fitEl = document.getElementById('edit-slide-photo-fit');
     const photoFit = fitEl ? fitEl.value.trim() : (this._activeModalPhotoFit || 'blur');
 
-    let photoBefore = null;
-    let photoAfter = null;
+    let photo = null;
     if (typeof photoManager !== 'undefined') {
       const p = photoManager.getTaskPhotos(taskId, this.selectedMonth);
       if (p) {
-        photoBefore = p.before_photo || null;
-        photoAfter = p.after_photo || null;
+        photo = p.after_photo || p.photo || p.photo_2 || p.photo_1 || p.before_photo || null;
       }
     }
 
@@ -1604,10 +1600,10 @@ const MonthlyReportView = {
       photo_fit: photoFit,
       status: isCompleted ? "Completed" : (isProj ? "Ongoing" : "Completed"),
       is_project: isProj,
-      photo_before: photoBefore,
-      photo_after: photoAfter,
-      photo: photoBefore || photoAfter,
-      has_dual_photo: Boolean(photoBefore && photoAfter),
+      photo_before: null,
+      photo_after: photo,
+      photo: photo,
+      has_dual_photo: false,
       has_manual_override: true,
       project_type: isProj ? (isCompleted ? "Strategic Project • Completed" : "Strategic Project • Ongoing") : category
     };
@@ -1823,10 +1819,11 @@ const MonthlyReportView = {
     if (typeof photoManager !== 'undefined') {
       activeSlides.forEach(s => {
         const p = photoManager.getTaskPhotos(s.task_id, month);
-        s.photo_before = p ? (p.before_photo || null) : null;
-        s.photo_after = p ? (p.after_photo || null) : null;
-        s.photo = p ? (p.before_photo || p.after_photo || null) : null;
-        s.has_dual_photo = Boolean(s.photo_before && s.photo_after);
+        const photoUrl = p ? (p.after_photo || p.photo || p.photo_2 || p.photo_1 || p.before_photo || null) : null;
+        s.photo_before = null;
+        s.photo_after = photoUrl;
+        s.photo = photoUrl;
+        s.has_dual_photo = false;
       });
     }
 
@@ -2003,12 +2000,11 @@ const MonthlyReportView = {
     if (typeof photoManager !== 'undefined') {
       activeSlides.forEach(s => {
         const p = photoManager.getTaskPhotos(s.task_id, month);
-        const pBefore = (p && p.before_photo) ? p.before_photo : (s.photo_before || null);
-        const pAfter = (p && p.after_photo) ? p.after_photo : (s.photo_after || null);
-        s.photo_before = pBefore;
-        s.photo_after = pAfter;
-        s.photo = pAfter || pBefore || s.photo || null;
-        s.has_dual_photo = Boolean(s.photo_before && s.photo_after);
+        const photoUrl = (p && (p.after_photo || p.photo || p.photo_2 || p.photo_1 || p.before_photo)) || s.photo || s.photo_after || s.photo_before || null;
+        s.photo_before = null;
+        s.photo_after = photoUrl;
+        s.photo = photoUrl;
+        s.has_dual_photo = false;
 
         const overrides = (window.appState && window.appState.syncEngine)
           ? window.appState.syncEngine.getManualOverride(s.task_id)
@@ -2516,7 +2512,7 @@ const MonthlyReportView = {
                         <img src="${photoDisplaySrc}" loading="lazy" decoding="async" class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} drop-shadow-sm transition-all" alt="Slide Photo" onerror="MonthlyReportView.handlePhotoImgError(this, '${s.task_id}', '${s.photo_after ? 'after_photo' : 'before_photo'}');" />
                         <div class="absolute bottom-1.5 left-1.5 z-20 flex items-center gap-1">
                           <span class="text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/70 text-white backdrop-blur-xs">
-                            ${s.photo_after && s.photo_before ? 'Dual Photo' : (s.photo_after ? 'After Photo' : 'Before Photo')}
+                            Slide Photo
                           </span>
                         </div>
                         <div class="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 opacity-90 hover:opacity-100">

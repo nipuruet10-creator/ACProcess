@@ -458,7 +458,7 @@ const MonthlyInputView = {
     }
 
     try {
-      await photoManager.savePhotoFile(taskId, 'before_photo', file, this.selectedMonth);
+      await photoManager.savePhotoFile(taskId, 'after_photo', file, this.selectedMonth);
       if (typeof window.showToast === 'function') {
         window.showToast(`📸 Photo attached to ${taskId}!`, "success");
       }
@@ -484,7 +484,7 @@ const MonthlyInputView = {
     if (!files || files.length === 0) return;
     const file = files[0];
     try {
-      await photoManager.savePhotoFile(taskId, 'before_photo', file, this.selectedMonth);
+      await photoManager.savePhotoFile(taskId, 'after_photo', file, this.selectedMonth);
       if (typeof window.showToast === 'function') {
         window.showToast(`📸 Photo attached to ${taskId}!`, "success");
       }

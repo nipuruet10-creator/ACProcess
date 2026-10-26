@@ -423,10 +423,10 @@ const SlideLayoutEngine = {
       ? slideData.quote
       : (slideData.photo_label || "Process Development Photo");
 
-    // Requirement 4: Image option 2 ta theke ekta thakbe only in monthly report
+    // Single 16:9 hero photo in monthly report
     const photoBefore = slideData.photo_before || slideData.photo_1 || null;
     const photoAfter = slideData.photo_after || slideData.photo_2 || null;
-    const photoSingle = slideData.photo_after || slideData.photo || slideData.photo_before || slideData.photo_1 || "assets/images/walton_red_reference_sample.jpg";
+    const photoSingle = slideData.photo || slideData.photo_after || slideData.after_photo || slideData.photo_before || slideData.before_photo || slideData.photo_1 || slideData.photo_2 || null;
     const hasDualPhoto = false; // Always single hero photo in monthly report
 
     // Month
@@ -619,55 +619,16 @@ const SlideLayoutEngine = {
 
         </div>
 
-        <!-- RIGHT COLUMN: MACHINE / PROCESS PHOTO (6 COLS) -->
-        ${hasDualPhoto ? `
-        <div class="col-span-6 grid grid-cols-2 gap-3 h-full items-stretch" style="min-height: 340px;">
-          <!-- Left Subframe: Present Condition (Before) -->
-          <div class="flex flex-col h-full rounded-2xl overflow-hidden border border-slate-200 relative shadow-md bg-slate-950 slide-photo-frame group" data-task-id="${slideData.task_id}"
-               ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-amber-500', 'ring-inset');"
-               ondragleave="this.classList.remove('ring-2', 'ring-amber-500', 'ring-inset');"
-               ondrop="this.classList.remove('ring-2', 'ring-amber-500', 'ring-inset'); SlideLayoutEngine.handleImageDrop(event, '${slideData.task_id}', 'before_photo');">
-            <div class="absolute top-2.5 left-2.5 z-20 px-2.5 py-1 rounded-md bg-amber-600/95 backdrop-blur-sm text-white font-extrabold text-[8.5px] uppercase tracking-wider shadow">
-              1. PRESENT CONDITION (BEFORE)
-            </div>
-            ${SlideLayoutEngine.renderPhotoContainerHtml(photoBefore, 'Present Condition', slideData.task_id, 'before_photo')}
-            <!-- Floating Adjust Tool -->
-            <div class="absolute top-2.5 right-2.5 z-30 opacity-0 group-hover:opacity-100 transition">
-              <button onclick="SlideLayoutEngine.togglePhotoFit(this, '${slideData.task_id}')" title="Toggle Blur-Fit / Fill-Crop" 
-                      class="px-2 py-0.5 rounded-md bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[9px] font-mono border border-white/20 shadow cursor-pointer">
-                📐 <span class="mode-label">Fill (Crop)</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Right Subframe: Proposed Project (After) -->
-          <div class="flex flex-col h-full rounded-2xl overflow-hidden border border-slate-200 relative shadow-md bg-slate-950 slide-photo-frame group" data-task-id="${slideData.task_id}"
-               ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-red-500', 'ring-inset');"
-               ondragleave="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset');"
-               ondrop="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset'); SlideLayoutEngine.handleImageDrop(event, '${slideData.task_id}', 'after_photo');">
-            <div class="absolute top-2.5 left-2.5 z-20 px-2.5 py-1 rounded-md bg-red-600/95 backdrop-blur-sm text-white font-extrabold text-[8.5px] uppercase tracking-wider shadow">
-              2. PROPOSED PROJECT (AFTER)
-            </div>
-            ${SlideLayoutEngine.renderPhotoContainerHtml(photoAfter, 'Proposed Project', slideData.task_id, 'after_photo')}
-            <!-- Floating Adjust Tool -->
-            <div class="absolute top-2.5 right-2.5 z-30 opacity-0 group-hover:opacity-100 transition">
-              <button onclick="SlideLayoutEngine.togglePhotoFit(this, '${slideData.task_id}')" title="Toggle Blur-Fit / Fill-Crop" 
-                      class="px-2 py-0.5 rounded-md bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-[9px] font-mono border border-white/20 shadow cursor-pointer">
-                📐 <span class="mode-label">Fill (Crop)</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        ` : `
+        <!-- RIGHT COLUMN: MACHINE / PROCESS PHOTO (6 COLS) - Single Hero Photo -->
         <div class="col-span-6 flex flex-col h-full rounded-2xl overflow-hidden border border-slate-200 relative shadow-md slide-photo-frame group" data-task-id="${slideData.task_id}"
              style="min-height: 340px; background: #020617;"
              ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-red-500', 'ring-inset');"
              ondragleave="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset');"
-             ondrop="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset'); SlideLayoutEngine.handleImageDrop(event, '${slideData.task_id}', 'before_photo');">
+             ondrop="this.classList.remove('ring-2', 'ring-red-500', 'ring-inset'); SlideLayoutEngine.handleImageDrop(event, '${slideData.task_id}', 'after_photo');">
           
-          ${(photoBefore || photoAfter || (slideData.photo && !String(slideData.photo).includes('walton_red_reference_sample.jpg'))) ? `
+          ${(photoSingle && !String(photoSingle).includes('walton_red_reference_sample.jpg')) ? `
             <!-- Main Equipment Photo (Requirement 2: Blur-Fit handles both landscape and portrait gracefully) -->
-            ${SlideLayoutEngine.renderPhotoContainerHtml(photoBefore || photoAfter || slideData.photo, 'Process Development Implementation', slideData.task_id, 'after_photo', photoFit)}
+            ${SlideLayoutEngine.renderPhotoContainerHtml(photoSingle, 'Process Development Implementation', slideData.task_id, 'after_photo', photoFit)}
           ` : `
             <!-- Modern Walton Process Engineering Placeholder -->
             <div class="w-full h-full flex flex-col items-center justify-center p-6 text-center" 
@@ -703,10 +664,9 @@ const SlideLayoutEngine = {
               <span>📷</span><span>Replace</span>
             </button>
             <input type="file" id="frame-file-input-${slideData.task_id}" accept="image/*" class="hidden" 
-                   onchange="SlideLayoutEngine.handleFrameFileInput(this, '${slideData.task_id}', 'before_photo')" />
+                   onchange="SlideLayoutEngine.handleFrameFileInput(this, '${slideData.task_id}', 'after_photo')" />
           </div>
         </div>
-        `}
 
       </div>
 
@@ -1188,23 +1148,10 @@ const SlideLayoutEngine = {
 
   /**
    * Renders a single 16:9 Walton Reference Task Slide
-   * Auto-routes to dedicated Dual Before/After Layout (Image 2) when 2 photos are present.
-   * Otherwise renders single-photo layout.
+   * Always renders high-impact single hero photo layout for monthly report.
    */
   renderTaskSlide(slideData, slideIndex = 1, totalSlides = 1) {
     const isBlue = (slideData.template === "industrial_innovation_blue" || slideData.template === "walton_blue_dual");
-    const hasDualPhoto = Boolean(
-      (slideData.photo_before && slideData.photo_after) ||
-      (slideData.before_photo && slideData.after_photo) ||
-      slideData.has_dual_photo
-    );
-    if (hasDualPhoto) {
-      if (isBlue) {
-        return this.renderIndustrialDualBeforeAfterSlide(slideData, slideIndex, totalSlides);
-      } else {
-        return this.renderExecutiveDualBeforeAfterSlide(slideData, slideIndex, totalSlides);
-      }
-    }
     if (isBlue) {
       return this.renderIndustrialBlueSlide(slideData, slideIndex, totalSlides);
     }
@@ -1237,11 +1184,11 @@ const SlideLayoutEngine = {
       impacts = ["Higher vacuum efficiency", "Reduced cycle time", "Improved production stability", "Lower maintenance requirement"];
     }
 
-    // Photos
+    // Photos (Always single hero photo in monthly report)
     const photoBefore = slideData.photo_before || slideData.photo_1 || null;
     const photoAfter = slideData.photo_after || slideData.photo_2 || null;
-    const photoSingle = slideData.photo || photoAfter || photoBefore || "assets/img/blue_template_ref.jpg";
-    const hasDualPhoto = Boolean(photoBefore && photoAfter);
+    const photoSingle = slideData.photo || photoAfter || photoBefore || slideData.after_photo || slideData.before_photo || "assets/img/blue_template_ref.jpg";
+    const hasDualPhoto = false;
     const month = (slideData.month || "SEPTEMBER 2026").toUpperCase();
 
     return `
@@ -1370,31 +1317,7 @@ const SlideLayoutEngine = {
 
         </div>
 
-        <!-- RIGHT COLUMN: HERO PHOTO WITH DOCK OVERLAYS (47% width) -->
-        <!-- RIGHT COLUMN: HERO PHOTO WITH DOCK OVERLAYS (47% width) -->
-        ${hasDualPhoto ? `
-        <div style="flex: 0.95; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-height: 0;">
-          <!-- Frame 1: Before -->
-          <div style="position: relative; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.1); border: 1px solid #E2E8F0; background: #0F172A;">
-            <div style="position: absolute; top: 0; left: 0; z-index: 5; background: #D97706; color: #FFFFFF; font-size: 8.5px; font-weight: 800; letter-spacing: 0.5px; padding: 5px 10px; border-bottom-right-radius: 10px;">
-              1. PRESENT CONDITION (BEFORE)
-            </div>
-            <img src="${photoBefore}" alt="Present Condition" style="width: 100%; height: 100%; object-fit: cover;">
-          </div>
-          <!-- Frame 2: After -->
-          <div style="position: relative; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.1); border: 1px solid #E2E8F0; background: #0F172A; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="position: absolute; top: 0; left: 0; z-index: 5; background: #0284C7; color: #FFFFFF; font-size: 8.5px; font-weight: 800; letter-spacing: 0.5px; padding: 5px 10px; border-bottom-right-radius: 10px;">
-              2. PROPOSED PROJECT (AFTER)
-            </div>
-            <img src="${photoAfter}" alt="Proposed Project" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1;">
-            <div style="flex: 1;"></div>
-            <div style="position: relative; z-index: 5; background: linear-gradient(to top, rgba(11, 32, 56, 0.95), rgba(11, 32, 56, 0.8)); padding: 6px 10px; display: flex; align-items: center; justify-content: space-around; border-top: 1px solid rgba(255,255,255,0.15);">
-              <span style="color: #FFFFFF; font-size: 9px; font-weight: 700;">⚙️ Reliable</span>
-              <span style="color: #FFFFFF; font-size: 9px; font-weight: 700;">🍃 Green</span>
-            </div>
-          </div>
-        </div>
-        ` : `
+        <!-- RIGHT COLUMN: HERO PHOTO WITH DOCK OVERLAYS (47% width) - Single Hero Photo -->
         <div style="flex: 0.95; position: relative; border-radius: 18px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.08); border: 1px solid #E2E8F0; display: flex; flex-direction: column; justify-content: space-between; background: #0F172A;">
           <!-- Background Image -->
           <img src="${photoSingle}" alt="Task photo" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1;">
@@ -1422,7 +1345,6 @@ const SlideLayoutEngine = {
             </div>
           </div>
         </div>
-        `}
 
       </div>
 

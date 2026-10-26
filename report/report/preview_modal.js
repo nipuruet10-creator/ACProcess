@@ -47,10 +47,11 @@ const SlidePreviewModal = {
       // Re-fetch fresh photos from photoManager so changes are instantly visible!
       if (typeof photoManager !== 'undefined' && s.task_id) {
         const p = photoManager.getTaskPhotos(s.task_id, this.currentMonth);
-        s.photo_before = p.before_photo || null;
-        s.photo_after = p.after_photo || null;
-        s.photo = p.before_photo || p.after_photo || null;
-        s.has_dual_photo = Boolean(p.before_photo && p.after_photo);
+        const photoUrl = p ? (p.after_photo || p.photo || p.photo_2 || p.photo_1 || p.before_photo || null) : null;
+        s.photo_before = null;
+        s.photo_after = photoUrl;
+        s.photo = photoUrl;
+        s.has_dual_photo = false;
       }
 
       // Re-fetch saved photo_fit mode
@@ -127,12 +128,11 @@ const SlidePreviewModal = {
     this.isDeckMode = false;
     if (typeof photoManager !== 'undefined' && slideData.task_id) {
       const p = photoManager.getTaskPhotos(slideData.task_id, this.currentMonth || "SEP-2026");
-      if (p && (p.before_photo || p.after_photo)) {
-        slideData.photo_before = p.before_photo || null;
-        slideData.photo_after = p.after_photo || null;
-        slideData.photo = p.before_photo || p.after_photo || slideData.photo || null;
-        slideData.has_dual_photo = Boolean(p.before_photo && p.after_photo);
-      }
+      const photoUrl = (p && (p.after_photo || p.photo || p.photo_2 || p.photo_1 || p.before_photo)) || slideData.photo || null;
+      slideData.photo_before = null;
+      slideData.photo_after = photoUrl;
+      slideData.photo = photoUrl;
+      slideData.has_dual_photo = false;
     }
     if (slideData.task_id) {
       const savedFit = localStorage.getItem('walton_photo_fit_' + slideData.task_id);

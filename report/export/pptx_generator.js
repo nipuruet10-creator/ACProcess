@@ -420,24 +420,10 @@ class PPTXGenerator {
       const slide = pptx.addSlide();
       slide.background = { color: bgWhite };
 
-      const hasDualPhoto = Boolean(
-        (task.photo_before && task.photo_after) ||
-        (task.before_photo && task.after_photo) ||
-        task.has_dual_photo
-      );
-
       if (isBlue) {
-        if (hasDualPhoto) {
-          this._addIndustrialDualBeforeAfterTaskSlide(slide, pptx, task, font, monthName, currentSlideNum, totalSlideCount);
-        } else {
-          this._addIndustrialBlueTaskSlide(slide, pptx, task, font, monthName, currentSlideNum, totalSlideCount);
-        }
+        this._addIndustrialBlueTaskSlide(slide, pptx, task, font, monthName, currentSlideNum, totalSlideCount);
       } else {
-        if (hasDualPhoto) {
-          this._addExecutiveDualBeforeAfterTaskSlide(slide, pptx, task, font, monthName, currentSlideNum, totalSlideCount);
-        } else {
-          this._addExecutiveRedTaskSlide(slide, pptx, task, font, monthName, currentSlideNum, totalSlideCount);
-        }
+        this._addExecutiveRedTaskSlide(slide, pptx, task, font, monthName, currentSlideNum, totalSlideCount);
       }
       currentSlideNum++;
     }
@@ -3259,11 +3245,11 @@ class PPTXGenerator {
       });
     });
 
-    // 3. RIGHT COLUMN: MACHINE PHOTO (Dual Before & After or Single)
+    // 3. RIGHT COLUMN: MACHINE PHOTO (Single Hero Photo)
     const photoBefore = task.photo_before || task.photo_1 || null;
     const photoAfter = task.photo_after || task.photo_2 || null;
-    const photoSingle = task.photo || photoAfter || photoBefore;
-    const hasDualPhoto = Boolean(photoBefore && photoAfter && photoBefore !== photoAfter);
+    const photoSingle = task.photo || photoAfter || photoBefore || task.after_photo || task.before_photo || null;
+    const hasDualPhoto = false;
 
     if (hasDualPhoto) {
       // Left Frame: Before
@@ -3385,8 +3371,8 @@ class PPTXGenerator {
     ];
     const photoBefore = task.photo_before || task.photo_1 || null;
     const photoAfter = task.photo_after || task.photo_2 || null;
-    const photoSingle = task.photo || photoAfter || photoBefore || null;
-    const hasDualPhoto = Boolean(photoBefore && photoAfter && photoBefore !== photoAfter);
+    const photoSingle = task.photo || photoAfter || photoBefore || task.after_photo || task.before_photo || null;
+    const hasDualPhoto = false;
 
     const bluePrimary = "0284C7";
     const blueDark = "1D4ED8";

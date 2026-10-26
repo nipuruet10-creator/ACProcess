@@ -627,10 +627,10 @@ class PhotoManager {
             const slides = window.appState.syncEngine.getActiveSlides(m);
             const target = slides.find(s => s && s.task_id === taskId);
             if (target) {
-              if (isBefore) target.photo_before = serverUrl;
-              if (isAfter) target.photo_after = serverUrl;
+              target.photo_before = null;
+              target.photo_after = serverUrl;
               target.photo = serverUrl;
-              target.has_dual_photo = Boolean(target.photo_before && target.photo_after);
+              target.has_dual_photo = false;
               localStorage.setItem(`walton_pd_active_slides_${m}`, JSON.stringify(slides));
             }
           }
@@ -782,11 +782,13 @@ class PhotoManager {
     p1 = this.formatPhotoUrl(p1);
     p2 = this.formatPhotoUrl(p2);
 
+    const unifiedPhoto = p2 || p1 || null;
     return {
-      photo_1: p1 || null,
-      photo_2: p2 || null,
-      before_photo: p1 || null,
-      after_photo: p2 || null
+      photo_1: unifiedPhoto,
+      photo_2: unifiedPhoto,
+      before_photo: null,
+      after_photo: unifiedPhoto,
+      photo: unifiedPhoto
     };
   }
 
@@ -914,10 +916,11 @@ class PhotoManager {
           }
         }
         if (target) {
-          if (beforeP) target.photo_before = beforeP;
-          if (afterP) target.photo_after = afterP;
-          target.photo = afterP || beforeP || target.photo;
-          target.has_dual_photo = Boolean(target.photo_before && target.photo_after);
+          const freshImg = afterP || beforeP || target.photo;
+          target.photo_before = null;
+          target.photo_after = freshImg;
+          target.photo = freshImg;
+          target.has_dual_photo = false;
           if (!isBatch) {
             this._debouncedSaveSlides(m, slides);
           }
@@ -1134,10 +1137,10 @@ class PhotoManager {
           const slides = window.appState.syncEngine.getActiveSlides(slideMonth);
           const target = slides.find(s => s.task_id === taskId);
           if (target) {
-            if (isBefore) target.photo_before = base64Url;
-            if (isAfter) target.photo_after = base64Url;
+            target.photo_before = null;
+            target.photo_after = base64Url;
             target.photo = base64Url;
-            target.has_dual_photo = Boolean(target.photo_before && target.photo_after);
+            target.has_dual_photo = false;
             // Only save clean lightweight URLs into localStorage to prevent 5MB quota errors!
             if (!isBase64Blob) {
               try {
@@ -1374,7 +1377,7 @@ class PhotoManager {
           if (isBefore) targetSlide.photo_before = null;
           if (isAfter) targetSlide.photo_after = null;
           targetSlide.photo = targetSlide.photo_before || targetSlide.photo_after || null;
-          targetSlide.has_dual_photo = Boolean(targetSlide.photo_before && targetSlide.photo_after);
+          targetSlide.has_dual_photo = false;
           try {
             localStorage.setItem(`walton_pd_active_slides_${activeM}`, JSON.stringify(slides));
           } catch (e) {}
@@ -1397,7 +1400,7 @@ class PhotoManager {
                         if (isBefore) s.photo_before = null;
                         if (isAfter) s.photo_after = null;
                         s.photo = s.photo_before || s.photo_after || null;
-                        s.has_dual_photo = Boolean(s.photo_before && s.photo_after);
+                        s.has_dual_photo = false;
                         deckCleaned = true;
                       }
                     }
