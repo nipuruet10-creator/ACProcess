@@ -1,0 +1,42 @@
+{
+    "SPECIAL_WORKSHOP": {
+        "taskId": "SPECIAL_WORKSHOP",
+        "month": "OCT-2026",
+        "before_photo": null,
+        "after_photo": "uploads/photos/OCT-2026/SPECIAL_WORKSHOP_after_photo.png?t=1793016743",
+        "photo_1": null,
+        "photo_2": "uploads/photos/OCT-2026/SPECIAL_WORKSHOP_after_photo.png?t=1793016743",
+        "updated_at": "2026-10-26 12:12:23",
+        "photo": "uploads/photos/OCT-2026/SPECIAL_WORKSHOP_after_photo.png?t=1793016743"
+    },
+    "SPECIAL_COST_SAVING": {
+        "taskId": "SPECIAL_COST_SAVING",
+        "month": "OCT-2026",
+        "before_photo": null,
+        "after_photo": "uploads/photos/OCT-2026/SPECIAL_COST_SAVING_after_photo.png?t=1793016754",
+        "photo_1": null,
+        "photo_2": "uploads/photos/OCT-2026/SPECIAL_COST_SAVING_after_photo.png?t=1793016754",
+        "updated_at": "2026-10-26 12:12:34",
+        "photo": "uploads/photos/OCT-2026/SPECIAL_COST_SAVING_after_photo.png?t=1793016754"
+    },
+    "TEST_TASK_001": {
+        "taskId": "TEST_TASK_001",
+        "month": "OCT-2026",
+        "before_photo": null,
+        "after_photo": null,
+        "photo_1": null,
+        "photo_2": null,
+        "updated_at": "2026-10-27 00:35:38",
+        "photo": null
+    },
+    "DIAG_TASK_001": {
+        "taskId": "DIAG_TASK_001",
+        "month": "OCT-2026",
+        "before_photo": null,
+        "after_photo": null,
+        "photo_1": null,
+        "photo_2": null,
+        "updated_at": "2026-10-27 00:39:30",
+        "photo": null
+    }
+}

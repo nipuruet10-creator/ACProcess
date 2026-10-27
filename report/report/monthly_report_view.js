@@ -188,6 +188,9 @@ const MonthlyReportView = {
     this.searchQuery = "";
     if (typeof FinalEditorView !== 'undefined') FinalEditorView.selectedMonth = month;
     if (typeof MonthlyInputView !== 'undefined') MonthlyInputView.selectedMonth = month;
+    if (typeof photoManager !== 'undefined' && photoManager.fetchPhotosFromServer) {
+      photoManager.fetchPhotosFromServer(month).catch(() => {});
+    }
     this.render();
   },
 
@@ -1882,6 +1885,19 @@ const MonthlyReportView = {
     if (!container) return;
 
     const month = this.selectedMonth;
+
+    // Proactively fetch latest server photos in background to guarantee cross-PC consistency
+    if (!this._fetchedMonths) this._fetchedMonths = new Set();
+    if (!this._fetchedMonths.has(month)) {
+      this._fetchedMonths.add(month);
+      if (typeof photoManager !== 'undefined' && photoManager.fetchPhotosFromServer) {
+        photoManager.fetchPhotosFromServer(month).then(() => {
+          if (typeof MonthlyReportView.refreshVisibleCards === 'function') {
+            MonthlyReportView.refreshVisibleCards();
+          }
+        }).catch(() => {});
+      }
+    }
     const workbookMgr = window.appState && window.appState.workbookMgr
       ? window.appState.workbookMgr
       : (typeof MonthWorkbookManager !== 'undefined' ? new MonthWorkbookManager() : null);

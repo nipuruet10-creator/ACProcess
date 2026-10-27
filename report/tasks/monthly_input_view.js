@@ -465,8 +465,9 @@ const MonthlyInputView = {
       if (typeof this.updateTaskCardPhoto === 'function') {
         this.updateTaskCardPhoto(taskId);
       }
-      if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
-        MonthlyReportView.updateSlideCardPhoto(taskId);
+      if (typeof MonthlyReportView !== 'undefined') {
+        if (typeof MonthlyReportView.updateSlideCardPhoto === 'function') MonthlyReportView.updateSlideCardPhoto(taskId);
+        if (typeof MonthlyReportView.refreshVisibleCards === 'function') MonthlyReportView.refreshVisibleCards();
       }
     } catch (err) {
       alert("Failed to save photo: " + err.message);
@@ -491,8 +492,9 @@ const MonthlyInputView = {
       if (typeof this.updateTaskCardPhoto === 'function') {
         this.updateTaskCardPhoto(taskId);
       }
-      if (typeof MonthlyReportView !== 'undefined' && typeof MonthlyReportView.updateSlideCardPhoto === 'function') {
-        MonthlyReportView.updateSlideCardPhoto(taskId);
+      if (typeof MonthlyReportView !== 'undefined') {
+        if (typeof MonthlyReportView.updateSlideCardPhoto === 'function') MonthlyReportView.updateSlideCardPhoto(taskId);
+        if (typeof MonthlyReportView.refreshVisibleCards === 'function') MonthlyReportView.refreshVisibleCards();
       }
     } catch (err) {
       alert("Failed to save photo: " + err.message);

@@ -240,7 +240,7 @@ try {
 
         $jsonPayload = json_encode($fbData);
 
-        // 1. Live photos hub
+        // 1. Live photos hub (Fast non-blocking Firebase sync)
         $liveUrl = "https://ac-monthly-report-default-rtdb.asia-southeast1.firebasedatabase.app/walton_monthly_report/live_photos/{$cleanMonth}/{$cleanTaskId}.json";
         $ch1 = curl_init($liveUrl);
         if ($ch1) {
@@ -248,7 +248,8 @@ try {
             curl_setopt($ch1, CURLOPT_POSTFIELDS, $jsonPayload);
             curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch1, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch1, CURLOPT_TIMEOUT, 4);
+            curl_setopt($ch1, CURLOPT_CONNECTTIMEOUT, 1);
+            curl_setopt($ch1, CURLOPT_TIMEOUT, 2);
             curl_setopt($ch1, CURLOPT_SSL_VERIFYPEER, false);
             @curl_exec($ch1);
             curl_close($ch1);
@@ -262,7 +263,8 @@ try {
             curl_setopt($ch2, CURLOPT_POSTFIELDS, $jsonPayload);
             curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch2, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch2, CURLOPT_TIMEOUT, 4);
+            curl_setopt($ch2, CURLOPT_CONNECTTIMEOUT, 1);
+            curl_setopt($ch2, CURLOPT_TIMEOUT, 2);
             curl_setopt($ch2, CURLOPT_SSL_VERIFYPEER, false);
             @curl_exec($ch2);
             curl_close($ch2);

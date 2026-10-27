@@ -78,12 +78,7 @@ const App = {
       await db.init();
     }
 
-    // Initialize & Synchronize Photo Manager in background (Non-blocking instant startup)
-    if (typeof photoManager !== 'undefined' && photoManager.init) {
-      photoManager.init().catch(err => console.warn("PhotoManager init notice:", err));
-    }
-
-    // Instantiate Central State
+    // Instantiate Central State FIRST so all services can reference workbookMgr
     const workbookMgr = new MonthWorkbookManager();
     const breakdownSheet = new AIBreakdownSheet();
     const aiClient = geminiClient;
@@ -107,6 +102,12 @@ const App = {
       get monthlyInputView() { return typeof MonthlyInputView !== 'undefined' ? MonthlyInputView : null; },
       get dashboardView() { return typeof DashboardController !== 'undefined' ? DashboardController : null; }
     };
+
+    // Initialize & Synchronize Photo Manager with accurate running active month (e.g. OCT-2026)
+    if (typeof photoManager !== 'undefined' && photoManager.init) {
+      const activeRunningMonth = (workbookMgr && workbookMgr.activeMonth) ? workbookMgr.activeMonth : (typeof MonthWorkbookManager !== 'undefined' ? MonthWorkbookManager.getActiveRunningMonth() : 'OCT-2026');
+      photoManager.init(activeRunningMonth).catch(err => console.warn("PhotoManager init notice:", err));
+    }
 
     // Setup global toast function
     window.showToast = this.showToast.bind(this);
@@ -282,6 +283,17 @@ const App = {
       this._renderedTabs.add(tabId);
       this._tabDirty[tabId] = false;
       await this.refreshCurrentTab();
+    }
+
+    // Dynamic Hostinger Photo Sync: Fetch latest server photos and reconcile any offline photos in background
+    if (tabId === 'monthly-report' || tabId === 'monthly-input') {
+      const curMonth = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : (typeof MonthWorkbookManager !== 'undefined' ? MonthWorkbookManager.getActiveRunningMonth() : 'OCT-2026');
+      if (typeof photoManager !== 'undefined' && photoManager.fetchPhotosFromServer) {
+        photoManager.fetchPhotosFromServer(curMonth).catch(() => {});
+        if (typeof photoManager.reconcileLocalPhotosToServer === 'function') {
+          photoManager.reconcileLocalPhotosToServer().catch(() => {});
+        }
+      }
     }
   },
 

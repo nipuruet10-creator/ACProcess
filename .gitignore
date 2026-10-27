@@ -1,0 +1,10 @@
+# Temporary scratch scripts & artifacts
+report/scratch/
+output/
+*.log
+
+# Keep all essential uploads & photos
+!report/uploads/
+!report/uploads/photos/
+!report/uploads/photos/**
+!report/uploads/*.json

@@ -119,36 +119,46 @@ class PhotoManager {
       console.warn("Could not read photos from IndexedDB:", e);
     }
 
-    // 4. Fetch photos from Hostinger permanent server storage for active month
+    // 4. Resolve accurate active running month and previous archive month
+    const activeM = defaultMonth
+      || ((window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : null)
+      || (typeof MonthWorkbookManager !== 'undefined' ? MonthWorkbookManager.getActiveRunningMonth() : null)
+      || 'OCT-2026';
+    const archiveM = (typeof MonthWorkbookManager !== 'undefined' && MonthWorkbookManager.getHistoricalArchiveMonth)
+      ? MonthWorkbookManager.getHistoricalArchiveMonth()
+      : 'SEP-2026';
+
+    // 5. Fetch photos from Hostinger permanent server storage across active & archive months
     try {
-      const activeM = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
-      await this.fetchPhotosFromServer(activeM);
+      await Promise.allSettled([
+        this.fetchPhotosFromServer(activeM),
+        this.fetchPhotosFromServer(archiveM),
+        this.fetchPhotosFromServer('ALL')
+      ]);
     } catch (e) {
       console.warn("[Hostinger Photo Storage] Server photo sync notice:", e);
     }
 
-    // 5. Auto-upload any legitimate local IndexedDB photos to server permanently
+    // 6. Auto-upload any legitimate local IndexedDB / memory photos to Hostinger server permanently
     try {
       await this.reconcileLocalPhotosToServer();
     } catch (e) {
       console.warn("[Hostinger Photo Storage] Local reconciliation notice:", e);
     }
 
-    // 6. Periodic fallback sync (Runs every 30 seconds only if Firebase is offline)
+    // 7. Continuous real-time background sync (Guarantees all peer PCs stay 100% updated with server disk)
     if (typeof window !== 'undefined' && !this._serverPollTimer) {
       let pollCount = 0;
       this._serverPollTimer = setInterval(() => {
-        // If Firebase Realtime Database is connected, it already broadcasts sub-50ms live photos! Skip heavy HTTP polling.
-        if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
-          return;
-        }
         pollCount++;
-        const m = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
-        this.fetchPhotosFromServer(m);
+        const curM = ((window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : null)
+          || (typeof MonthWorkbookManager !== 'undefined' ? MonthWorkbookManager.getActiveRunningMonth() : 'OCT-2026');
+        this.fetchPhotosFromServer(curM).catch(() => {});
+        // Every 3rd cycle (~75s), also reconcile any offline or trapped local photos
         if (pollCount % 3 === 0) {
-          this.reconcileLocalPhotosToServer();
+          this.reconcileLocalPhotosToServer().catch(() => {});
         }
-      }, 30000);
+      }, 25000);
     }
 
     this.isReady = true;
@@ -177,8 +187,8 @@ class PhotoManager {
   }
 
   /**
-   * Auto-heals cross-PC photo sync: If any photo exists locally as Base64 data (e.g. uploaded on an engineer's PC),
-   * pushes it automatically to Hostinger disk and server catalog so all other PCs receive it!
+   * Auto-heals cross-PC photo sync: If any photo exists locally as Base64 data (e.g. uploaded on an engineer's laptop),
+   * pushes it automatically to Hostinger SSD and server catalog so all other PCs receive it!
    */
   async reconcileLocalPhotosToServer() {
     let delMap = {};
@@ -186,18 +196,88 @@ class PhotoManager {
       delMap = JSON.parse(localStorage.getItem('walton_deleted_photo_tasks') || '{}');
     } catch(e) {}
 
-    const currentMonth = (window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : 'SEP-2026';
+    const runningMonth = ((window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : null)
+      || (typeof MonthWorkbookManager !== 'undefined' ? MonthWorkbookManager.getActiveRunningMonth() : 'OCT-2026');
+    const archiveMonth = (typeof MonthWorkbookManager !== 'undefined' && MonthWorkbookManager.getHistoricalArchiveMonth)
+      ? MonthWorkbookManager.getHistoricalArchiveMonth()
+      : 'SEP-2026';
+    const candidateMonths = Array.from(new Set([runningMonth, archiveMonth, 'OCT-2026', 'SEP-2026']));
 
-    // 1. Scan memory map
+    const isBase64Img = (str) => typeof str === 'string' && (str.startsWith('data:image/') || (str.length > 500 && !str.startsWith('http://') && !str.startsWith('https://') && !str.startsWith('uploads/')));
+
+    // 1. Scan IndexedDB for trapped local photos
+    if (typeof PhotoIndexedDB !== 'undefined' && typeof PhotoIndexedDB.getAllPhotos === 'function') {
+      try {
+        const idbPhotos = await PhotoIndexedDB.getAllPhotos();
+        if (idbPhotos) {
+          for (const [key, pData] of Object.entries(idbPhotos)) {
+            if (!pData) continue;
+            let tId = key;
+            let m = runningMonth;
+            if (key.includes('_')) {
+              const parts = key.split('_');
+              if (parts[0].includes('-202')) {
+                m = parts[0];
+                tId = parts.slice(1).join('_');
+              }
+            } else if (String(tId).startsWith('OCT-')) {
+              m = 'OCT-2026';
+            } else if (String(tId).startsWith('SEP-')) {
+              m = 'SEP-2026';
+            }
+
+            const cleanT = String(tId).toLowerCase();
+            const pParts = cleanT.split('-');
+            const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+            if (delMap[tId] || delMap[cleanT] || delMap[pPrefix]) continue;
+
+            const afterP = (typeof pData === 'object') ? (pData.after_photo || pData.photo_2 || pData.photo) : pData;
+            if (isBase64Img(afterP)) {
+              console.log(`[Hostinger Photo Sync] Reconciling IndexedDB photo for ${tId} (after_photo, ${m})...`);
+              try {
+                const sUrl = await this.uploadPhotoToServer(tId, 'after_photo', afterP, m);
+                if (sUrl && typeof pData === 'object') {
+                  pData.after_photo = sUrl;
+                  pData.photo_2 = sUrl;
+                  pData.photo = sUrl;
+                  PhotoIndexedDB.saveTaskPhotos(key, pData).catch(() => {});
+                }
+              } catch(e) {}
+            }
+
+            const beforeP = (typeof pData === 'object') ? (pData.before_photo || pData.photo_1) : null;
+            if (isBase64Img(beforeP)) {
+              console.log(`[Hostinger Photo Sync] Reconciling IndexedDB photo for ${tId} (before_photo, ${m})...`);
+              try {
+                const sUrl = await this.uploadPhotoToServer(tId, 'before_photo', beforeP, m);
+                if (sUrl && typeof pData === 'object') {
+                  pData.before_photo = sUrl;
+                  pData.photo_1 = sUrl;
+                  PhotoIndexedDB.saveTaskPhotos(key, pData).catch(() => {});
+                }
+              } catch(e) {}
+            }
+          }
+        }
+      } catch (idbErr) {}
+    }
+
+    // 2. Scan memory map (this.photoMap)
     if (this.photoMap) {
       for (const [key, pData] of Object.entries(this.photoMap)) {
         if (!pData) continue;
         let tId = key;
-        let m = currentMonth;
-        if (key.includes('_') && (key.startsWith('SEP-') || key.startsWith('AUG-') || key.startsWith('OCT-'))) {
+        let m = runningMonth;
+        if (key.includes('_')) {
           const parts = key.split('_');
-          m = parts[0];
-          tId = parts.slice(1).join('_');
+          if (parts[0].includes('-202')) {
+            m = parts[0];
+            tId = parts.slice(1).join('_');
+          }
+        } else if (String(tId).startsWith('OCT-')) {
+          m = 'OCT-2026';
+        } else if (String(tId).startsWith('SEP-')) {
+          m = 'SEP-2026';
         }
 
         const cleanT = String(tId).toLowerCase();
@@ -213,16 +293,16 @@ class PhotoManager {
           continue;
         }
 
-        const afterP = pData.after_photo || pData.photo_2;
-        if (afterP && typeof afterP === 'string' && afterP.startsWith('data:image/')) {
-          console.log(`[Hostinger Photo Sync] Reconciling memory photo for ${tId} (after_photo)...`);
+        const afterP = pData.after_photo || pData.photo_2 || pData.photo;
+        if (isBase64Img(afterP)) {
+          console.log(`[Hostinger Photo Sync] Reconciling memory photo for ${tId} (after_photo, ${m})...`);
           try {
             await this.uploadPhotoToServer(tId, 'after_photo', afterP, m);
           } catch(e) {}
         }
         const beforeP = pData.before_photo || pData.photo_1;
-        if (beforeP && typeof beforeP === 'string' && beforeP.startsWith('data:image/')) {
-          console.log(`[Hostinger Photo Sync] Reconciling memory photo for ${tId} (before_photo)...`);
+        if (isBase64Img(beforeP)) {
+          console.log(`[Hostinger Photo Sync] Reconciling memory photo for ${tId} (before_photo, ${m})...`);
           try {
             await this.uploadPhotoToServer(tId, 'before_photo', beforeP, m);
           } catch(e) {}
@@ -230,65 +310,91 @@ class PhotoManager {
       }
     }
 
-    // 2. Scan workbook tasks in MonthWorkbookManager
+    // 3. Scan workbook tasks in MonthWorkbookManager across candidate months
     if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
       try {
         const wbMgr = window.appState.workbookMgr;
-        const tasks = wbMgr.getTasksForMonth ? wbMgr.getTasksForMonth(currentMonth) : [];
-        for (const t of tasks) {
-          if (!t || !t.task_id) continue;
-          const tId = t.task_id;
-          const cleanT = String(tId).toLowerCase();
-          const pParts = cleanT.split('-');
-          const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
-          if (delMap[tId] || delMap[cleanT] || delMap[pPrefix]) continue;
-
-          const afterP = t.after_photo || t.photo_2 || t.photo;
-          if (afterP && typeof afterP === 'string' && afterP.startsWith('data:image/')) {
-            console.log(`[Hostinger Photo Sync] Reconciling workbook task photo for ${tId} (after_photo)...`);
-            try {
-              await this.uploadPhotoToServer(tId, 'after_photo', afterP, currentMonth);
-            } catch(e) {}
-          }
-          const beforeP = t.before_photo || t.photo_1;
-          if (beforeP && typeof beforeP === 'string' && beforeP.startsWith('data:image/')) {
-            console.log(`[Hostinger Photo Sync] Reconciling workbook task photo for ${tId} (before_photo)...`);
-            try {
-              await this.uploadPhotoToServer(tId, 'before_photo', beforeP, currentMonth);
-            } catch(e) {}
-          }
-        }
-      } catch (wbSyncErr) {}
-    }
-
-    // 3. Scan active slides in localStorage
-    try {
-      const slideKey = `walton_pd_active_slides_${currentMonth}`;
-      const saved = localStorage.getItem(slideKey);
-      if (saved) {
-        const slides = JSON.parse(saved);
-        if (Array.isArray(slides)) {
-          for (const s of slides) {
-            if (!s || !s.task_id) continue;
-            const tId = s.task_id;
+        for (const m of candidateMonths) {
+          const tasks = wbMgr.getTasksForMonth ? wbMgr.getTasksForMonth(m) : [];
+          for (const t of tasks) {
+            if (!t || !t.task_id) continue;
+            const tId = t.task_id;
             const cleanT = String(tId).toLowerCase();
             const pParts = cleanT.split('-');
             const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
             if (delMap[tId] || delMap[cleanT] || delMap[pPrefix]) continue;
 
-            const afterP = s.photo_after || s.photo;
-            if (afterP && typeof afterP === 'string' && afterP.startsWith('data:image/')) {
-              console.log(`[Hostinger Photo Sync] Reconciling active slide photo for ${tId} (after_photo)...`);
+            const afterP = t.after_photo || t.photo_2 || t.photo;
+            if (isBase64Img(afterP)) {
+              console.log(`[Hostinger Photo Sync] Reconciling workbook task photo for ${tId} (${m})...`);
               try {
-                await this.uploadPhotoToServer(tId, 'after_photo', afterP, currentMonth);
+                const sUrl = await this.uploadPhotoToServer(tId, 'after_photo', afterP, m);
+                if (sUrl) {
+                  t.photo = sUrl;
+                  t.photo_2 = sUrl;
+                  t.after_photo = sUrl;
+                }
               } catch(e) {}
             }
-            const beforeP = s.photo_before;
-            if (beforeP && typeof beforeP === 'string' && beforeP.startsWith('data:image/')) {
-              console.log(`[Hostinger Photo Sync] Reconciling active slide photo for ${tId} (before_photo)...`);
+            const beforeP = t.before_photo || t.photo_1;
+            if (isBase64Img(beforeP)) {
+              console.log(`[Hostinger Photo Sync] Reconciling workbook task photo for ${tId} (before_photo, ${m})...`);
               try {
-                await this.uploadPhotoToServer(tId, 'before_photo', beforeP, currentMonth);
+                const sUrl = await this.uploadPhotoToServer(tId, 'before_photo', beforeP, m);
+                if (sUrl) {
+                  t.photo_1 = sUrl;
+                  t.before_photo = sUrl;
+                }
               } catch(e) {}
+            }
+          }
+        }
+      } catch (wbSyncErr) {}
+    }
+
+    // 4. Scan active slides in localStorage across candidate months
+    try {
+      for (const m of candidateMonths) {
+        const slideKey = `walton_pd_active_slides_${m}`;
+        const saved = localStorage.getItem(slideKey);
+        if (saved) {
+          const slides = JSON.parse(saved);
+          if (Array.isArray(slides)) {
+            let patched = false;
+            for (const s of slides) {
+              if (!s || !s.task_id) continue;
+              const tId = s.task_id;
+              const cleanT = String(tId).toLowerCase();
+              const pParts = cleanT.split('-');
+              const pPrefix = pParts.length >= 3 ? `${pParts[0]}-${pParts[1]}-${pParts[2]}` : cleanT;
+              if (delMap[tId] || delMap[cleanT] || delMap[pPrefix]) continue;
+
+              const afterP = s.photo_after || s.photo;
+              if (isBase64Img(afterP)) {
+                console.log(`[Hostinger Photo Sync] Reconciling active slide photo for ${tId} (${m})...`);
+                try {
+                  const sUrl = await this.uploadPhotoToServer(tId, 'after_photo', afterP, m);
+                  if (sUrl) {
+                    s.photo = sUrl;
+                    s.photo_after = sUrl;
+                    patched = true;
+                  }
+                } catch(e) {}
+              }
+              const beforeP = s.photo_before;
+              if (isBase64Img(beforeP)) {
+                console.log(`[Hostinger Photo Sync] Reconciling active slide photo for ${tId} (before_photo, ${m})...`);
+                try {
+                  const sUrl = await this.uploadPhotoToServer(tId, 'before_photo', beforeP, m);
+                  if (sUrl) {
+                    s.photo_before = sUrl;
+                    patched = true;
+                  }
+                } catch(e) {}
+              }
+            }
+            if (patched) {
+              try { localStorage.setItem(slideKey, JSON.stringify(slides)); } catch(e) {}
             }
           }
         }
