@@ -262,13 +262,9 @@ class MonthWorkbookManager {
 
         this.workbooks[k].forEach(t => {
           if (!t) return;
-          // Auto-repair mistakenly defaulted Sazzad supervisor to Kamrul (44819)
-          if (t.supervisor) {
-            const supLower = String(t.supervisor).toLowerCase();
-            if (supLower.includes('sazzad') || supLower.includes('50463')) {
-              t.supervisor = 'Kamrul (44819)';
-              modified = true;
-            }
+          if (!t.supervisor) {
+            t.supervisor = 'Kamrul (44819)';
+            modified = true;
           }
         });
       }
@@ -1138,12 +1134,14 @@ class MonthWorkbookManager {
       }
     });
 
-    // Compute Total Point and WBS Point: Total Point = Own + 25% Supervisor Points
+    // Compute Total Point and WBS Point:
+    // Total Point = 100% of assigned task points (own_point)
+    // WBS Point = (own_point * 75%) + supervisor_point (25% for tasks where engineer is supervisor, excluding Kamrul)
     Object.values(personnelMap).forEach(r => {
-      r.total_point = Math.round((r.own_point + r.supervisor_point) * 100) / 100;
-      r.wbs_point = r.total_point; // WBS Point reflects total point with supervisor 25% evaluation
+      r.total_point = Math.round(r.own_point * 100) / 100;
       r.supervisor_point = Math.round(r.supervisor_point * 100) / 100;
       r.own_point = Math.round(r.own_point * 100) / 100;
+      r.wbs_point = Math.round(((r.own_point * 0.75) + r.supervisor_point) * 100) / 100;
     });
 
     // Sort by Total Point (Actual Point) descending (Image 1 Ranking)
@@ -1486,8 +1484,8 @@ class MonthWorkbookManager {
         if (!rt.assignee && rt.engineer) rt.assignee = rt.engineer;
         if (!rt.engineer && rt.assignee) rt.engineer = rt.assignee;
 
-        // Auto-sanitize supervisor so legacy Sazzad/50463 entries from Google Sheets become Kamrul (44819)
-        if (!rt.supervisor || String(rt.supervisor).toLowerCase().includes('sazzad') || String(rt.supervisor).includes('50463')) {
+        // Auto-sanitize missing supervisor to Kamrul (44819)
+        if (!rt.supervisor) {
           rt.supervisor = 'Kamrul (44819)';
         }
 
@@ -1685,7 +1683,7 @@ class MonthWorkbookManager {
 
               // 4. SUPERVISOR AUTO-GUARD:
               if (k === 'supervisor') {
-                if (!rVal || String(rVal).toLowerCase().includes('sazzad') || String(rVal).includes('50463')) {
+                if (!rVal) {
                   lt.supervisor = 'Kamrul (44819)';
                   continue;
                 }

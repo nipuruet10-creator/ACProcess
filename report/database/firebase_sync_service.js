@@ -219,8 +219,8 @@ const FirebaseSyncService = {
             continue;
           }
 
-          // Auto-repair supervisor to Kamrul (44819)
-          if (!t.supervisor || String(t.supervisor).toLowerCase().includes('sazzad') || String(t.supervisor).includes('50463')) {
+          // Auto-repair missing supervisor to Kamrul (44819)
+          if (!t.supervisor) {
             t.supervisor = 'Kamrul (44819)';
           }
 
@@ -377,8 +377,8 @@ const FirebaseSyncService = {
       if (!task || typeof task !== 'object') return;
       if (!task.task_id) task.task_id = snapshot.key;
 
-      // Auto-repair supervisor
-      if (!task.supervisor || String(task.supervisor).toLowerCase().includes('sazzad') || String(task.supervisor).includes('50463')) {
+      // Auto-repair missing supervisor
+      if (!task.supervisor) {
         task.supervisor = 'Kamrul (44819)';
       }
 
@@ -403,8 +403,8 @@ const FirebaseSyncService = {
       if (!task || typeof task !== 'object') return;
       if (!task.task_id) task.task_id = snapshot.key;
 
-      // Auto-repair supervisor
-      if (!task.supervisor || String(task.supervisor).toLowerCase().includes('sazzad') || String(task.supervisor).includes('50463')) {
+      // Auto-repair missing supervisor
+      if (!task.supervisor) {
         task.supervisor = 'Kamrul (44819)';
       }
 

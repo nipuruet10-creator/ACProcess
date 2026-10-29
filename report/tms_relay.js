@@ -140,9 +140,15 @@ async function createAndCompleteTask(cookie, taskInfo) {
   }
 
   const supervisorId = taskInfo.supervisorId ? String(taskInfo.supervisorId).trim() : '44819';
-  const points = (taskInfo.points !== undefined && taskInfo.points !== null && taskInfo.points !== '') 
-    ? String(taskInfo.points) 
-    : '50';
+  const rawPoints = (taskInfo.points !== undefined && taskInfo.points !== null && taskInfo.points !== '') 
+    ? taskInfo.points 
+    : ((taskInfo.taskPoint !== undefined && taskInfo.taskPoint !== null && taskInfo.taskPoint !== '')
+      ? taskInfo.taskPoint 
+      : ((taskInfo.task_point !== undefined && taskInfo.task_point !== null && taskInfo.task_point !== '') 
+        ? taskInfo.task_point 
+        : '80'));
+  const points = String(rawPoints);
+  console.log(`[TMS-TASK-CREATE] Task: "${taskInfo.taskName || taskInfo.taskId}" -> Assigned Points: ${points}`);
 
   // Task Category Mapping
   const rawCat = (taskInfo.category || '').toLowerCase();

@@ -60,7 +60,8 @@ const TmsSyncService = {
       clearTimeout(fbTimer);
       if (fbRes.ok) {
         const fbStatus = await fbRes.json();
-        if (fbStatus && fbStatus.online && (Date.now() - (fbStatus.last_seen || 0) < 30000)) {
+        // Allow up to 180 seconds tolerance for clock skew between team PCs and Central Bridge
+        if (fbStatus && fbStatus.online && (Math.abs(Date.now() - (fbStatus.last_seen || 0)) < 180000)) {
           this.isBridgeRunning = true;
           this.activeRelayMode = 'firebase_cloud_highway';
           this.bridgeHost = fbStatus.host || "Sazzad's Central Bridge";
@@ -193,14 +194,27 @@ const TmsSyncService = {
     const dates = this.getFormattedDates(month);
 
     let supId = "44819";
-    let supName = "Kamrul (44819)";
-    if (task.supervisor) {
-      supName = task.supervisor;
-      const sLower = task.supervisor.toLowerCase();
-      if (sLower.includes("50463") || sLower.includes("sazzad")) supId = "50463";
-      else {
-        const supMatch = task.supervisor.match(/\b(\d{4,6})\b/);
-        if (supMatch) supId = supMatch[1];
+    // Check DOM select element first to capture user's live selection in the table
+    const domSupSelect = (typeof document !== 'undefined') ? document.getElementById(`task-supervisor-select-${taskId}`) : null;
+    let rawSup = (domSupSelect && domSupSelect.value) ? domSupSelect.value : (task.supervisor || "Kamrul (44819)");
+    let supName = rawSup;
+    const sLower = rawSup.toLowerCase();
+    if (sLower.includes("50463") || sLower.includes("sazzad")) {
+      supId = "50463";
+      supName = "Sazzad (50463)";
+    } else {
+      const supMatch = rawSup.match(/\b(\d{4,6})\b/);
+      if (supMatch) supId = supMatch[1];
+    }
+
+    // Ensure in-memory task & cloud are synchronized immediately
+    if (task.supervisor !== supName) {
+      task.supervisor = supName;
+      if (window.appState && window.appState.workbookMgr) {
+        window.appState.workbookMgr.updateTask(month, taskId, { supervisor: supName });
+      }
+      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
+        FirebaseSyncService.updateCell(month, taskId, 'supervisor', supName);
       }
     }
 
@@ -649,11 +663,14 @@ const TmsSyncService = {
     }
 
     const dates = this.getFormattedDates(month);
+    const domSupSelect = (typeof document !== 'undefined') ? document.getElementById(`task-supervisor-select-${taskId}`) : null;
+    const rawSup = (domSupSelect && domSupSelect.value) ? domSupSelect.value : (task.supervisor || "");
     let supId = "44819";
-    const supName = (task.supervisor || "").toLowerCase();
-    if (supName.includes("50463") || supName.includes("sazzad")) supId = "50463";
-    else {
-      const supMatch = (task.supervisor || "").match(/\b(\d{4,6})\b/);
+    const supName = rawSup.toLowerCase();
+    if (supName.includes("50463") || supName.includes("sazzad")) {
+      supId = "50463";
+    } else {
+      const supMatch = rawSup.match(/\b(\d{4,6})\b/);
       if (supMatch) supId = supMatch[1];
     }
 
@@ -843,7 +860,9 @@ const TmsSyncService = {
           taskDetails: payload.taskDetails,
           employeeId: payload.employeeId,
           password: payload.password,
+          points: payload.points,
           taskPoint: payload.points,
+          task_point: payload.points,
           supervisorId: payload.supervisorId,
           startDate: payload.startDate,
           deadlineDate: payload.deadlineDate,

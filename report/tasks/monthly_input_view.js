@@ -1482,20 +1482,15 @@ const MonthlyInputView = {
             engineerName = matchedEng.name;
           }
 
-          // Ensure supervisor never erroneously defaults to Sazzad, auto-defaults to Kamrul (44819)
-          if (sup && (sup.toLowerCase().includes('sazzad') || sup.toLowerCase().includes('50463'))) {
-            sup = fallbackSup;
-          }
-
           const matchedSup = personnelList.find(p => 
-            p.display.toLowerCase() === sup.toLowerCase() || 
-            p.name.toLowerCase() === sup.toLowerCase() || 
-            sup.toLowerCase().includes(p.name.toLowerCase())
+            p.display.toLowerCase() === (sup || '').toLowerCase() || 
+            p.name.toLowerCase() === (sup || '').toLowerCase() || 
+            (sup && (sup.toLowerCase().includes(p.name.toLowerCase()) || (p.id && sup.includes(p.id))))
           );
-          if (matchedSup && !matchedSup.name.toLowerCase().includes('sazzad')) {
+          if (matchedSup) {
             sup = matchedSup.display;
           } else {
-            sup = fallbackSup;
+            sup = sup || fallbackSup;
           }
         } else {
           // Fallback if MasterDataManager is not available
@@ -1503,9 +1498,6 @@ const MonthlyInputView = {
           if (matchedEng) {
             assigneeDisplay = matchedEng.display || matchedEng.name;
             engineerName = matchedEng.name;
-          }
-          if (sup && (sup.toLowerCase().includes('sazzad') || sup.toLowerCase().includes('50463'))) {
-            sup = fallbackSup;
           }
         }
 
@@ -2182,7 +2174,9 @@ const MonthlyInputView = {
                 </td>
                 <td class="py-2 px-4 text-center font-mono font-black text-emerald-800 text-sm border-r border-slate-200 bg-emerald-50/30">
                   <div>${r.wbs_point}</div>
-                  ${r.supervisor_point > 0 ? `<div class="text-[9.5px] font-sans font-bold text-emerald-700 tracking-tight">(+${r.supervisor_point} Sup 25%)</div>` : ''}
+                  ${r.supervisor_point > 0 
+                    ? `<div class="text-[9.5px] font-sans font-bold text-emerald-700 tracking-tight">Own 75%: ${Math.round(r.own_point * 0.75)} + Sup 25%: ${r.supervisor_point}</div>` 
+                    : `<div class="text-[9.5px] font-sans text-slate-400 tracking-tight">75% of Total</div>`}
                 </td>
               </tr>
             `;
