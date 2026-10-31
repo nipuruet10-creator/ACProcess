@@ -284,9 +284,16 @@ const TmsSyncService = {
               </div>
 
               <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Supervisor (HOD)</span>
-                <div class="font-bold text-slate-900">${escape(supName)}</div>
-                <div class="text-[10px] font-mono text-slate-500 mt-0.5">ID: ${supId}</div>
+                <div class="flex items-center justify-between mb-0.5">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Supervisor (HOD)</span>
+                  <span id="tms-confirm-sup-id" class="text-[10px] font-mono text-blue-700 font-bold">ID: ${supId}</span>
+                </div>
+                <select id="tms-confirm-supervisor-select" 
+                        onchange="TmsSyncService.handleModalSupervisorChange('${month}', '${task.task_id}', this.value)"
+                        class="w-full h-8 bg-white border border-slate-300 focus:border-blue-600 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-900 focus:outline-none cursor-pointer">
+                  <option value="Sazzad (50463)" ${supId === '50463' ? 'selected' : ''}>Sazzad (50463)</option>
+                  <option value="Kamrul (44819)" ${supId === '44819' ? 'selected' : ''}>Kamrul (44819)</option>
+                </select>
               </div>
 
               <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
@@ -402,6 +409,24 @@ const TmsSyncService = {
     if (container) container.innerHTML = '';
   },
 
+  handleModalSupervisorChange(month, taskId, newSup) {
+    if (!newSup) return;
+    const isSazzad = newSup.includes('50463') || newSup.toLowerCase().includes('sazzad');
+    const supId = isSazzad ? '50463' : '44819';
+    const idEl = document.getElementById('tms-confirm-sup-id');
+    if (idEl) idEl.textContent = `ID: ${supId}`;
+
+    if (window.appState && window.appState.workbookMgr) {
+      window.appState.workbookMgr.updateTask(month, taskId, { supervisor: newSup });
+    }
+    const domSelect = document.getElementById(`task-supervisor-select-${taskId}`);
+    if (domSelect) domSelect.value = newSup;
+
+    if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected()) {
+      FirebaseSyncService.updateCell(month, taskId, 'supervisor', newSup);
+    }
+  },
+
   async handleConfirmModalSubmit(month, taskId, empId) {
     const passInput = document.getElementById('tms-confirm-password');
     const chk = document.getElementById('tms-save-password-chk');
@@ -419,6 +444,16 @@ const TmsSyncService = {
       MasterDataManager.updateTmsPassword(empId, enteredPass);
     }
 
+    // Read supervisor directly from modal select
+    const supSelect = document.getElementById('tms-confirm-supervisor-select');
+    let chosenSup = (supSelect && supSelect.value) ? supSelect.value : null;
+    let chosenSupId = '44819';
+    if (chosenSup) {
+      const isSazzad = chosenSup.includes('50463') || chosenSup.toLowerCase().includes('sazzad');
+      chosenSupId = isSazzad ? '50463' : '44819';
+      this.handleModalSupervisorChange(month, taskId, chosenSup);
+    }
+
     if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.innerHTML = `<span class="animate-spin inline-block mr-1">⌛</span><span>Connecting...</span>`;
@@ -427,7 +462,9 @@ const TmsSyncService = {
     this.closeConfirmModal();
     await this.executeTaskSync(month, taskId, {
       employeeId: empId,
-      password: enteredPass
+      password: enteredPass,
+      supervisorId: chosenSupId,
+      supervisor: chosenSup
     });
   },
 
@@ -663,15 +700,20 @@ const TmsSyncService = {
     }
 
     const dates = this.getFormattedDates(month);
-    const domSupSelect = (typeof document !== 'undefined') ? document.getElementById(`task-supervisor-select-${taskId}`) : null;
-    const rawSup = (domSupSelect && domSupSelect.value) ? domSupSelect.value : (task.supervisor || "");
-    let supId = "44819";
-    const supName = rawSup.toLowerCase();
-    if (supName.includes("50463") || supName.includes("sazzad")) {
-      supId = "50463";
-    } else {
-      const supMatch = rawSup.match(/\b(\d{4,6})\b/);
-      if (supMatch) supId = supMatch[1];
+    let supId = (credOverride && credOverride.supervisorId) ? String(credOverride.supervisorId).trim() : "44819";
+    let rawSup = (credOverride && credOverride.supervisor) ? credOverride.supervisor : (task.supervisor || "");
+    if (!credOverride || !credOverride.supervisorId) {
+      const modalSupSelect = (typeof document !== 'undefined') ? document.getElementById('tms-confirm-supervisor-select') : null;
+      const domSupSelect = (typeof document !== 'undefined') ? document.getElementById(`task-supervisor-select-${taskId}`) : null;
+      if (modalSupSelect && modalSupSelect.value) rawSup = modalSupSelect.value;
+      else if (domSupSelect && domSupSelect.value) rawSup = domSupSelect.value;
+      const supName = rawSup.toLowerCase();
+      if (supName.includes("50463") || supName.includes("sazzad")) {
+        supId = "50463";
+      } else {
+        const supMatch = rawSup.match(/\b(\d{4,6})\b/);
+        if (supMatch) supId = supMatch[1];
+      }
     }
 
     // Strictly enforce accurate task point - Never default to 50
