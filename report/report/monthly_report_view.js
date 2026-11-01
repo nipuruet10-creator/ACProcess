@@ -1036,7 +1036,32 @@ const MonthlyReportView = {
       return;
     }
 
-    // 3. Replace broken image with clean "No Photo Attached" upload/paste box
+    // 3. Mark in activeSlides as failed and clean dead 404 URL
+    if (Array.isArray(this.activeSlides)) {
+      const matchSlide = this.activeSlides.find(s => s && (s.task_id === taskId || String(s.task_id).toLowerCase() === String(taskId).toLowerCase()));
+      if (matchSlide) {
+        matchSlide._imgFailed = true;
+        matchSlide.photo = null;
+        matchSlide.photo_after = null;
+        matchSlide.photo_before = null;
+      }
+    }
+
+    // 4. Update Fast Presentation Table row status cell immediately to "+ Paste Photo"
+    const rowEl = document.getElementById(`slide-row-${taskId}`) || document.querySelector(`tr[id*="${taskId}"]`);
+    if (rowEl) {
+      const statusCell = rowEl.querySelector('.slide-photo-status-cell');
+      if (statusCell) {
+        statusCell.innerHTML = `
+          <button type="button" onclick="MonthlyReportView.selectSlideCard('${taskId}'); MonthlyReportView.pasteFromClipboard('${taskId}', '${slot}');" 
+                  class="px-2 py-0.5 rounded bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 text-[10px] font-bold border border-slate-200 transition cursor-pointer">
+            + Paste Photo
+          </button>
+        `;
+      }
+    }
+
+    // 5. Replace broken image with clean "No Photo Attached" upload/paste box
     this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
   },
 
@@ -2388,7 +2413,7 @@ const MonthlyReportView = {
                     </td>
                   </tr>
                 ` : displayedSlides.map((s, idx) => {
-                  const hasPhoto = Boolean(s.photo_before || s.photo_after || s.photo);
+                  const hasPhoto = Boolean(s.photo_before || s.photo_after || s.photo) && !s._imgFailed;
                   const isOverridden = Boolean(s.has_manual_override);
                   return `
                     <tr id="slide-row-${s.task_id}" class="hover:bg-blue-50/40 transition">
@@ -2406,9 +2431,10 @@ const MonthlyReportView = {
                       </td>
                       <td class="py-2 px-3 text-center whitespace-nowrap slide-photo-status-cell">
                         ${hasPhoto ? `
-                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <button type="button" onclick="MonthlyReportView.openModal('${s.task_id}')" title="Click to view or replace photo" 
+                                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-pointer transition">
                             📷 Photo Attached
-                          </span>
+                          </button>
                         ` : `
                           <button type="button" onclick="MonthlyReportView.selectSlideCard('${s.task_id}'); MonthlyReportView.pasteFromClipboard('${s.task_id}', 'after_photo');" 
                                   class="px-2 py-0.5 rounded bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 text-[10px] font-bold border border-slate-200 transition cursor-pointer">

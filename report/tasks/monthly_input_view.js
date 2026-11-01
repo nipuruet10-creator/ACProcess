@@ -368,9 +368,9 @@ const MonthlyInputView = {
         return;
       }
 
-      // Update summary cards without full re-render to keep focus
+      // Update summary cards and ranking table without full re-render to keep focus
       this.updateEngineerSummary();
-      if (field === 'points' && typeof this.updateRankingTable === 'function') {
+      if ((field === 'points' || field === 'supervisor') && typeof this.updateRankingTable === 'function') {
         this.updateRankingTable();
       }
     } catch (e) {
