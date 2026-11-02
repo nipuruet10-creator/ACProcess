@@ -249,134 +249,361 @@ const MonthlyReportView = {
   },
 
   /**
-   * Intelligently auto-generates engineering narrative sentences and deliverables tailored to the task title
-   * Requirement 3: "2nd photo, ekhane description and impact auto generate hoye thakbe title onujayi."
+   * Intelligently auto-generates engineering narrative sentences and deliverables tailored to the task title and shop-floor notes
+   * Enforces authentic human plant engineering voice (Zero AI buzzwords / Zero hyperbole)
    */
-  generateDetailsFromTitle(taskName, category = '') {
-    if (!taskName) {
+  generateDetailsFromTitle(taskName, category = '', rawDetails = '') {
+    const raw = String(taskName || '').trim();
+    const details = String(rawDetails || '').trim();
+    const lower = raw.toLowerCase();
+    const lowerDet = details.toLowerCase();
+
+    // Check if rawDetails contains actual shop-floor engineering notes rather than old template filler
+    const isOldTemplate = details.includes('Engineered, verified, and standardized operational workflow') ||
+                          details.includes('Developed and implemented specialized process engineering mechanism') ||
+                          details.includes('Standard operating procedure execution');
+
+    // -------------------------------------------------------------
+    // PRIORITY 1: REAL SHOP-FLOOR NOTES (Grounded in Factory Reality)
+    // -------------------------------------------------------------
+    if (details && !isOldTemplate && details.length > 10) {
+      // 1. Alcha Golden fin tensile testing / collar broken issue
+      if (lower.includes('alcha') && (lower.includes('tensile') || lower.includes('collar'))) {
+        return {
+          desc: "Conducted tensile pull testing on new Alcha Golden fin coil lot to check material elongation and determine the root cause of fin collar breakage during expansion.",
+          bullets: [
+            "Collected coil samples from incoming factory lot for IQC laboratory pull test",
+            "Identified lower tensile elongation causing fin collar cracking on the line",
+            "Shared lab findings with supplier and SCM to replace substandard coil batches",
+            "Verified replacement coil test lots on fin press for smooth production"
+          ]
+        };
+      }
+      // 2. Physical inspection of sheet scratch on 1mm coil
+      if (lower.includes('scratch') && (lower.includes('1 mm') || lower.includes('1mm') || lower.includes('coil'))) {
+        return {
+          desc: "Inspected 1mm sheet metal coils following surface scratch detection during uncoiling, rubbing defect areas before releasing sheets to blanking.",
+          bullets: [
+            "Inspected coil surface scratches during decoiling and uncoiling operation",
+            "Removed minor surface scratches with emery rubbing before blanking and shearing",
+            "Inspected sheet thickness and flatness to ensure drawing specification compliance",
+            "Issued conditional quality clearance to prevent raw material scrap"
+          ]
+        };
+      }
+      // 3. Tensile testing of MAX Golden fins
+      if (lower.includes('max golden') && lower.includes('tensile')) {
+        return {
+          desc: "Sent 3-ton MAX Golden fin coil samples to IQC laboratory for tensile retesting to investigate fin collar cracking during high-speed stamping.",
+          bullets: [
+            "Collected test coupons from 3-ton incoming coil lot for mechanical pull testing",
+            "Confirmed lower tensile strength compared to previous approved coil batches",
+            "Coordinated findings with SCM and supplier to resolve coil collar broken issues",
+            "Monitored fin stamping press parameters to minimize collar rupture on active dies"
+          ]
+        };
+      }
+      // 4. M ODU Front panel bending die modification
+      if (lower.includes('bending die') && (lower.includes('front panel') || lower.includes('odu'))) {
+        return {
+          desc: "Modified M ODU front panel bending die with shims to correct part angle variation and reduce spring-back distortion on SFG parts.",
+          bullets: [
+            "Identified flange bending angle deviation greater than 90 degrees on SFG parts",
+            "Added precision packings and shims under die blocks to correct bend geometry",
+            "Conducted press line trial and measured panel flange angles across test parts",
+            "Handed over adjusted die setup to press operators for continuous production"
+          ]
+        };
+      }
+      // 5. Oil application and wiping process from H and M ODU Top panel
+      if (lower.includes('oil application') || (lower.includes('wiping') && lower.includes('top panel'))) {
+        return {
+          desc: "Established controlled oil lubrication and wiping procedure on H and M ODU top panels to eliminate surface cracking while preventing defects in powder coating.",
+          bullets: [
+            "Applied light hydraulic lubrication on high-stress corners to stop part cracking",
+            "Implemented wiping station to remove excess oil before entering powder paint line",
+            "Conducted trial powder coating run and verified zero paint blistering defects",
+            "Handed over standard wiping SOP to sheet metal production operators"
+          ]
+        };
+      }
+      // 6. Updated sheet metal specification and packaging standard
+      if (lower.includes('packaging standard') || (lower.includes('rust') && lower.includes('sheet metal'))) {
+        return {
+          desc: "Reviewed updated packaging standards with SCM and raw material suppliers to prevent surface rust formation on incoming sheet metal coils.",
+          bullets: [
+            "Documented coil surface rust issues caused by inadequate transit packaging",
+            "Updated moisture-proof packaging specification and shared standard with suppliers",
+            "Coordinated with SCM and warehouse teams to inspect incoming coil shipments",
+            "Established incoming coil moisture inspection checklist to protect material quality"
+          ]
+        };
+      }
+      // 7. Fan motor manufacturing section visit
+      if (lower.includes('fan motor') && (lower.includes('meeting') || lower.includes('visit') || lower.includes('section'))) {
+        return {
+          desc: "Visited EAP fan motor production line to assess tooling, machinery, and assembly requirements for manufacturing AC ODU fan motors in-house.",
+          bullets: [
+            "Inspected EAP motor stator, rotor, and final assembly manufacturing line",
+            "Cataloged required machine types, press tools, and cycle time capacities",
+            "Assessed production floor space and power supply requirements for in-house line",
+            "Held initial technical review meeting with production management"
+          ]
+        };
+      }
+      // 8. Cutting and dismantling of Fan motor parts
+      if (lower.includes('dismantling') && lower.includes('fan motor')) {
+        return {
+          desc: "Dismantled and cataloged AC ODU fan motor components to analyze in-house machining, stamping, and winding process requirements.",
+          bullets: [
+            "Disassembled fan motor units and cataloged mechanical and electrical components",
+            "Mapped manufacturing sequence for stator stack, shaft, and casing parts",
+            "Coordinated with R&I electrical team to evaluate component sourcing options",
+            "Prepared manufacturing feasibility summary for in-house motor production"
+          ]
+        };
+      }
+      // 9. Aluminium fins melting and EAP, HAP products
+      if (lower.includes('melting') && lower.includes('aluminium')) {
+        return {
+          desc: "Inspected scrap aluminum fin recycling trials in melting furnace for EAP and HAP casting, evaluating melt loss and slag formation.",
+          bullets: [
+            "Monitored furnace melting trials using scrap aluminum fins from press lines",
+            "Evaluated melt ash loss and slag formation during furnace heating cycles",
+            "Coordinated cost-benefit analysis between scrap recycling and imported ingot",
+            "Submitted process recommendations to furnace operators to minimize metal loss"
+          ]
+        };
+      }
+      // 10. Multi tapping of Evaporator clamps of 5 mm
+      if (lower.includes('multi tapping') || (lower.includes('clamps') && lower.includes('tapping'))) {
+        return {
+          desc: "Discussed evaporator clamp bracket tapping with R&I model managers, standardizing earthing screw hole tapping on Clamp-3 to save machining time.",
+          bullets: [
+            "Evaluated earthing screw hole locations on 5mm evaporator bracket clamps",
+            "Agreed with R&I model managers to tap only Clamp-3 instead of multiple clamps",
+            "Saved operator cycle time by eliminating unnecessary hole tapping passes",
+            "Updated clamp stamping and tapping drawings with production concern"
+          ]
+        };
+      }
+      // 11. 10 mm reduction in H ODU Front panel
+      if (lower.includes('10 mm reduction') || (lower.includes('cutting plan') && lower.includes('10 mm')) || lower.includes('10mm reduction')) {
+        return {
+          desc: "Updated H ODU front panel cutting plan with R&I approval, reducing raw blank length by 10mm without affecting edge curling quality.",
+          bullets: [
+            "Reduced raw blank cutting length by 10mm to save sheet metal material",
+            "Conducted edge curling and bending trials with the shortened blank size",
+            "Confirmed accurate fitment and seam overlap on assembly trial units",
+            "Updated shearing CNC cutting program and handed over revised cutting plan"
+          ]
+        };
+      }
+      // 12. LCAC evaporators clamps hole dimension for Elimination of Filing process
+      if (lower.includes('filing') && lower.includes('clamp')) {
+        return {
+          desc: "Inspected LCAC Cordelia evaporator clamp mounting holes and coordinated with TruPunch tooling team to enlarge punch diameter and eliminate manual filing.",
+          bullets: [
+            "Inspected clamp drawings against physical parts to identify hole undersize issue",
+            "Coordinated with TruPunch CNC team to enlarge punch hole diameter tooling",
+            "Eliminated manual hand filing bottleneck and burr hazards on assembly station",
+            "Verified smooth fastener insertion during evaporator bracket assembly"
+          ]
+        };
+      }
+      // 13. Sheet metal production section dashboard modification
+      if (lower.includes('dashboard') && lower.includes('sheet metal')) {
+        return {
+          desc: "Coordinated with IT and Sheet Metal section to submit dashboard modification requirements for tracking plant production KPIs.",
+          bullets: [
+            "Compiled operational dashboard requirements from sheet metal shift supervisors",
+            "Submitted official IT requisition for production metrics and downtime tracking",
+            "Reviewed draft database structure and input screens with IT developers",
+            "Tested prototype dashboard updates for accurate real-time shift reporting"
+          ]
+        };
+      }
+      // 14. Requirements providing to IT Concern for Maintenance entry panel modification
+      if (lower.includes('entry panel') || (lower.includes('loss time') && lower.includes('it')) || (lower.includes('maintenance') && lower.includes('entry panel'))) {
+        return {
+          desc: "Submitted functional requirements to IT team to consolidate non-machine downtime and operational loss hours into a unified maintenance entry panel.",
+          bullets: [
+            "Identified loss time tracking gaps outside of standard machine breakdown codes",
+            "Submitted functional requirements to IT to add operational loss time inputs",
+            "Conducted alignment meeting with maintenance and production supervisors",
+            "Validated updated user entry panel during live shift changeover"
+          ]
+        };
+      }
+
+      // Generic parsing for other engineer notes with numbers/bullets
+      const cleanSteps = details
+        .split(/(?:\r?\n|•|(?:\d+[\.\)]\s*))/g)
+        .map(s => s.trim().replace(/^[-*•\s]+/, ''))
+        .filter(s => s.length > 6 && !s.toLowerCase().includes('engineered, verified'));
+
+      if (cleanSteps.length >= 2) {
+        let s1 = cleanSteps[0];
+        if (!/[.!?]$/.test(s1)) s1 += '.';
+        let s2 = cleanSteps[1] || '';
+        if (s2 && !/[.!?]$/.test(s2)) s2 += '.';
+        const desc = `${s1} ${s2}`.trim();
+        const bullets = cleanSteps.slice(0, 4).map(step => {
+          let b = step.charAt(0).toUpperCase() + step.slice(1);
+          if (/[.!?]$/.test(b)) b = b.slice(0, -1);
+          return b;
+        });
+        return { desc, bullets };
+      }
+    }
+
+    // -------------------------------------------------------------
+    // PRIORITY 2: DOMAIN-BASED HUMAN PLANT REASONING FROM TITLE
+    // -------------------------------------------------------------
+    // 1. Digital / Software / TMS / Portal / Dashboard / Database
+    if (lower.includes("task management") || lower.includes("tms") || lower.includes("portal") || lower.includes("software") || lower.includes("dashboard") || lower.includes("database") || lower.includes("report") || lower.includes("tracking")) {
       return {
-        desc: "Developed and implemented specialized process engineering mechanism. The system was designed, fabricated, calibrated, and commissioned for regular active production use.",
+        desc: `Developed and implemented centralized digital tracking workflow for ${raw.toLowerCase()}. Automated task milestone recording and streamlined shift performance reporting.`,
         bullets: [
-          "Process cycle time reduced and standardized across shifts",
-          "Eliminates manual operator strain and operational defect risks",
-          "Increases active line throughput and ensures zero defect quality"
+          "Automated operational task milestone tracking and logging",
+          "Eliminated paperwork delays and manual shift reporting bottlenecks",
+          "Provided real-time operational visibility across engineering teams",
+          "Handed over multi-user workflow system for daily plant operations"
         ]
       };
     }
 
-    const raw = String(taskName || '').trim();
-    const lower = raw.toLowerCase();
-    let desc = "";
-    let bullets = [];
-
-    // 1. Digital / Software / TMS / Task Management / Portal / Web System Automation
-    if (lower.includes("task management") || lower.includes("tms") || lower.includes("portal") || lower.includes("software") || lower.includes("dashboard") || lower.includes("database") || lower.includes("report automation") || (lower.includes("automation") && (lower.includes("system") || lower.includes("data") || lower.includes("management") || lower.includes("excel")))) {
-      desc = `Engineered and deployed digital process automation for ${raw.toLowerCase()}. Standardized task milestones, real-time logging, and transparent performance tracking across engineering operations.`;
-      bullets = [
-        `Automated task milestone tracking & digital logging`,
-        `Eliminated manual coordination delays & paperwork bottlenecks`,
-        `Real-time operational visibility & performance tracking`,
-        `Validated multi-user system deployment across plant teams`
-      ];
-    }
-    // 2. Vacuum / Evacuation / Charging / Refrigerant / Leakage
-    else if (lower.includes("vacuum") || lower.includes("evacuation") || lower.includes("charging") || lower.includes("refrigerant") || lower.includes("leakage") || lower.includes("brazing") || lower.includes("helium") || lower.includes("suction")) {
-      desc = `Conducted vacuum evacuation optimization and process observation for ${raw.toLowerCase()}. Streamlined station flow parameters to reduce cycle time while ensuring stringent vacuum micron limits and refrigeration integrity.`;
-      bullets = [
-        `Vacuum drawdown cycle time analyzed & optimized across active stations`,
-        `Identified station process bottlenecks and eliminated evacuation delays`,
-        `Maintained stringent vacuum hold level & moisture-free quality standards`,
-        `Improved line throughput and cycle synchronization with production pacing`
-      ];
-    }
-    // 3. Conveyor / R&I / Material Transfer / Handover / Rework Line
-    else if (lower.includes("conveyor") || lower.includes("roller") || lower.includes("r&i") || lower.includes("rework") || lower.includes("transfer") || lower.includes("handover") || lower.includes("trolley") || lower.includes("handling")) {
-      desc = `Engineered and coordinated conveyor transfer mechanism for ${raw.toLowerCase()}. Streamlined unit transit between stations, eliminated manual carrying fatigue, and ensured smooth production flow.`;
-      bullets = [
-        `Established dedicated conveyor transfer routing between production zones`,
-        `Minimized manual handling fatigue & reduced unit transit damage risks`,
-        `Synchronized line handover speed with continuous assembly pace`,
-        `Standardized safe handling and conveyor transfer operating procedure`
-      ];
-    }
-    // 4. Die / Fixture / Tooling / Mold / Cutter / Stamping / Jacket / Forming
-    else if (lower.includes("die") || lower.includes("fixture") || lower.includes("jig") || lower.includes("cutter") || lower.includes("mold") || lower.includes("tool") || lower.includes("stamping") || lower.includes("jacket") || lower.includes("punch") || lower.includes("forming")) {
-      desc = `Designed, fabricated, and validated modified tooling fixture for ${raw.toLowerCase()}. Verified fitment tolerances, dimensional precision, and completed line trial handover.`;
-      bullets = [
-        `Tooling design & precision fabrication completed to engineering specs`,
-        `Verified fitment tolerance, clearance, and component forming accuracy`,
-        `Reduced tooling changeover time and minimized production deviation`,
-        `Successful trial validation and handover for regular line production`
-      ];
-    }
-    // 5. BOM Verification / Material Audit / Store / SFG / Inspection
-    else if (lower.includes("bom") || lower.includes("audit") || lower.includes("sfg") || lower.includes("verification") || lower.includes("inspection") || lower.includes("store") || lower.includes("sheet") || lower.includes("coil") || lower.includes("rm") || lower.includes("raw material") || lower.includes("reconciliation")) {
-      desc = `Conducted physical component audit and technical verification for ${raw.toLowerCase()}. Reconciled material usage and verified specifications against approved engineering drawings.`;
-      bullets = [
-        `Physical line observation & part count verified on active lines`,
-        `Verified material specifications & tolerance compliance against drawings`,
-        `Eliminated defective processing & storage scrap risks across shifts`,
-        `Audit sign-off completed for active production lines`
-      ];
-    }
-    // 6. Chemical / Coating / SWAAT / Corrosion / Metallurgy / Acid
-    else if (lower.includes("chemical") || lower.includes("corrosion") || lower.includes("acid") || lower.includes("coating") || lower.includes("swaat") || lower.includes("paint") || lower.includes("treatment")) {
-      desc = `Executed chemical treatment and surface corrosion resistance trial for ${raw.toLowerCase()}. Verified coating adhesion and durability compliance against Walton AC engineering standards.`;
-      bullets = [
-        `Superior corrosion and environmental degradation resistance verified`,
-        `Standardized chemical bath parameters and immersion cycle timings`,
-        `Strict adherence to Walton metallurgical & reliability benchmarks`,
-        `Zero chemical defect deviation confirmed on production trial`
-      ];
-    }
-    // 7. Cost Savings / Kaizen / Scrap / Wastage / Yield
-    else if (lower.includes("cost") || lower.includes("saving") || lower.includes("wastage") || lower.includes("scrap") || lower.includes("yield") || lower.includes("kaizen")) {
-      desc = `Conducted material audit and process yield optimization for ${raw.toLowerCase()}. Streamlined material consumption and eliminated trim waste to maximize production value.`;
-      bullets = [
-        `Eliminated process scrap generation & trim material loss`,
-        `Direct optimization of production consumables and unit cost`,
-        `Improved material yield and workflow sequence across lines`,
-        `Validated sustainable resource utilization for active production`
-      ];
-    }
-    // 8. Hardware Robotics / Motor / Turret / Machine Automation
-    else if (lower.includes("robot") || lower.includes("motor") || lower.includes("sensor") || lower.includes("turret") || lower.includes("press") || lower.includes("pneumatic") || lower.includes("interlock") || lower.includes("automation")) {
-      desc = `Engineered and integrated automated control mechanism for ${raw.toLowerCase()}. Successfully tested safety interlocks, optimized cycle parameters, and commissioned on the active line.`;
-      bullets = [
-        `Automated repetitive manual handling and loading operations`,
-        `Increased continuous line throughput & machine cycle repeatability`,
-        `Enhanced operator safety interlocks and handling ergonomics`,
-        `Commissioned on active manufacturing line with validated reliability`
-      ];
-    }
-    // 9. New Model / Pilot Trial / Line Balancing / Sample
-    else if (lower.includes("model") || lower.includes("trial") || lower.includes("pilot") || lower.includes("sample") || lower.includes("balancing")) {
-      desc = `Executed pilot production trial, line balancing, and assembly verification for ${raw.toLowerCase()}. Addressed station bottlenecks and confirmed commercial production readiness.`;
-      bullets = [
-        `Component readiness & line tooling verified before trial`,
-        `Pilot assembly completed with balanced station cycle times`,
-        `Handled station bottlenecks and confirmed ergonomic workflow`,
-        `Approved for commercial mass manufacturing handover`
-      ];
-    }
-    // 10. General Engineering Development (Intelligent terms extraction from title)
-    else {
-      const cleanWords = raw.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2);
-      const subject = cleanWords.slice(0, 4).join(' ') || raw;
-      desc = `Engineered, verified, and standardized operational workflow for ${raw.toLowerCase()}. Optimized process parameters and commissioned for regular daily manufacturing use.`;
-      bullets = [
-        `Process layout & technical analysis finalized for ${subject}`,
-        `Implemented standardized operating mechanism on production line`,
-        `Eliminated manual bottlenecks & stabilized operational cycle time`,
-        `Production trial validation and operator handover completed`
-      ];
+    // 2. Vacuum / Evacuation / Charging / Refrigerant / Leakage / Nitrogen / Pressure
+    if (lower.includes("vacuum") || lower.includes("evacuation") || lower.includes("charging") || lower.includes("refrigerant") || lower.includes("leakage") || lower.includes("pressure") || lower.includes("nitrogen") || lower.includes("booster")) {
+      return {
+        desc: `Optimized vacuum evacuation and station pumping parameters for ${raw.toLowerCase()}. Upgraded station vacuum lines and fittings to reduce drawdown cycle time for production.`,
+        bullets: [
+          "Reduced station vacuum drawdown cycle time across active lines",
+          "Maintained deep vacuum hold level to guarantee moisture-free refrigeration circuits",
+          "Eliminated station queuing delays and synchronized throughput with assembly pace",
+          "Verified 100% leak-proof joint integrity on pressure decay testing"
+        ]
+      };
     }
 
-    return { desc, bullets };
+    // 3. Brazing / Fixtures / Jigs / Pipe Joint Welding / Flag & Liquid Line
+    if (lower.includes("brazing") || lower.includes("fixture") || lower.includes("jig") || lower.includes("flag") || lower.includes("liquid line") || lower.includes("suction line") || lower.includes("pipe") || lower.includes("welding")) {
+      return {
+        desc: `Fabricated and validated dedicated brazing fixture for ${raw.toLowerCase()}. Standardized tube alignment, clamp locking, and torch clearance to ensure repeatable leak-free joints.`,
+        bullets: [
+          "Fabricated rigid locating jigs for accurate pipe joint positioning",
+          "Standardized torch flame clearance and brazing cycle duration",
+          "Conducted nitrogen pressure hold and bubble leak inspection on trial joints",
+          "Commissioned fixture on active brazing line with operator training"
+        ]
+      };
+    }
+
+    // 4. Die / Press / Tooling / Stamping / Bending / Punch / Jacket / Forming
+    if (lower.includes("die") || lower.includes("bending") || lower.includes("punch") || lower.includes("tool") || lower.includes("stamping") || lower.includes("jacket") || lower.includes("forming") || lower.includes("press") || lower.includes("shim") || lower.includes("packing")) {
+      return {
+        desc: `Modified production tooling and press die setup for ${raw.toLowerCase()}. Adjusted tool clearances and packed dies to correct part geometry and eliminate line rework.`,
+        bullets: [
+          "Adjusted die clearances and shim packings to correct forming angle",
+          "Eliminated component spring-back and flange distortion on SFG parts",
+          "Conducted press line trial stamping with verified dimensional repeatability",
+          "Handed over corrected die setup for continuous production run"
+        ]
+      };
+    }
+
+    // 5. Tensile / Scratch / Sheet Metal / Coil / Raw Material / IQC / Audit
+    if (lower.includes("tensile") || lower.includes("scratch") || lower.includes("coil") || lower.includes("sheet") || lower.includes("iqc") || lower.includes("audit") || lower.includes("bom") || lower.includes("inspection") || lower.includes("store")) {
+      return {
+        desc: `Conducted material inspection and mechanical testing for ${raw.toLowerCase()}. Verified raw coil ductility and surface quality against IQC standards before mass processing.`,
+        bullets: [
+          "Sent material samples to quality laboratory for tensile strength verification",
+          "Identified material property variations before mass stamping and expansion",
+          "Coordinated inspection findings with QA and supply chain teams",
+          "Released verified material lots to active production line"
+        ]
+      };
+    }
+
+    // 6. Lubrication / Oil Application / Wiping / Powder Coating / Chemical / Paint
+    if (lower.includes("oil") || lower.includes("wiping") || lower.includes("chemical") || lower.includes("corrosion") || lower.includes("coating") || lower.includes("powder coating") || lower.includes("paint") || lower.includes("swaat")) {
+      return {
+        desc: `Established controlled oil lubrication and surface preparation for ${raw.toLowerCase()}. Eliminated forming friction cracks while ensuring surface cleanliness before powder coating.`,
+        bullets: [
+          "Applied controlled lubrication on high-stress corners to stop part cracking",
+          "Implemented wiping station to remove excess oil before entering powder paint line",
+          "Conducted trial powder coating run and verified zero paint blistering defects",
+          "Handed over standard wiping SOP to sheet metal production operators"
+        ]
+      };
+    }
+
+    // 7. Scrap Recycling / Material Reduction / Yield Optimization
+    if (lower.includes("cost") || lower.includes("saving") || lower.includes("wastage") || lower.includes("scrap") || lower.includes("yield") || lower.includes("kaizen") || lower.includes("melting") || lower.includes("reduction")) {
+      return {
+        desc: `Implemented scrap recovery and blank size optimization for ${raw.toLowerCase()}. Reduced raw material consumption while recycling process trim into casting furnaces.`,
+        bullets: [
+          "Optimized sheet blank dimensions to minimize off-cut metal trim",
+          "Recycled aluminum fin scrap directly into melting furnace for parts casting",
+          "Monitored furnace melt loss, slag recovery, and alloy composition",
+          "Saved raw material cost while maintaining complete component strength"
+        ]
+      };
+    }
+
+    // 8. Motor Assembly / Fan Motor / In-House Manufacturing / Teardown
+    if (lower.includes("motor") || lower.includes("fan motor") || lower.includes("stator") || lower.includes("rotor") || lower.includes("dismantling") || lower.includes("eap") || lower.includes("inhouse")) {
+      return {
+        desc: `Conducted technical assessment and component teardown for ${raw.toLowerCase()}. Cataloged internal motor parts and mapped machining, stamping, and winding operations for in-house manufacturing.`,
+        bullets: [
+          "Dismantled assembly components to evaluate mechanical fit and tolerances",
+          "Mapped production routing across stamping, shaft turning, and coil winding",
+          "Assessed machinery and tooling requirements against plant line capacity",
+          "Prepared bill of materials and component drawings for production trials"
+        ]
+      };
+    }
+
+    // 9. Plant Layout / Conveyor / Workstation / Trolley / Storage
+    if (lower.includes("conveyor") || lower.includes("roller") || lower.includes("trolley") || lower.includes("rack") || lower.includes("storage") || lower.includes("layout") || lower.includes("transfer") || lower.includes("table")) {
+      return {
+        desc: `Designed and fabricated shop-floor handling equipment for ${raw.toLowerCase()}. Streamlined part transit between stations and improved operator assembly ergonomics.`,
+        bullets: [
+          "Fabricated dedicated transfer fixtures and storage trolleys for SFG components",
+          "Reduced manual carrying strain and minimized transit scratch damage",
+          "Organized station workflow to maintain smooth takt time pacing",
+          "Commissioned ergonomic workstation setup on the active production floor"
+        ]
+      };
+    }
+
+    // 10. CNC / Turret / Cutting / Laser
+    if (lower.includes("cnc") || lower.includes("turret") || lower.includes("laser") || lower.includes("cutting") || lower.includes("punching")) {
+      return {
+        desc: `Optimized CNC program parameters and cutting layout for ${raw.toLowerCase()}. Formulated efficient part nesting and verified cut edge tolerances on production parts.`,
+        bullets: [
+          "Optimized CNC cutting path and program parameters for clean edge finish",
+          "Verified dimensional tolerances and part fitment on production assembly",
+          "Minimized raw sheet metal scrap through high-efficiency nesting layout",
+          "Completed trial validation and handed over program for mass production"
+        ]
+      };
+    }
+
+    // 11. General Process Development / Engineering Optimization (Default)
+    return {
+      desc: `Engineered and implemented process optimization for ${raw.toLowerCase()}. Completed line trial validation and handed over standardized operating procedure for daily production.`,
+      bullets: [
+        "Analyzed workstation sequence and addressed process cycle bottlenecks",
+        "Adjusted tooling setup and verified component dimensional fitment",
+        "Conducted trial run on active line to validate operational repeatability",
+        "Handed over standardized operating procedure to shop-floor team"
+      ]
+    };
   },
 
   /**
-   * Auto-generates concise narrative overview and deliverables derived from task name
+   * Auto-generates concise narrative overview and deliverables derived from task name and shop-floor notes
    */
   generateSlideDetails(taskId) {
     const titleInput = document.getElementById('edit-slide-title');
@@ -390,7 +617,18 @@ const MonthlyReportView = {
       return;
     }
 
-    const { desc, bullets } = this.generateDetailsFromTitle(taskName, category);
+    // Retrieve underlying task details from workbook or active slides if available
+    let rawDetails = "";
+    if (typeof appState !== 'undefined' && appState.workbookMgr) {
+      const t = appState.workbookMgr.getTaskById(taskId);
+      if (t) rawDetails = t.task_details || t.description || "";
+    }
+    if (!rawDetails && this.activeSlides) {
+      const s = this.activeSlides.find(sl => sl.task_id === taskId);
+      if (s) rawDetails = s.task_details || s.description || "";
+    }
+
+    const { desc, bullets } = this.generateDetailsFromTitle(taskName, category, rawDetails);
 
     const descEl = document.getElementById('edit-slide-desc');
     const impactEl = document.getElementById('edit-slide-impact');
@@ -1183,15 +1421,20 @@ const MonthlyReportView = {
     if (!currentPhotoFit) currentPhotoFit = 'blur';
     this._activeModalPhotoFit = currentPhotoFit;
 
-    // Requirement: Description and impact auto generate tailored to title
-    const generated = this.generateDetailsFromTitle(currentTitle, currentCategory);
+    // Requirement: Description and impact auto generate tailored to title and shop-floor notes
+    const rawDetails = (task ? (task.task_details || task.description) : "") || (currentSlide ? currentSlide.description : "");
+    const generated = this.generateDetailsFromTitle(currentTitle, currentCategory, rawDetails);
 
     let currentDesc = overrides.description || (task ? (task.task_details || task.description) : "") || (currentSlide ? currentSlide.description : "") || "";
-    if (!currentDesc || currentDesc.trim() === '') {
+    const isOldDesc = !currentDesc || currentDesc.trim() === '' || 
+                      currentDesc.includes('Engineered, verified, and standardized operational workflow') ||
+                      currentDesc.includes('Standard operating procedure execution') ||
+                      currentDesc.includes('Developed and implemented specialized process engineering mechanism');
+    if (isOldDesc) {
       currentDesc = generated.desc;
     }
 
-    // Auto-generate project impact & outcomes only if empty
+    // Auto-generate project impact & outcomes if empty or generic
     let currentImpact = "";
     if (overrides.impact !== undefined && overrides.impact !== null && overrides.impact !== "") {
       currentImpact = Array.isArray(overrides.impact) ? overrides.impact.join("\n") : String(overrides.impact);
@@ -1203,7 +1446,11 @@ const MonthlyReportView = {
       currentImpact = breakdown.ai_impact.join("\n");
     }
 
-    if (!currentImpact || currentImpact.trim() === '') {
+    const isOldImpact = !currentImpact || currentImpact.trim() === '' || 
+                        currentImpact.includes('Zero defect manufacturing') || 
+                        currentImpact.includes('seamless multi-user') ||
+                        currentImpact.includes('flawless');
+    if (isOldImpact) {
       currentImpact = generated.bullets.join("\n");
     }
 
@@ -1995,21 +2242,26 @@ const MonthlyReportView = {
 
     this.activeSlides = activeSlides;
 
-    // Guaranteed complete task details, title, and impact auto-fallback for every single slide
+    // Guaranteed complete task details, title, and impact auto-fallback for every single slide in human engineering voice
     activeSlides.forEach(s => {
       if (!s.slide_title || s.slide_title.trim() === '') {
         s.slide_title = s.raw_task_name || s.task_name || `Process Engineering - ${s.task_id}`;
       }
-      if (!s.description || s.description.trim() === '' || s.description === 'No milestone description') {
-        const details = this.generateDetailsFromTitle(s.slide_title, s.category);
-        s.description = details.desc;
-        if (!s.impact || !Array.isArray(s.impact) || s.impact.length === 0) {
-          s.impact = details.bullets;
-        }
-      }
-      if (!s.impact || !Array.isArray(s.impact) || s.impact.length === 0) {
-        const details = this.generateDetailsFromTitle(s.slide_title, s.category);
-        s.impact = details.bullets;
+      const rawDetails = s.task_details || s.description || '';
+      const isGenericDesc = !s.description || s.description.trim() === '' || 
+                            s.description === 'No milestone description' ||
+                            s.description.includes('Engineered, verified, and standardized operational workflow') ||
+                            s.description.includes('Standard operating procedure execution') ||
+                            s.description.includes('Developed and implemented specialized process engineering mechanism');
+
+      const isGenericImpact = !s.impact || !Array.isArray(s.impact) || s.impact.length === 0 || 
+                              (s.impact.length === 2 && s.impact[0] === 'Zero defect manufacturing') ||
+                              s.impact.some(i => String(i).includes('seamless') || String(i).includes('flawless'));
+
+      if (isGenericDesc || isGenericImpact) {
+        const details = this.generateDetailsFromTitle(s.slide_title, s.category, rawDetails);
+        if (isGenericDesc) s.description = details.desc;
+        if (isGenericImpact) s.impact = details.bullets;
       }
     });
 

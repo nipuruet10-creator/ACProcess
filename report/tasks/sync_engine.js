@@ -390,11 +390,21 @@ class SyncEngine {
           if (!hasOverride && typeof PROMPT_TEMPLATES !== 'undefined' && PROMPT_TEMPLATES.localFactualTransform) {
             const domainData = PROMPT_TEMPLATES.localFactualTransform(t);
             if (domainData) {
-              if (!s.description || s.description.includes("foil cutting") || s.description.includes("Standard operating procedure execution")) {
-                s.description = domainData.ai_description;
+              const currentDesc = s.description || '';
+              const isGeneric = !currentDesc || 
+                                currentDesc.includes("foil cutting") || 
+                                currentDesc.includes("Standard operating procedure execution") ||
+                                currentDesc.includes("Engineered, verified, and standardized operational workflow") ||
+                                currentDesc.includes("Developed and implemented specialized process engineering mechanism");
+              if (isGeneric) {
+                s.description = domainData.description || domainData.ai_description || domainData.desc;
               }
-              if (!s.impact || s.impact.length === 0 || (s.impact.length === 2 && s.impact[0] === "Zero defect manufacturing")) {
-                s.impact = domainData.ai_impact;
+              const currentImpact = s.impact || [];
+              const isGenericImp = !currentImpact || currentImpact.length === 0 || 
+                                   (currentImpact.length === 2 && currentImpact[0] === "Zero defect manufacturing") ||
+                                   currentImpact.some(i => String(i).includes("seamless multi-user") || String(i).includes("flawless"));
+              if (isGenericImp) {
+                s.impact = domainData.impacts || domainData.ai_impact || domainData.impact || domainData.bullets;
               }
               if (!s.split_title_1) s.split_title_1 = domainData.split_title_1;
               if (!s.split_title_2) s.split_title_2 = domainData.split_title_2;

@@ -3153,7 +3153,9 @@ class PPTXGenerator {
     const isGenericDesc = !desc || 
       desc.includes("Developed and implemented an automatic foil cutting") ||
       desc.includes("Developed and implemented specialized process engineering mechanism") ||
-      desc.includes("Specialized engineering initiative implemented");
+      desc.includes("Specialized engineering initiative implemented") ||
+      desc.includes("Engineered, verified, and standardized operational workflow") ||
+      desc.includes("Standard operating procedure execution");
     
     let impacts = [];
     if (task.impact !== undefined && task.impact !== null) {
@@ -3163,22 +3165,30 @@ class PPTXGenerator {
         impacts = task.impact.split(/[\n;]/).map(i => i.trim()).filter(Boolean);
       }
     }
-    const isGenericImpact = impacts.length === 0 || (impacts.length === 2 && impacts[0].includes("cutting accuracy") && impacts[1].includes("production efficiency"));
+    const isGenericImpact = impacts.length === 0 || 
+      (impacts.length === 2 && impacts[0].includes("Zero defect manufacturing")) ||
+      impacts.some(i => String(i).includes("seamless multi-user") || String(i).includes("flawless"));
 
     if ((isGenericDesc || isGenericImpact) && typeof window !== 'undefined' && window.PROMPT_TEMPLATES?.localFactualTransform) {
-      const derived = window.PROMPT_TEMPLATES.localFactualTransform(rawTitle || '', category || '', engineer || '');
+      const derived = window.PROMPT_TEMPLATES.localFactualTransform(task, category || '', engineer || '');
       if (derived) {
-        if (isGenericDesc && derived.description) desc = derived.description;
-        if (isGenericImpact && derived.impacts && derived.impacts.length > 0) impacts = derived.impacts;
+        if (isGenericDesc && (derived.description || derived.ai_description || derived.desc)) {
+          desc = derived.description || derived.ai_description || derived.desc;
+        }
+        if (isGenericImpact && (derived.impacts || derived.ai_impact || derived.impact || derived.bullets)) {
+          impacts = derived.impacts || derived.ai_impact || derived.impact || derived.bullets;
+        }
       }
     }
     if (!desc) {
-      desc = `Engineered and deployed industrial process optimization for ${rawTitle || 'production operations'}. Designed, verified, and commissioned for regular active production use.`;
+      desc = `Engineered and implemented process optimization for ${rawTitle || 'production operations'}. Completed line trial validation and handed over standardized operating procedure for daily production.`;
     }
     if (impacts.length === 0) {
       impacts = [
-        "Enhanced manufacturing throughput and operational cycle time",
-        "Improved process repeatability and compliance standard"
+        "Analyzed workstation sequence and addressed process cycle bottlenecks",
+        "Adjusted tooling setup and verified component dimensional fitment",
+        "Conducted trial run on active line to validate operational repeatability",
+        "Handed over standardized operating procedure to shop-floor team"
       ];
     }
 
