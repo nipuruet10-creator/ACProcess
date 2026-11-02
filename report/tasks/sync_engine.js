@@ -327,10 +327,11 @@ class SyncEngine {
         const rep = String(t.include_in_report || t.presentation_status || t.monthly_report || 'YES').toUpperCase().trim();
         if (rep === "NO") return false;
         const tid = String(t.task_id || '').toUpperCase();
-        if (t.is_project === true || tid.startsWith('PROJ-')) return false;
-        if (t.is_cost_saving === true || tid.startsWith('CS-')) return false;
+        if (tid.startsWith('PROJ-')) return false;
+        if (tid.startsWith('CS-')) return false;
+        if (t.is_cost_saving === true) return false;
         const cat = String(t.category || '').toLowerCase();
-        if (cat.includes('ongoing project') || cat.includes('completed project') || cat.includes('cost saving')) return false;
+        if (cat.includes('cost saving')) return false;
         return true;
       });
 
@@ -342,14 +343,32 @@ class SyncEngine {
         if (rep === "NO") return;
         const tid = String(tId).toUpperCase();
         const cat = String(t.category || '').toLowerCase();
-        const isProj = Boolean(t.is_project || tid.startsWith('PROJ-') || cat.includes('ongoing project') || cat.includes('completed project'));
-        const isCost = Boolean(t.is_cost_saving || tid.startsWith('CS-') || cat.includes('cost saving'));
+        const isProjDedicated = tid.startsWith('PROJ-');
+        const isCostDedicated = Boolean(t.is_cost_saving || tid.startsWith('CS-') || cat.includes('cost saving'));
 
-        if (!isProj && !isCost && !slides.some(s => s.task_id === tId || (s.task_id && String(s.task_id).toLowerCase() === String(tId).toLowerCase()))) {
+        if (!isProjDedicated && !isCostDedicated && !slides.some(s => s.task_id === tId || (s.task_id && String(s.task_id).toLowerCase() === String(tId).toLowerCase()))) {
           let domainData = null;
           if (typeof PROMPT_TEMPLATES !== 'undefined' && PROMPT_TEMPLATES.localFactualTransform) {
             domainData = PROMPT_TEMPLATES.localFactualTransform(t);
           }
+
+          let slideCategory = t.category || (domainData && domainData.ai_category) || "Major Developments – Process";
+          const catLower = slideCategory.toLowerCase();
+          if (catLower.includes('ongoing project') || catLower.includes('completed project') || catLower === 'project' || catLower === 'process development' || catLower === 'others') {
+            const rawLower = String(t.task_name || '').toLowerCase();
+            if (rawLower.includes('part') || rawLower.includes('dismantling') || rawLower.includes('panel') || rawLower.includes('curling') || rawLower.includes('clamp')) {
+              slideCategory = "Major Developments – Parts";
+            } else if (rawLower.includes('die') || rawLower.includes('tool') || rawLower.includes('fixture') || rawLower.includes('jig')) {
+              slideCategory = "Major Developments – Tools";
+            } else if (rawLower.includes('fin') || rawLower.includes('coil') || rawLower.includes('sheet') || rawLower.includes('material') || rawLower.includes('tensile')) {
+              slideCategory = "Major Developments – Materials";
+            } else if (rawLower.includes('chemical') || rawLower.includes('swaat') || rawLower.includes('corrosion') || rawLower.includes('coating')) {
+              slideCategory = "Major Developments – Chemical";
+            } else {
+              slideCategory = "Major Developments – Process";
+            }
+          }
+
           slides.push({
             task_id: tId,
             month: normalizedMonth,
@@ -360,7 +379,7 @@ class SyncEngine {
             split_title_2: (domainData && domainData.split_title_2) || "",
             description: (domainData && domainData.ai_description) ? domainData.ai_description : (t.task_details || "Standard operating procedure execution and engineering development."),
             impact: (domainData && domainData.ai_impact && domainData.ai_impact.length > 0) ? domainData.ai_impact : ["Zero defect manufacturing", "Enhanced line balancing and cycle efficiency"],
-            category: t.category || (domainData && domainData.ai_category) || "Process Development",
+            category: slideCategory,
             status: t.status || "Completed",
             investment: t.investment || "In-house / Direct Implementation",
             has_manual_override: false

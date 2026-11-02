@@ -72,6 +72,88 @@ const ProjectsView = {
         parsed.push(this.getDefaultSeedProjects()[0]);
       }
 
+      // Ensure Hashmi's 4 ongoing strategic projects are permanently visible in Projects section (Requirement 2)
+      const hashmiStrategicProjects = [
+        {
+          task_id: "OCT-2026-054-MJY3",
+          task_name: "Requisition for Sheet metal production section dashboard modification",
+          assignee: "Hashmi (56880)",
+          engineer: "Hashmi (56880)",
+          category: "Ongoing Projects",
+          status: "Ongoing",
+          project_status: "Ongoing",
+          deadline: "November, 2026",
+          month: "OCT-2026",
+          overview: "Coordinated with IT and Sheet Metal section to submit dashboard modification requirements for tracking plant production KPIs.",
+          description: "Coordinated with IT and Sheet Metal section to submit dashboard modification requirements for tracking plant production KPIs.",
+          task_details: "• Compiled operational dashboard requirements from sheet metal shift supervisors\n• Submitted official IT requisition for production metrics and downtime tracking\n• Reviewed draft database structure and input screens with IT developers\n• Tested prototype dashboard updates for accurate real-time shift reporting",
+          is_project: true,
+          created_at: "2026-10-01T00:00:00.000Z",
+          last_updated: new Date().toISOString()
+        },
+        {
+          task_id: "OCT-2026-059-OQ5S",
+          task_name: "Requirements providing to IT Concern for Maintanance entry panel modification",
+          assignee: "Hashmi (56880)",
+          engineer: "Hashmi (56880)",
+          category: "Ongoing Projects",
+          status: "Ongoing",
+          project_status: "Ongoing",
+          deadline: "November, 2026",
+          month: "OCT-2026",
+          overview: "Submitted functional requirements to IT team to consolidate non-machine downtime and operational loss hours into a unified maintenance entry panel.",
+          description: "Submitted functional requirements to IT team to consolidate non-machine downtime and operational loss hours into a unified maintenance entry panel.",
+          task_details: "• Identified loss time tracking gaps outside of standard machine breakdown codes\n• Submitted functional requirements to IT to add operational loss time inputs\n• Conducted alignment meeting with maintenance and production supervisors\n• Validated updated user entry panel during live shift changeover",
+          is_project: true,
+          created_at: "2026-10-01T00:00:00.000Z",
+          last_updated: new Date().toISOString()
+        },
+        {
+          task_id: "OCT-2026-063-UVDT",
+          task_name: "Meeting and line visit of Fan motor manufacturing section for AC motor inhouse production",
+          assignee: "Hashmi (56880)",
+          engineer: "Hashmi (56880)",
+          category: "Ongoing Projects",
+          status: "Ongoing",
+          project_status: "Ongoing",
+          deadline: "January, 2027",
+          month: "OCT-2026",
+          overview: "Visited EAP fan motor production line to assess tooling, machinery, and assembly requirements for manufacturing AC ODU fan motors in-house.",
+          description: "Visited EAP fan motor production line to assess tooling, machinery, and assembly requirements for manufacturing AC ODU fan motors in-house.",
+          task_details: "• Inspected EAP motor stator, rotor, and final assembly manufacturing line\n• Cataloged required machine types, press tools, and cycle time capacities\n• Assessed production floor space and power supply requirements for in-house line\n• Held initial technical review meeting with production management",
+          is_project: true,
+          created_at: "2026-10-01T00:00:00.000Z",
+          last_updated: new Date().toISOString()
+        },
+        {
+          task_id: "OCT-2026-064-OVQR",
+          task_name: "Cutting and dismantling of Fan motor parts used in AC ODU unit",
+          assignee: "Hashmi (56880)",
+          engineer: "Hashmi (56880)",
+          category: "Ongoing Projects",
+          status: "Ongoing",
+          project_status: "Ongoing",
+          deadline: "December, 2026",
+          month: "OCT-2026",
+          overview: "Dismantled and cataloged AC ODU fan motor components to analyze in-house machining, stamping, and winding process requirements.",
+          description: "Dismantled and cataloged AC ODU fan motor components to analyze in-house machining, stamping, and winding process requirements.",
+          task_details: "• Disassembled fan motor units and cataloged mechanical and electrical components\n• Mapped manufacturing sequence for stator stack, shaft, and casing parts\n• Coordinated with R&I electrical team to evaluate component sourcing options\n• Prepared manufacturing feasibility summary for in-house motor production",
+          is_project: true,
+          created_at: "2026-10-01T00:00:00.000Z",
+          last_updated: new Date().toISOString()
+        }
+      ];
+
+      hashmiStrategicProjects.forEach(hp => {
+        const existingIdx = parsed.findIndex(p => p.task_id === hp.task_id);
+        if (existingIdx === -1) {
+          parsed.push(hp);
+        } else {
+          // Keep existing but ensure status and details are preserved
+          parsed[existingIdx] = { ...hp, ...parsed[existingIdx] };
+        }
+      });
+
       // Cleanse any legacy reference to inactive personnel
       parsed.forEach(p => {
         const assLower = String(p.assignee || '').toLowerCase();

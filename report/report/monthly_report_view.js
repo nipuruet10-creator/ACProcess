@@ -1466,9 +1466,25 @@ const MonthlyReportView = {
       allEngineersList.unshift(currentEngineer);
     }
 
-    const allCategories = (typeof MasterDataManager !== 'undefined' && MasterDataManager.getCategories)
-      ? MasterDataManager.getCategories()
-      : ((typeof MASTER_LISTS !== 'undefined' && MASTER_LISTS.CATEGORIES) ? MASTER_LISTS.CATEGORIES : ["Process development", "Completed Projects", "Ongoing Projects"]);
+    // Requirement 1: Only Major Developments – Process, Chemical, Tools, Parts, Materials
+    const allCategories = [
+      "Major Developments – Process",
+      "Major Developments – Chemical",
+      "Major Developments – Tools",
+      "Major Developments – Parts",
+      "Major Developments – Materials"
+    ];
+
+    const normCat = s => String(s || '').replace(/[\u2013\u2014-]/g, '-').replace(/\s+/g, ' ').trim().toLowerCase();
+    const curNorm = normCat(currentCategory);
+    let matchedCategory = allCategories.find(c => normCat(c) === curNorm);
+    if (!matchedCategory) {
+      if (curNorm.includes('chemical')) matchedCategory = "Major Developments – Chemical";
+      else if (curNorm.includes('tool') || curNorm.includes('fixture') || curNorm.includes('die')) matchedCategory = "Major Developments – Tools";
+      else if (curNorm.includes('part') || curNorm.includes('sfg')) matchedCategory = "Major Developments – Parts";
+      else if (curNorm.includes('material') || curNorm.includes('coil') || curNorm.includes('sheet')) matchedCategory = "Major Developments – Materials";
+      else matchedCategory = "Major Developments – Process";
+    }
 
     const container = this.renderContainer();
     container.innerHTML = `
@@ -1558,7 +1574,7 @@ const MonthlyReportView = {
                   <select id="edit-slide-category" 
                           onchange="MonthlyReportView.renderModalLivePreview('${taskId}')"
                           class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500 font-bold shadow-2xs cursor-pointer">
-                    ${allCategories.map(c => `<option value="${c}" ${c === currentCategory ? 'selected' : ''}>${c}</option>`).join('')}
+                    ${allCategories.map(c => `<option value="${c}" ${c === matchedCategory ? 'selected' : ''}>${c}</option>`).join('')}
                   </select>
                 </div>
 
