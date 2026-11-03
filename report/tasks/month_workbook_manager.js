@@ -122,7 +122,7 @@ class MonthWorkbookManager {
                   if (dRaw) deletedMap = JSON.parse(dRaw) || {};
                 } catch(e) {}
                 const tName = String(t.task_name || '').trim().toLowerCase();
-                const isDeleted = Boolean(deletedMap[t.task_id] || Object.values(deletedMap).some(d => d && d.taskName && String(d.taskName).trim().toLowerCase() === tName));
+                const isDeleted = Boolean(deletedMap[t.task_id]);
                 if (isDeleted) {
                   return; // Strictly omit and do NOT rescue deleted project!
                 }

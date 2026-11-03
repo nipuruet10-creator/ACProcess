@@ -7,7 +7,7 @@
  */
 
 const ProjectsView = {
-  selectedMonth: "SEP-2026",
+  selectedMonth: "OCT-2026",
   activeFilter: "all", // 'all', 'ongoing', 'completed'
   STORAGE_KEY: "walton_strategic_projects_permanent_v1",
   DELETED_STORAGE_KEY: "walton_deleted_project_ids",
@@ -23,20 +23,10 @@ const ProjectsView = {
     return {};
   },
 
-  isProjectDeleted(taskId, taskName) {
-    if (!taskId && !taskName) return false;
+  isProjectDeleted(taskId) {
+    if (!taskId) return false;
     const map = this.getDeletedProjectMap();
-    if (taskId && map[taskId]) return true;
-    if (taskName) {
-      const norm = String(taskName).trim().toLowerCase();
-      for (const key in map) {
-        const item = map[key];
-        if (item && item.taskName && String(item.taskName).trim().toLowerCase() === norm) {
-          return true;
-        }
-      }
-    }
-    return false;
+    return Boolean(map[taskId]);
   },
 
   markProjectDeleted(taskId, taskName = "") {
@@ -64,15 +54,31 @@ const ProjectsView = {
     }
   },
 
-  unmarkProjectDeleted(taskId) {
-    if (!taskId) return;
+  unmarkProjectDeleted(taskId, taskName = "") {
     try {
       const map = this.getDeletedProjectMap();
-      if (map[taskId]) {
+      let changed = false;
+      if (taskId && map[taskId]) {
         delete map[taskId];
+        changed = true;
+      }
+      if (taskName) {
+        const norm = String(taskName).trim().toLowerCase();
+        for (const key in map) {
+          if (map[key] && map[key].taskName && String(map[key].taskName).trim().toLowerCase() === norm) {
+            delete map[key];
+            changed = true;
+            if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+              const cleanKey = String(key).replace(/[.#$\[\]\/]/g, '_');
+              FirebaseSyncService.db.ref(`walton_monthly_report/deleted_projects/${cleanKey}`).remove().catch(() => {});
+            }
+          }
+        }
+      }
+      if (changed) {
         localStorage.setItem(this.DELETED_STORAGE_KEY, JSON.stringify(map));
       }
-      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+      if (taskId && typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
         const cleanId = String(taskId).replace(/[.#$\[\]\/]/g, '_');
         FirebaseSyncService.db.ref(`walton_monthly_report/deleted_projects/${cleanId}`).remove().catch(() => {});
       }
@@ -115,7 +121,7 @@ const ProjectsView = {
 
       // If storage has NEVER been initialized (first run in empty browser)
       if (raw === null) {
-        parsed = this.getDefaultSeedProjects().filter(p => !this.isProjectDeleted(p.task_id, p.task_name));
+        parsed = this.getDefaultSeedProjects().filter(p => p && p.task_id && !this.isProjectDeleted(p.task_id));
         this.saveProjects(parsed);
         return parsed;
       }
@@ -141,7 +147,7 @@ const ProjectsView = {
       });
 
       // Strictly filter out any explicitly deleted projects
-      parsed = parsed.filter(p => !this.isProjectDeleted(p.task_id, p.task_name));
+      parsed = parsed.filter(p => p && p.task_id && !this.isProjectDeleted(p.task_id));
 
       // Cleanse any legacy reference to inactive personnel
       parsed.forEach(p => {
@@ -162,7 +168,7 @@ const ProjectsView = {
   saveProjects(projects) {
     try {
       const cleanProjects = Array.isArray(projects)
-        ? projects.filter(p => !this.isProjectDeleted(p.task_id, p.task_name))
+        ? projects.filter(p => p && p.task_id && !this.isProjectDeleted(p.task_id))
         : [];
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cleanProjects));
       if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.broadcastProjectUpdate) {
@@ -1254,7 +1260,7 @@ const ProjectsView = {
     const photoUrl = this.getProjectPhoto(targetTaskId) || "";
 
     const list = this.getProjects();
-    this.unmarkProjectDeleted(targetTaskId);
+    this.unmarkProjectDeleted(targetTaskId, name);
 
     if (!isNew) {
       // UPDATE EXISTING PROJECT IN PERMANENT STORE
@@ -1267,6 +1273,7 @@ const ProjectsView = {
         existing.status_details = statusDetails;
         existing.project_status_details = statusDetails;
         existing.deadline = deadline;
+        existing.month = this.selectedMonth || "OCT-2026";
         existing.overview = overview;
         existing.description = overview;
         existing.task_details = details;
@@ -1281,9 +1288,24 @@ const ProjectsView = {
       }
       this.saveProjects(list);
 
-      // Ensure strategic project never pollutes monthly tasks (Requirement 1 & 2)
-      if (window.appState && window.appState.workbookMgr) {
-        window.appState.workbookMgr.deleteTask(this.selectedMonth, targetTaskId);
+      // Keep month workbook in sync with project task
+      if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+        const existingTask = window.appState.workbookMgr.getTask(this.selectedMonth, targetTaskId);
+        if (existingTask) {
+          window.appState.workbookMgr.updateTask(this.selectedMonth, targetTaskId, {
+            task_name: name,
+            category: category,
+            is_project: true,
+            project_status: projectStatus,
+            deadline: deadline,
+            overview: overview,
+            description: overview,
+            task_details: details || overview,
+            status_details: statusDetails,
+            assignee: assignee,
+            engineer: assignee
+          });
+        }
       }
 
       this.closeModal();
@@ -1301,6 +1323,7 @@ const ProjectsView = {
         status_details: statusDetails,
         project_status_details: statusDetails,
         deadline: deadline,
+        month: this.selectedMonth || "OCT-2026",
         overview: overview,
         description: overview,
         task_details: details,
@@ -1316,9 +1339,27 @@ const ProjectsView = {
       list.push(newProj);
       this.saveProjects(list);
 
-      // Ensure strategic project never pollutes monthly tasks (Requirement 1 & 2)
-      if (window.appState && window.appState.workbookMgr) {
-        window.appState.workbookMgr.deleteTask(this.selectedMonth, targetTaskId);
+      // Keep month workbook in sync with project task
+      if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+        window.appState.workbookMgr.addTask(
+          this.selectedMonth,
+          assignee,
+          name,
+          "YES",
+          details || overview,
+          category,
+          "",
+          "Kamrul (44819)",
+          {
+            task_id: targetTaskId,
+            is_project: true,
+            project_status: projectStatus,
+            deadline: deadline,
+            overview: overview,
+            description: overview,
+            status_details: statusDetails
+          }
+        );
       }
 
       this.closeModal();
@@ -1341,6 +1382,12 @@ const ProjectsView = {
     const workbookMgr = window.appState && window.appState.workbookMgr
       ? window.appState.workbookMgr
       : new MonthWorkbookManager();
+
+    if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr && window.appState.workbookMgr.activeMonth) {
+      if (!this._userExplicitlySwitchedMonth) {
+        this.selectedMonth = window.appState.workbookMgr.activeMonth;
+      }
+    }
 
     const month = this.selectedMonth;
     const months = workbookMgr.getAllMonths();

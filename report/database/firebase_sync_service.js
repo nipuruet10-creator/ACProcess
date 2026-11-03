@@ -514,15 +514,7 @@ const FirebaseSyncService = {
             if (stratRaw) {
               let strat = JSON.parse(stratRaw);
               if (Array.isArray(strat)) {
-                const filtered = strat.filter(p => {
-                  if (!p || !p.task_id) return false;
-                  if (merged[p.task_id]) return false;
-                  const pName = String(p.task_name || '').trim().toLowerCase();
-                  if (Object.values(merged).some(d => d && d.taskName && String(d.taskName).trim().toLowerCase() === pName)) {
-                    return false;
-                  }
-                  return true;
-                });
+                const filtered = strat.filter(p => p && p.task_id && !merged[p.task_id]);
                 if (filtered.length !== strat.length) {
                   localStorage.setItem("walton_strategic_projects_permanent_v1", JSON.stringify(filtered));
                   if (window.appState && window.appState.activeTab === 'projects' && typeof ProjectsView !== 'undefined' && ProjectsView.render) {
@@ -541,7 +533,7 @@ const FirebaseSyncService = {
       this._projectsBound = true;
       this.db.ref('walton_monthly_report/strategic_projects').on('value', (snapshot) => {
         const val = snapshot.val();
-        let list = Array.isArray(val) ? val : [];
+        let list = Array.isArray(val) ? val : (val && typeof val === 'object' ? Object.values(val) : []);
         try {
           let deletedMap = {};
           try {
@@ -549,15 +541,7 @@ const FirebaseSyncService = {
             if (dRaw) deletedMap = JSON.parse(dRaw) || {};
           } catch(e) {}
 
-          list = list.filter(p => {
-            if (!p || !p.task_id) return false;
-            if (deletedMap[p.task_id]) return false;
-            const pName = String(p.task_name || '').trim().toLowerCase();
-            if (Object.values(deletedMap).some(d => d && d.taskName && String(d.taskName).trim().toLowerCase() === pName)) {
-              return false;
-            }
-            return true;
-          });
+          list = list.filter(p => p && p.task_id && !deletedMap[p.task_id]);
 
           localStorage.setItem("walton_strategic_projects_permanent_v1", JSON.stringify(list));
         } catch (e) {}
@@ -1769,21 +1753,13 @@ const FirebaseSyncService = {
   broadcastProjectUpdate(projects) {
     if (!this.isConnected() || !this.db) return;
     try {
-      let toSend = Array.isArray(projects) ? projects : [];
+      let toSend = Array.isArray(projects) ? projects : (projects && typeof projects === 'object' ? Object.values(projects) : []);
       let deletedMap = {};
       try {
         const dRaw = localStorage.getItem("walton_deleted_project_ids");
         if (dRaw) deletedMap = JSON.parse(dRaw) || {};
       } catch(e) {}
-      toSend = toSend.filter(p => {
-        if (!p || !p.task_id) return false;
-        if (deletedMap[p.task_id]) return false;
-        const pName = String(p.task_name || '').trim().toLowerCase();
-        if (Object.values(deletedMap).some(d => d && d.taskName && String(d.taskName).trim().toLowerCase() === pName)) {
-          return false;
-        }
-        return true;
-      });
+      toSend = toSend.filter(p => p && p.task_id && !deletedMap[p.task_id]);
 
       this.db.ref('walton_monthly_report/strategic_projects').set(toSend);
       console.log("🔥 Strategic projects broadcasted to Firebase Realtime Database!");
