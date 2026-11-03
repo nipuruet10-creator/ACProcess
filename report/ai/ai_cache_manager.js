@@ -44,9 +44,11 @@ const AICacheManager = {
     const cache = HELPERS.storage.get(this.storageKey, {});
     const hash = this.hashContent(task);
     cache[hash] = {
-      ai_report_title: result.ai_report_title,
-      ai_report_description: result.ai_report_description,
-      ai_report_impact: result.ai_report_impact,
+      ai_report_title: result.ai_report_title || result.task_name || "",
+      ai_report_description: result.ai_report_description || result.ai_description || result.description || "",
+      ai_description: result.ai_description || result.ai_report_description || result.description || "",
+      ai_report_impact: result.ai_report_impact || result.ai_impact || result.impacts || result.impact || [],
+      ai_impact: result.ai_impact || result.ai_report_impact || result.impacts || result.impact || [],
       cached_at: new Date().toISOString()
     };
     HELPERS.storage.set(this.storageKey, cache);

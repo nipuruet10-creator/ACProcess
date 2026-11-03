@@ -279,6 +279,16 @@ const MonthlyReportView = {
    * Enforces authentic human plant engineering voice (Zero AI buzzwords / Zero hyperbole)
    */
   generateDetailsFromTitle(taskName, category = '', rawDetails = '') {
+    if (typeof PROMPT_TEMPLATES !== 'undefined' && typeof PROMPT_TEMPLATES.localFactualTransform === 'function') {
+      const res = PROMPT_TEMPLATES.localFactualTransform({ task_name: taskName, category: category, task_details: rawDetails }, category);
+      if (res && res.ai_description && Array.isArray(res.ai_impact) && res.ai_impact.length > 0) {
+        return {
+          desc: res.ai_description,
+          bullets: res.ai_impact
+        };
+      }
+    }
+
     const raw = String(taskName || '').trim();
     const details = String(rawDetails || '').trim();
     const lower = raw.toLowerCase();
@@ -677,7 +687,7 @@ const MonthlyReportView = {
     const autoBtn = document.getElementById('btn-auto-generate-slide');
     const origBtnHtml = autoBtn ? autoBtn.innerHTML : '';
     if (autoBtn) {
-      autoBtn.innerHTML = '<span>⏳</span> <span>Generating with AI...</span>';
+      autoBtn.innerHTML = '<span>⏳</span> <span>Generating Human Tone...</span>';
       autoBtn.disabled = true;
     }
 
@@ -731,15 +741,21 @@ const MonthlyReportView = {
           }, true);
 
           if (aiResult && (aiResult.ai_description || (Array.isArray(aiResult.ai_impact) && aiResult.ai_impact.length > 0))) {
-            if (descEl && aiResult.ai_description) descEl.value = aiResult.ai_description;
+            if (descEl && aiResult.ai_description) {
+              descEl.value = aiResult.ai_description;
+              descEl.dispatchEvent(new Event('input', { bubbles: true }));
+              descEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
             if (impactEl && aiResult.ai_impact) {
               const bList = Array.isArray(aiResult.ai_impact) ? aiResult.ai_impact : [aiResult.ai_impact];
               impactEl.value = bList.map(b => String(b).replace(/^[-*•\s]+/, '').trim()).filter(Boolean).join("\n");
+              impactEl.dispatchEvent(new Event('input', { bubbles: true }));
+              impactEl.dispatchEvent(new Event('change', { bubbles: true }));
             }
             aiGenerated = true;
-            const pName = geminiClient.getOpenRouterKey() ? "OpenRouter AI" : "Gemini AI";
+            const pName = geminiClient.getOpenRouterKey() ? "OpenRouter Free AI" : "Gemini AI";
             if (typeof window.showToast === 'function') {
-              window.showToast(`✨ Generated authentic engineering narrative using ${pName}!`, "success");
+              window.showToast(`✨ Rewritten in authentic human tone using ${pName}!`, "success");
             }
           }
         } catch (aiErr) {
@@ -749,10 +765,18 @@ const MonthlyReportView = {
 
       if (!aiGenerated) {
         const { desc, bullets } = this.generateDetailsFromTitle(taskName, category, rawDetails);
-        if (descEl) descEl.value = desc;
-        if (impactEl) impactEl.value = bullets.join("\n");
+        if (descEl) {
+          descEl.value = desc;
+          descEl.dispatchEvent(new Event('input', { bubbles: true }));
+          descEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (impactEl) {
+          impactEl.value = bullets.join("\n");
+          impactEl.dispatchEvent(new Event('input', { bubbles: true }));
+          impactEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         if (typeof window.showToast === 'function') {
-          window.showToast(`✨ Generated narrative description & deliverables for "${taskName}"!`, "success");
+          window.showToast(`✨ Rewritten in authentic human tone for "${taskName}"!`, "success");
         }
       }
 

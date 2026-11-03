@@ -7,6 +7,7 @@
     RewriteRule ^uploads/(.*)$ report/uploads/$1 [L]
 
     # Route any root /api/ requests directly to /report/api/
+    RewriteRule ^api/openrouter/?$ report/api/openrouter.php [L,QSA]
     RewriteRule ^api/(.*)$ report/api/$1 [L]
 </IfModule>
 

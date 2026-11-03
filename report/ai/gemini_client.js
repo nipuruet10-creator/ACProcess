@@ -13,6 +13,7 @@ class GeminiClient {
     this.templates = typeof PROMPT_TEMPLATES !== 'undefined' ? PROMPT_TEMPLATES : null;
     
     // OpenRouter Settings
+    this.PROXY_ENDPOINTS = ["/api/openrouter", "report/api/openrouter.php", "/report/api/openrouter.php"];
     this.PROXY_ENDPOINT = "/api/openrouter";
     this.OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
     this.STORAGE_KEY_PROVIDER = "walton_pd_ai_provider";
@@ -38,7 +39,12 @@ class GeminiClient {
   }
 
   getOpenRouterModel() {
-    return HELPERS.storage.get(this.STORAGE_KEY_OPENROUTER_MODEL, this.DEFAULT_OPENROUTER_MODEL) || this.DEFAULT_OPENROUTER_MODEL;
+    let m = HELPERS.storage.get(this.STORAGE_KEY_OPENROUTER_MODEL, this.DEFAULT_OPENROUTER_MODEL) || this.DEFAULT_OPENROUTER_MODEL;
+    if (typeof m === 'string' && (m.includes('gemini-2.0-flash-exp') || m.trim() === '')) {
+      m = this.DEFAULT_OPENROUTER_MODEL;
+      this.setOpenRouterModel(m);
+    }
+    return m;
   }
 
   get openRouterModel() {
@@ -72,43 +78,53 @@ class GeminiClient {
     const mdl = model || this.getOpenRouterModel();
     const startTime = Date.now();
 
-    // 1. Try Vercel Serverless Route /api/openrouter (Primary, Secure)
+    // 1. Try PHP Proxy / Serverless Route (Primary, Secure)
     const isBrowser = typeof window !== 'undefined';
     const isNotLocalFile = isBrowser && window.location.protocol !== 'file:';
 
     if (isNotLocalFile) {
-      try {
-        const headers = { "Content-Type": "application/json" };
-        if (key) headers["x-openrouter-key"] = key;
+      for (const endpoint of this.PROXY_ENDPOINTS) {
+        try {
+          const headers = { "Content-Type": "application/json" };
+          if (key) headers["x-openrouter-key"] = key;
 
-        const proxyRes = await fetch(this.PROXY_ENDPOINT, {
-          method: "POST",
-          headers: headers,
-          body: JSON.stringify({ action: "test", model: mdl, apiKey: key })
-        });
+          const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const timeoutId = controller ? setTimeout(() => controller.abort(), 10000) : null;
 
-        if (proxyRes.status !== 404 && proxyRes.status !== 502) {
-          const proxyData = await proxyRes.json();
-          const isSuccess = Boolean(proxyData.success);
-          return {
-            success: isSuccess,
-            connected: isSuccess,
-            provider: "OpenRouter",
-            status: proxyData.status || (isSuccess ? "Connected" : "Failed"),
-            model: proxyData.model || mdl,
-            latency: proxyData.latency || (Date.now() - startTime),
-            timestamp: proxyData.timestamp || new Date().toISOString(),
-            error: proxyData.error || (isSuccess ? null : "Connection failed"),
-            details: proxyData.details || "",
-            reply: proxyData.reply || ""
-          };
+          const proxyRes = await fetch(endpoint, {
+            method: "POST",
+            headers: headers,
+            body: JSON.stringify({ action: "test", model: mdl, apiKey: key }),
+            signal: controller ? controller.signal : undefined
+          });
+          if (timeoutId) clearTimeout(timeoutId);
+
+          if (proxyRes.ok) {
+            const contentType = proxyRes.headers.get("content-type") || "";
+            if (contentType.includes("json")) {
+              const proxyData = await proxyRes.json();
+              const isSuccess = Boolean(proxyData.success);
+              return {
+                success: isSuccess,
+                connected: isSuccess,
+                provider: "OpenRouter",
+                status: proxyData.status || (isSuccess ? "Connected" : "Failed"),
+                model: proxyData.model || mdl,
+                latency: proxyData.latency || (Date.now() - startTime),
+                timestamp: proxyData.timestamp || new Date().toISOString(),
+                error: proxyData.error || (isSuccess ? null : "Connection failed"),
+                details: proxyData.details || "",
+                reply: proxyData.reply || ""
+              };
+            }
+          }
+        } catch (proxyErr) {
+          console.warn(`Proxy endpoint ${endpoint} failed, trying next:`, proxyErr.message);
         }
-      } catch (proxyErr) {
-        console.warn("Vercel proxy /api/openrouter unreachable, testing direct connection:", proxyErr.message);
       }
     }
 
-    // 2. Direct OpenRouter Connection Fallback (For local file:// or standalone setups)
+    // 2. Direct OpenRouter Connection Fallback
     if (!key) {
       return {
         success: false,
@@ -116,17 +132,19 @@ class GeminiClient {
         status: "Failed",
         model: mdl,
         timestamp: new Date().toISOString(),
-        error: "Invalid API Key: OpenRouter API key is empty. Please enter your key or set OPENROUTER_API_KEY on the server.",
+        error: "Invalid API Key: OpenRouter API key is empty. Please enter your key or configure OPENROUTER_API_KEY.",
         latency: Date.now() - startTime
       };
     }
 
     try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 12000) : null;
+
       const response = await fetch(this.OPENROUTER_ENDPOINT, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${key}`,
-          "HTTP-Referer": "https://waltonbd.com",
           "X-Title": "Walton AC Process Monthly Report",
           "Content-Type": "application/json"
         },
@@ -137,8 +155,10 @@ class GeminiClient {
           ],
           max_tokens: 50,
           temperature: 0.1
-        })
+        }),
+        signal: controller ? controller.signal : undefined
       });
+      if (timeoutId) clearTimeout(timeoutId);
 
       const latency = Date.now() - startTime;
       if (!response.ok) {
@@ -257,16 +277,15 @@ class GeminiClient {
       console.warn("Could not dynamically load OpenRouter models, using verified catalog:", e.message);
     }
 
-    // Fallback verified models
+    // Fallback verified models (prioritizing 100% active free models)
     const fallbackFree = [
       { id: "openrouter/free", name: "OpenRouter: Free Models Auto-Router (100% Free - Recommended)", isFree: true },
-      { id: "openrouter/auto", name: "OpenRouter: Auto Router (Best Fit)", isFree: true },
-      { id: "google/gemini-2.0-flash-exp:free", name: "Google: Gemini 2.0 Flash (Fast & Accurate)", isFree: true },
-      { id: "deepseek/deepseek-r1:free", name: "DeepSeek: R1 Reasoning (Deep Logic - Free)", isFree: true },
+      { id: "google/gemma-4-31b-it:free", name: "Google: Gemma 4 31B (High Accuracy - Free)", isFree: true },
+      { id: "google/gemma-4-26b-a4b-it:free", name: "Google: Gemma 4 26B A4B (Fast - Free)", isFree: true },
       { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Meta: Llama 3.3 70B Instruct (High Capability - Free)", isFree: true },
-      { id: "qwen/qwen-2.5-coder-32b-instruct:free", name: "Qwen: 2.5 Coder 32B (Technical & Code - Free)", isFree: true },
-      { id: "mistralai/mistral-small-24b-instruct-2501:free", name: "Mistral: Small 24B Instruct (Free)", isFree: true },
-      { id: "deepseek/deepseek-chat:free", name: "DeepSeek: V3 Chat (Free)", isFree: true }
+      { id: "nvidia/nemotron-3.5-lightning:free", name: "NVIDIA: Nemotron 3.5 Lightning (Free)", isFree: true },
+      { id: "deepseek/deepseek-r1:free", name: "DeepSeek: R1 Reasoning (Deep Logic - Free)", isFree: true },
+      { id: "openrouter/auto", name: "OpenRouter: Auto Router (Best Fit)", isFree: true }
     ];
     return { freeModels: fallbackFree, otherModels: [], all: fallbackFree };
   }
@@ -276,101 +295,215 @@ class GeminiClient {
    */
   async callOpenRouter(messages, temperature = 0.2, maxTokens = 600, jsonMode = false) {
     const key = this.getOpenRouterKey();
-    const model = this.getOpenRouterModel();
+    let model = this.getOpenRouterModel();
+    if (!model || model.includes('gemini-2.0-flash-exp')) {
+      model = 'openrouter/free';
+    }
 
-    // 1. Try Vercel Serverless Route /api/openrouter
+    // 1. Try Hostinger PHP Proxy or Serverless Route
     const isBrowser = typeof window !== 'undefined';
     const isNotLocalFile = isBrowser && window.location.protocol !== 'file:';
 
     if (isNotLocalFile) {
-      try {
-        const headers = { "Content-Type": "application/json" };
-        if (key) headers["x-openrouter-key"] = key;
+      for (const endpoint of this.PROXY_ENDPOINTS) {
+        try {
+          const headers = { "Content-Type": "application/json" };
+          if (key) headers["x-openrouter-key"] = key;
 
-        const proxyPayload = {
-          action: "chat",
-          model: model,
-          messages: messages,
-          temperature: temperature,
-          max_tokens: maxTokens
-        };
-        if (jsonMode) proxyPayload.response_format = { type: "json_object" };
+          const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const timeoutId = controller ? setTimeout(() => controller.abort(), 12000) : null;
 
-        const proxyRes = await fetch(this.PROXY_ENDPOINT, {
-          method: "POST",
-          headers: headers,
-          body: JSON.stringify(proxyPayload)
-        });
+          const proxyPayload = {
+            action: "chat",
+            model: model,
+            messages: messages,
+            temperature: temperature,
+            max_tokens: maxTokens
+          };
+          if (jsonMode) proxyPayload.response_format = { type: "json_object" };
 
-        if (proxyRes.ok) {
-          const contentType = proxyRes.headers.get("content-type") || "";
-          if (contentType.includes("json")) {
-            const proxyData = await proxyRes.json();
-            if (proxyData && proxyData.success) {
-              return proxyData.content;
-            }
-            if (proxyData && proxyData.error) {
-              console.warn("Proxy returned error, trying direct OpenRouter:", proxyData.error);
+          const proxyRes = await fetch(endpoint, {
+            method: "POST",
+            headers: headers,
+            body: JSON.stringify(proxyPayload),
+            signal: controller ? controller.signal : undefined
+          });
+          if (timeoutId) clearTimeout(timeoutId);
+
+          if (proxyRes.ok) {
+            const contentType = proxyRes.headers.get("content-type") || "";
+            if (contentType.includes("json")) {
+              const proxyData = await proxyRes.json();
+              if (proxyData && proxyData.success && proxyData.content) {
+                return proxyData.content;
+              }
+              if (proxyData && proxyData.error) {
+                console.warn(`Proxy ${endpoint} error:`, proxyData.error);
+              }
             }
           }
+        } catch (proxyErr) {
+          console.warn(`Proxy ${endpoint} notice:`, proxyErr.message);
         }
-      } catch (proxyErr) {
-        if (!key) throw proxyErr;
-        console.warn("Proxy chat call failed, falling back to direct API:", proxyErr.message);
       }
     }
 
-    // 2. Direct fallback
+    // 2. Direct OpenRouter Connection Fallback (with automatic model fallback)
     if (!key) throw new Error("OpenRouter API key is not configured.");
 
-    const payload = {
-      model: model,
-      messages: messages,
-      temperature: temperature,
-      max_tokens: maxTokens
-    };
-    if (jsonMode) {
-      payload.response_format = { type: "json_object" };
+    const candidateModels = [model, 'openrouter/free', 'google/gemma-4-31b-it:free', 'meta-llama/llama-3.3-70b-instruct:free'];
+    const tried = new Set();
+    let lastErr = null;
+
+    for (const curModel of candidateModels) {
+      if (tried.has(curModel)) continue;
+      tried.add(curModel);
+
+      const payload = {
+        model: curModel,
+        messages: messages,
+        temperature: temperature,
+        max_tokens: maxTokens
+      };
+      if (jsonMode) {
+        payload.response_format = { type: "json_object" };
+      }
+
+      try {
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timeoutId = controller ? setTimeout(() => controller.abort(), 12000) : null;
+
+        let response = await fetch(this.OPENROUTER_ENDPOINT, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${key}`,
+            "X-Title": "Walton AC Process Monthly Report",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload),
+          signal: controller ? controller.signal : undefined
+        });
+        if (timeoutId) clearTimeout(timeoutId);
+
+        // If HTTP 400 because model does not support response_format: json_object, retry without response_format
+        if (!response.ok && jsonMode && response.status === 400) {
+          delete payload.response_format;
+          const retryController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const retryTimeoutId = retryController ? setTimeout(() => retryController.abort(), 12000) : null;
+
+          response = await fetch(this.OPENROUTER_ENDPOINT, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${key}`,
+              "X-Title": "Walton AC Process Monthly Report",
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload),
+            signal: retryController ? retryController.signal : undefined
+          });
+          if (retryTimeoutId) clearTimeout(retryTimeoutId);
+        }
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.choices && data.choices[0] && data.choices[0].message) {
+            const msg = data.choices[0].message;
+            const content = msg.content || msg.reasoning || "";
+            return String(content || "");
+          }
+        } else {
+          const errText = await response.text();
+          lastErr = new Error(`OpenRouter Error (${response.status}): ${errText.slice(0, 150)}`);
+          // If not 404/429, don't try other models
+          if (response.status !== 404 && response.status !== 429) {
+            break;
+          }
+        }
+      } catch (reqErr) {
+        lastErr = reqErr;
+      }
     }
 
-    let response = await fetch(this.OPENROUTER_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${key}`,
-        "HTTP-Referer": "https://waltonbd.com",
-        "X-Title": "Walton AC Process Monthly Report",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
+    throw lastErr || new Error("Failed to receive response from OpenRouter API.");
+  }
 
-    // If HTTP 400 because model does not support response_format: json_object, retry without response_format
-    if (!response.ok && jsonMode && response.status === 400) {
-      delete payload.response_format;
-      response = await fetch(this.OPENROUTER_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${key}`,
-          "HTTP-Referer": "https://waltonbd.com",
-          "X-Title": "Walton AC Process Monthly Report",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
+  /**
+   * Ultra-robust AI response parser: Handles JSON fences, embedded JSON, and raw Markdown/Text
+   */
+  parseAiResponse(rawReply, taskName = "") {
+    if (!rawReply) return null;
+    const text = String(rawReply).trim();
+
+    // 1. Try direct clean JSON
+    try {
+      const cleanJson = text.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+      const parsed = JSON.parse(cleanJson);
+      if (parsed && (parsed.ai_description || parsed.ai_impact || parsed.description || parsed.impact)) {
+        return {
+          ai_report_title: parsed.ai_report_title || taskName,
+          ai_description: parsed.ai_description || parsed.description || parsed.ai_report_description || "",
+          ai_impact: Array.isArray(parsed.ai_impact) ? parsed.ai_impact : (Array.isArray(parsed.impact) ? parsed.impact : (parsed.ai_report_impact ? [parsed.ai_report_impact] : []))
+        };
+      }
+    } catch (_) {}
+
+    // 2. Try JSON match inside string
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed && (parsed.ai_description || parsed.ai_impact || parsed.description || parsed.impact)) {
+          return {
+            ai_report_title: parsed.ai_report_title || taskName,
+            ai_description: parsed.ai_description || parsed.description || parsed.ai_report_description || "",
+            ai_impact: Array.isArray(parsed.ai_impact) ? parsed.ai_impact : (Array.isArray(parsed.impact) ? parsed.impact : (parsed.ai_report_impact ? [parsed.ai_report_impact] : []))
+          };
+        }
+      } catch (_) {}
     }
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`OpenRouter Error (${response.status}): ${errText.slice(0, 200)}`);
+    // 3. Fallback: Parse human Markdown/Text with "Description:" and "Impact: • ..."
+    let desc = "";
+    let impacts = [];
+
+    const descMatch = text.match(/(?:description|overview|narrative)\s*[:=-]\s*([^\n\r]+(?:\n(?![•*-]|\d+[\.)]|impact)[^\n\r]+)*)/i);
+    if (descMatch && descMatch[1]) {
+      desc = descMatch[1].trim().replace(/^["']|["']$/g, '');
     }
 
-    const data = await response.json();
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error("Invalid response structure from OpenRouter.");
+    const impactSectionMatch = text.match(/(?:impact|outcomes|key impact|key outcomes|deliverables)\s*[:=-]\s*([\s\S]*)/i);
+    const impactText = impactSectionMatch ? impactSectionMatch[1] : text;
+
+    const bulletLines = impactText
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => /^[•*-]\s+|\d+[\.)]\s+/.test(l))
+      .map(l => l.replace(/^[•*-]\s+|\d+[\.)]\s+/, '').trim())
+      .filter(l => l.length > 5 && !l.toLowerCase().startsWith('description:'));
+
+    if (bulletLines.length > 0) {
+      impacts = bulletLines;
     }
-    const msg = data.choices[0].message;
-    const content = msg ? (msg.content || msg.reasoning || "") : "";
-    return String(content || "");
+
+    if (!desc) {
+      const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+      for (const p of paragraphs) {
+        if (!/^[•*-]|\d+[\.)]/.test(p) && !p.toLowerCase().startsWith('impact:')) {
+          desc = p.replace(/\s+/g, ' ').trim();
+          break;
+        }
+      }
+    }
+
+    if (desc || (impacts && impacts.length > 0)) {
+      return {
+        ai_report_title: taskName,
+        ai_description: desc,
+        ai_impact: impacts
+      };
+    }
+
+    return null;
   }
 
   /**
@@ -385,7 +518,7 @@ class GeminiClient {
     // 1. Check cache unless forced
     if (!forceRegenerate) {
       const cached = this.cache ? this.cache.get(task) : null;
-      if (cached) {
+      if (cached && (cached.ai_description || cached.ai_report_description)) {
         return {
           ai_report_title: cached.ai_report_title,
           ai_description: cached.ai_description || cached.ai_report_description,
@@ -411,30 +544,17 @@ class GeminiClient {
           { role: "user", content: prompt }
         ], this.config.TEMPERATURE, this.config.MAX_OUTPUT_TOKENS, true);
 
-        // Robust JSON extraction: strip markdown fences or find outer {...}
-        let parsed = null;
-        const textToParse = String(rawReply || "").trim();
-        try {
-          const cleanJson = textToParse.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
-          parsed = JSON.parse(cleanJson);
-        } catch (e1) {
-          const jsonMatch = textToParse.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            try {
-              parsed = JSON.parse(jsonMatch[0]);
-            } catch (e2) {
-              console.warn("JSON match parse failed:", e2.message);
-            }
-          }
-        }
-        if (!parsed) {
-          throw new Error("Could not parse JSON from OpenRouter response: " + textToParse.slice(0, 100));
+        const parsed = this.parseAiResponse(rawReply, task.task_name || task.original_task_name);
+        if (!parsed || (!parsed.ai_description && (!parsed.ai_impact || parsed.ai_impact.length === 0))) {
+          throw new Error("Could not extract narrative from OpenRouter response: " + String(rawReply || "").slice(0, 100));
         }
 
         const result = {
           ai_report_title: parsed.ai_report_title || task.task_name || task.original_task_name,
-          ai_description: parsed.ai_description || parsed.ai_report_description || "",
-          ai_impact: Array.isArray(parsed.ai_impact) ? parsed.ai_impact : (parsed.ai_report_impact ? [parsed.ai_report_impact] : []),
+          ai_description: parsed.ai_description || "",
+          ai_report_description: parsed.ai_description || "",
+          ai_impact: Array.isArray(parsed.ai_impact) ? parsed.ai_impact : [parsed.ai_impact].filter(Boolean),
+          ai_report_impact: Array.isArray(parsed.ai_impact) ? parsed.ai_impact : [parsed.ai_impact].filter(Boolean),
           ai_category: parsed.ai_category || "Process Development",
           ai_project_type: parsed.ai_project_type || "Process Improvement",
           fromCache: false,
@@ -444,10 +564,10 @@ class GeminiClient {
         if (this.cache) this.cache.set(task, result);
         return result;
       } catch (err) {
-        console.warn("OpenRouter API call failed, falling back to local factual transformation:", err.message);
+        console.warn("OpenRouter API call notice, applying human-tone engineering rewrite:", err.message);
         const fallback = this.templates.localFactualTransform(task);
         if (this.cache) this.cache.set(task, fallback);
-        return { ...fallback, fromCache: false, source: "fallback_after_openrouter_error", error: err.message };
+        return { ...fallback, fromCache: false, source: "fallback_after_openrouter_notice", error: err.message };
       }
     }
 

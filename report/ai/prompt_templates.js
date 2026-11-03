@@ -297,6 +297,79 @@ Return ONLY a JSON object matching this schema:
           "Conducted alignment meeting with maintenance and production supervisors",
           "Validated updated user entry panel during live shift changeover"
         ];
+      } else if (lower.includes('nexoro') || (lower.includes('screenprint') && lower.includes('logo'))) {
+        desc = "Conducted screen-printing tooling trials and die alignment to standardize Nexoro branding application on production panels.";
+        impacts = [
+          "Repurposed existing die tooling from discontinued model to save setup costs",
+          "Bound new mesh screen into frame to ensure high-definition print clarity",
+          "Standardized positive film positioning for repeatable logo placement",
+          "Verified paint adhesion and curing quality on production trial parts",
+          "Potential reduction in branding tooling and production cycle costs"
+        ];
+      } else if (lower.includes('discharge tube') || (lower.includes('tube making') && lower.includes('compressor'))) {
+        desc = "Developed new machine program and bending sequence for 130kW FS compressor discharge tubes, validating dimensional fitment with R&I.";
+        impacts = [
+          "Formulated CNC bending program for 130kW FS discharge tube geometry",
+          "Inspected tube bend angle and ovality against engineering drawings",
+          "Handed over qualified sample tubes to R&I for pressure and vibration testing",
+          "Verified machine repeatability for mass production line feeding"
+        ];
+      } else if (lower.includes('tube bending') || (lower.includes('bending check') && lower.includes('tube'))) {
+        desc = "Evaluated rotary draw bending parameters on stainless steel tubes to eliminate surface flatness and wrinkle defects.";
+        impacts = [
+          "Executed trial runs with updated machine bending program",
+          "Inspected tube output geometry and verified cross-sectional roundness",
+          "Coordinated with machine supplier to resolve surface wrinkle and flatness issues",
+          "Handed over approved tube samples to assembly section for line trial"
+        ];
+      } else if (lower.includes('flaring') && lower.includes('tube')) {
+        desc = "Evaluated end-forming and flaring parameters on 15.88mm stainless steel tubes to achieve leak-free sealing with machine supplier.";
+        impacts = [
+          "Tested new flaring machine program and die clamp pressure",
+          "Inspected flared tube mouth diameter, flare angle, and surface cracks",
+          "Coordinated with tooling supplier to adjust punch feed rate and cycle time",
+          "Verified hermetic joint sealing on nitrogen pressure decay testing"
+        ];
+      } else if (lower.includes('strainer') && lower.includes('mesh')) {
+        desc = "Arranged trial schedule and conducted line trials with new mesh supplier for LCAC strainer development.";
+        impacts = [
+          "Coordinated trial run on WPR strainer section with newly sourced mesh material",
+          "Verified mesh filtration density, structural rigidity, and fitment dimensions",
+          "Handed over trial strainer assemblies to R&I for particle filtration validation",
+          "Potential reduction in raw material procurement and component costs"
+        ];
+      } else if (lower.includes('ketec') || (lower.includes('punch tools') && lower.includes('order'))) {
+        desc = "Completed pre-shipment inspection (PSI) and item coding for KETEC punch tooling order to resolve radius mismatches.";
+        impacts = [
+          "Conducted thorough pre-shipment inspection (PSI) on KETEC punch tools before dispatch",
+          "Created standardized ERP item codes for mismatched radius tools identified during PSI",
+          "Coordinated tool delivery schedule with SCM and import clearance teams",
+          "Verified tool geometry compatibility with CNC turret press tool holders"
+        ];
+      } else if (lower.includes('powder coating booth') || (lower.includes('coating booth') && (lower.includes('upgradation') || lower.includes('utility') || lower.includes('plumbing')))) {
+        desc = "Coordinated plant utility relocation, workshop extension, and equipment readiness for powder coating booth upgradation.";
+        impacts = [
+          "Scheduled pneumatic, water line, and electrical relocation work during holiday period",
+          "Followed up workshop construction, shutter extension, and booth foundation work",
+          "Coordinated mechanical shipment readiness with SCM, machine making, and specialists",
+          "Maintained zero downtime impact on adjacent active sheet metal production lines"
+        ];
+      } else if (lower.includes('ultrasonic welding') || (lower.includes('blower') && lower.includes('welding'))) {
+        desc = "Followed up LCP and PO approvals while coordinating horn and fixture manufacturing for 116mm blower ultrasonic welding.";
+        impacts = [
+          "Completed procurement documentation and PO approval for ultrasonic horn and fixture",
+          "Coordinated with tooling supplier to ensure precision horn resonance and fitment",
+          "Planned trial welding schedule on assembly line to test joint seam strength",
+          "Verified weld seam hermetic seal integrity on pilot blower assemblies"
+        ];
+      } else if (lower.includes('hx bending') || (lower.includes('bending die') && (lower.includes('in-house') || lower.includes('inhouse') || lower.includes('hx')))) {
+        desc = "Followed up new die manufacturing and resolved knurling tool machining issues for in-house heat exchanger bending.";
+        impacts = [
+          "Accelerated die block fabrication in machine making workshop",
+          "Resolved pending machining clearances and surface finish issues on knurling tools",
+          "Inspected trial bending radius to prevent tube flattening and wall thinning",
+          "Eliminated reliance on outsourced bending dies to reduce tooling lead time"
+        ];
       } else if (!this.isGenericMilestone(details)) {
         // Generic parsing for numbered/bulleted engineering notes
         const cleanSteps = details
@@ -310,7 +383,7 @@ Return ONLY a JSON object matching this schema:
           let s2 = cleanSteps[1] || '';
           if (s2 && !/[.!?]$/.test(s2)) s2 += '.';
           desc = `${s1} ${s2}`.trim();
-          impacts = cleanSteps.slice(0, 4).map(step => {
+          impacts = cleanSteps.slice(0, 5).map(step => {
             let b = step.charAt(0).toUpperCase() + step.slice(1);
             if (/[.!?]$/.test(b)) b = b.slice(0, -1);
             return b;
@@ -323,7 +396,118 @@ Return ONLY a JSON object matching this schema:
     // PRIORITY 2: DOMAIN-BASED HUMAN PLANT REASONING FROM TITLE
     // -------------------------------------------------------------
     if (!desc) {
-      if (lower.includes("acprocess") || lower.includes("domain") || lower.includes("website") || lower.includes("web portal")) {
+      if (lower.includes('nexoro') || (lower.includes('screenprint') && lower.includes('logo'))) {
+        category = "Major Developments - Process";
+        projectType = "Process Optimization";
+        desc = "Conducted screen-printing tooling trials and die alignment to standardize Nexoro branding application on production panels.";
+        impacts = [
+          "Repurposed existing die tooling from discontinued model to save setup costs",
+          "Bound new mesh screen into frame to ensure high-definition print clarity",
+          "Standardized positive film positioning for repeatable logo placement",
+          "Verified paint adhesion and curing quality on production trial parts",
+          "Potential reduction in branding tooling and production cycle costs"
+        ];
+        quote = "Precision Branding for Enhanced Product Quality";
+      } else if (lower.includes('discharge tube') || (lower.includes('tube making') && lower.includes('compressor'))) {
+        category = "Major Developments - Parts";
+        projectType = "Parts Development";
+        desc = "Developed new machine program and bending sequence for 130kW FS compressor discharge tubes, validating dimensional fitment with R&I.";
+        impacts = [
+          "Formulated CNC bending program for 130kW FS discharge tube geometry",
+          "Inspected tube bend angle and ovality against engineering drawings",
+          "Handed over qualified sample tubes to R&I for pressure and vibration testing",
+          "Verified machine repeatability for mass production line feeding"
+        ];
+        quote = "Precision Tube Forming for HVAC Reliability";
+      } else if (lower.includes('tube bending') || (lower.includes('bending check') && lower.includes('tube'))) {
+        category = "Major Developments - Process";
+        projectType = "Process Optimization";
+        desc = "Evaluated rotary draw bending parameters on stainless steel tubes to eliminate surface flatness and wrinkle defects.";
+        impacts = [
+          "Executed trial runs with updated machine bending program",
+          "Inspected tube output geometry and verified cross-sectional roundness",
+          "Coordinated with machine supplier to resolve surface wrinkle and flatness issues",
+          "Handed over approved tube samples to assembly section for line trial"
+        ];
+        quote = "Consistent Tube Bending for Flawless Fluid Dynamics";
+      } else if (lower.includes('flaring') && lower.includes('tube')) {
+        category = "Major Developments - Process";
+        projectType = "Process Optimization";
+        desc = "Evaluated end-forming and flaring parameters on 15.88mm stainless steel tubes to achieve leak-free sealing with machine supplier.";
+        impacts = [
+          "Tested new flaring machine program and die clamp pressure",
+          "Inspected flared tube mouth diameter, flare angle, and surface cracks",
+          "Coordinated with tooling supplier to adjust punch feed rate and cycle time",
+          "Verified hermetic joint sealing on nitrogen pressure decay testing"
+        ];
+        quote = "Precision Flaring for High-Integrity Refrigerant Joints";
+      } else if (lower.includes('strainer') && lower.includes('mesh')) {
+        category = "Major Developments - Process";
+        projectType = "Process Optimization";
+        desc = "Arranged trial schedule and conducted line trials with new mesh supplier for LCAC strainer development.";
+        impacts = [
+          "Coordinated trial run on WPR strainer section with newly sourced mesh material",
+          "Verified mesh filtration density, structural rigidity, and fitment dimensions",
+          "Handed over trial strainer assemblies to R&I for particle filtration validation",
+          "Potential reduction in raw material procurement and component costs"
+        ];
+        quote = "Advanced Filtration for Long-Life System Performance";
+      } else if (lower.includes('ketec') || (lower.includes('punch tools') && lower.includes('order'))) {
+        category = "Major Developments - Tools";
+        projectType = "Tooling & Fixtures";
+        desc = "Completed pre-shipment inspection (PSI) and item coding for KETEC punch tooling order to resolve radius mismatches.";
+        impacts = [
+          "Conducted thorough pre-shipment inspection (PSI) on KETEC punch tools before dispatch",
+          "Created standardized ERP item codes for mismatched radius tools identified during PSI",
+          "Coordinated tool delivery schedule with SCM and import clearance teams",
+          "Verified tool geometry compatibility with CNC turret press tool holders"
+        ];
+        quote = "Rigorous Tooling Quality for Sheet Metal Precision";
+      } else if (lower.includes('powder coating booth') || (lower.includes('coating booth') && (lower.includes('upgradation') || lower.includes('utility') || lower.includes('plumbing')))) {
+        category = "Major Developments - Process";
+        projectType = "Infrastructure Upgradation";
+        desc = "Coordinated plant utility relocation, workshop extension, and equipment readiness for powder coating booth upgradation.";
+        impacts = [
+          "Scheduled pneumatic, water line, and electrical relocation work during holiday period",
+          "Followed up workshop construction, shutter extension, and booth foundation work",
+          "Coordinated mechanical shipment readiness with SCM, machine making, and specialists",
+          "Maintained zero downtime impact on adjacent active sheet metal production lines"
+        ];
+        quote = "Sustainable Infrastructure for Scalable Production";
+      } else if (lower.includes('ultrasonic welding') || (lower.includes('blower') && lower.includes('welding'))) {
+        category = "Major Developments - Process";
+        projectType = "Process Optimization";
+        desc = "Followed up LCP and PO approvals while coordinating horn and fixture manufacturing for 116mm blower ultrasonic welding.";
+        impacts = [
+          "Completed procurement documentation and PO approval for ultrasonic horn and fixture",
+          "Coordinated with tooling supplier to ensure precision horn resonance and fitment",
+          "Planned trial welding schedule on assembly line to test joint seam strength",
+          "Verified weld seam hermetic seal integrity on pilot blower assemblies"
+        ];
+        quote = "Ultrasonic Precision for High-Strength Polymer Joining";
+      } else if (lower.includes('hx bending') || (lower.includes('bending die') && (lower.includes('in-house') || lower.includes('inhouse') || lower.includes('hx')))) {
+        category = "Major Developments - Tools";
+        projectType = "Tooling & Fixtures";
+        desc = "Followed up new die manufacturing and resolved knurling tool machining issues for in-house heat exchanger bending.";
+        impacts = [
+          "Accelerated die block fabrication in machine making workshop",
+          "Resolved pending machining clearances and surface finish issues on knurling tools",
+          "Inspected trial bending radius to prevent tube flattening and wall thinning",
+          "Eliminated reliance on outsourced bending dies to reduce tooling lead time"
+        ];
+        quote = "In-House Die Engineering for Manufacturing Agility";
+      } else if (lower.includes('cnc turret') || (lower.includes('turret punch') && lower.includes('machine'))) {
+        category = "Major Developments - Process";
+        projectType = "Machine Optimization";
+        desc = "Coordinated shop-floor space preparation and machine utilization planning for CNC turret punch installation.";
+        impacts = [
+          "Finalized floor space layout and foundation readiness approval for machine installation",
+          "Prepared comprehensive machine utilization and production allocation schedule",
+          "Coordinated with utility maintenance for 3-phase electrical and air line connections",
+          "Prepared standard operating workflow to support upcoming sheet metal volume"
+        ];
+        quote = "High-Speed CNC Punching for Peak Plant Productivity";
+      } else if (lower.includes("acprocess") || lower.includes("domain") || lower.includes("website") || lower.includes("web portal")) {
         category = "Process Development";
         projectType = "Process Digitization";
         desc = "Configured and launched ACProcess.com web domain and cloud infrastructure, setting up secure DNS routing, SSL certificates, and database synchronization for department report access.";
@@ -469,14 +653,17 @@ Return ONLY a JSON object matching this schema:
         ];
         quote = "Precision CNC Automation for Reliable Production";
       } else {
-        category = "Process Development";
-        projectType = "Process Improvement";
-        desc = `Engineered and implemented process optimization for ${rawName.toLowerCase()}. Completed line trial validation and handed over standardized operating procedure for daily production.`;
+        category = optCategory || "Process Development";
+        projectType = "Process Optimization";
+        const cleanName = rawName.replace(/[._-]+$/, '').trim();
+        desc = `Conducted engineering validation and process optimization for ${cleanName.toLowerCase()} on the active production line, verifying operational repeatability and completing shop-floor handover.`;
         impacts = [
-          "Analyzed workstation sequence and addressed process cycle bottlenecks",
-          "Adjusted tooling setup and verified component dimensional fitment",
-          "Conducted trial run on active line to validate operational repeatability",
-          "Handed over standardized operating procedure to shop-floor team"
+          "Utilization of existing production infrastructure and tooling",
+          "Reduced additional investment in specialized assembly setup",
+          "Optimized manpower and workstation cycle time pacing",
+          "Identified process compatibility and completed necessary tooling modifications",
+          "Evaluated production capacity and operational feasibility",
+          "Potential reduction in manufacturing and operational costs"
         ];
         quote = "Process Development for Operational Excellence";
       }

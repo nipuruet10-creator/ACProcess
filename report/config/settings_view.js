@@ -16,7 +16,7 @@ const SettingsView = {
     const currentGeminiKey = HELPERS.storage.get(APP_CONFIG.AI.STORAGE_KEY_API_KEY, "");
     const aiProvider = (typeof geminiClient !== 'undefined') ? geminiClient.getProvider() : (HELPERS.storage.get("walton_pd_ai_provider", "openrouter") || "openrouter");
     const openRouterKey = (typeof geminiClient !== 'undefined') ? geminiClient.getOpenRouterKey() : (HELPERS.storage.get("walton_pd_openrouter_api_key", "") || "");
-    const openRouterModel = (typeof geminiClient !== 'undefined') ? geminiClient.getOpenRouterModel() : (HELPERS.storage.get("walton_pd_openrouter_model", "google/gemini-2.0-flash-exp:free") || "google/gemini-2.0-flash-exp:free");
+    const openRouterModel = (typeof geminiClient !== 'undefined') ? geminiClient.getOpenRouterModel() : (HELPERS.storage.get("walton_pd_openrouter_model", "openrouter/free") || "openrouter/free");
     const onlineDocsEmails = localStorage.getItem('walton_online_docs_emails') || '';
     const googleSlidesUrl = localStorage.getItem('walton_google_slides_url') || 'https://docs.google.com/presentation/u/0/';
     const taskSequenceMode = this.getTaskSequenceMode();
@@ -424,14 +424,13 @@ const SettingsView = {
                 <select id="settings-openrouter-model" onchange="SettingsView.saveOpenRouterModel(this.value)"
                         class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 font-mono focus:outline-none focus:border-purple-500">
                   <optgroup label="🆓 Recommended Free Models (Zero API Cost)">
-                    <option value="openrouter/free" ${openRouterModel === 'openrouter/free' ? 'selected' : ''}>openrouter/free (Auto Free Models Router - 100% Free - Recommended)</option>
-                    <option value="openrouter/auto" ${openRouterModel === 'openrouter/auto' ? 'selected' : ''}>openrouter/auto (Auto Router)</option>
-                    <option value="google/gemini-2.0-flash-exp:free" ${openRouterModel === 'google/gemini-2.0-flash-exp:free' ? 'selected' : ''}>google/gemini-2.0-flash-exp:free (Fast &amp; Accurate)</option>
-                    <option value="deepseek/deepseek-r1:free" ${openRouterModel === 'deepseek/deepseek-r1:free' ? 'selected' : ''}>deepseek/deepseek-r1:free (Reasoning &amp; Logic)</option>
+                    <option value="openrouter/free" ${(!openRouterModel || openRouterModel === 'openrouter/free' || openRouterModel.includes('gemini-2.0-flash-exp')) ? 'selected' : ''}>openrouter/free (Auto Free Models Router - 100% Free - Recommended)</option>
+                    <option value="google/gemma-4-31b-it:free" ${openRouterModel === 'google/gemma-4-31b-it:free' ? 'selected' : ''}>google/gemma-4-31b-it:free (High Accuracy - Free)</option>
+                    <option value="google/gemma-4-26b-a4b-it:free" ${openRouterModel === 'google/gemma-4-26b-a4b-it:free' ? 'selected' : ''}>google/gemma-4-26b-a4b-it:free (Fast - Free)</option>
                     <option value="meta-llama/llama-3.3-70b-instruct:free" ${openRouterModel === 'meta-llama/llama-3.3-70b-instruct:free' ? 'selected' : ''}>meta-llama/llama-3.3-70b-instruct:free (High Capability)</option>
-                    <option value="qwen/qwen-2.5-coder-32b-instruct:free" ${openRouterModel === 'qwen/qwen-2.5-coder-32b-instruct:free' ? 'selected' : ''}>qwen/qwen-2.5-coder-32b-instruct:free (Technical)</option>
-                    <option value="mistralai/mistral-small-24b-instruct-2501:free" ${openRouterModel === 'mistralai/mistral-small-24b-instruct-2501:free' ? 'selected' : ''}>mistralai/mistral-small-24b-instruct-2501:free</option>
-                    <option value="deepseek/deepseek-chat:free" ${openRouterModel === 'deepseek/deepseek-chat:free' ? 'selected' : ''}>deepseek/deepseek-chat:free</option>
+                    <option value="nvidia/nemotron-3.5-lightning:free" ${openRouterModel === 'nvidia/nemotron-3.5-lightning:free' ? 'selected' : ''}>nvidia/nemotron-3.5-lightning:free</option>
+                    <option value="deepseek/deepseek-r1:free" ${openRouterModel === 'deepseek/deepseek-r1:free' ? 'selected' : ''}>deepseek/deepseek-r1:free (Reasoning &amp; Logic)</option>
+                    <option value="openrouter/auto" ${openRouterModel === 'openrouter/auto' ? 'selected' : ''}>openrouter/auto (Auto Router)</option>
                   </optgroup>
                 </select>
               </div>
