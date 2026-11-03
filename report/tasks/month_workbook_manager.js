@@ -685,6 +685,34 @@ class MonthWorkbookManager {
     return found || null;
   }
 
+  getTaskById(taskId) {
+    if (!taskId) return null;
+    // 1. Try to extract month prefix from taskId (e.g. OCT-2026-108-0RKY -> OCT-2026)
+    if (typeof taskId === 'string') {
+      const parts = taskId.split('-');
+      if (parts.length >= 2) {
+        const potentialMonth = `${parts[0]}-${parts[1]}`.toUpperCase();
+        if (this.workbooks && this.workbooks[potentialMonth]) {
+          const t = this.getTask(potentialMonth, taskId);
+          if (t) return t;
+        }
+      }
+    }
+    // 2. Try running month
+    const running = (typeof this.getRunningMonth === 'function') ? this.getRunningMonth() : 'OCT-2026';
+    let found = this.getTask(running, taskId);
+    if (found) return found;
+
+    // 3. Search across all loaded workbook months
+    if (this.workbooks) {
+      for (const m of Object.keys(this.workbooks)) {
+        found = this.getTask(m, taskId);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
   generateNextTaskId(month) {
     const m = this.normalizeMonth(month);
     const tasks = this.getTasksForMonth(m);

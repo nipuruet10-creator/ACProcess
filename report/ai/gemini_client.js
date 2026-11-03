@@ -333,7 +333,7 @@ class GeminiClient {
       payload.response_format = { type: "json_object" };
     }
 
-    const response = await fetch(this.OPENROUTER_ENDPOINT, {
+    let response = await fetch(this.OPENROUTER_ENDPOINT, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${key}`,
@@ -343,6 +343,21 @@ class GeminiClient {
       },
       body: JSON.stringify(payload)
     });
+
+    // If HTTP 400 because model does not support response_format: json_object, retry without response_format
+    if (!response.ok && jsonMode && response.status === 400) {
+      delete payload.response_format;
+      response = await fetch(this.OPENROUTER_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${key}`,
+          "HTTP-Referer": "https://waltonbd.com",
+          "X-Title": "Walton AC Process Monthly Report",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+    }
 
     if (!response.ok) {
       const errText = await response.text();
@@ -396,9 +411,25 @@ class GeminiClient {
           { role: "user", content: prompt }
         ], this.config.TEMPERATURE, this.config.MAX_OUTPUT_TOKENS, true);
 
-        // Strip markdown fences if present
-        const cleanJson = String(rawReply || "").replace(/```json/gi, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleanJson);
+        // Robust JSON extraction: strip markdown fences or find outer {...}
+        let parsed = null;
+        const textToParse = String(rawReply || "").trim();
+        try {
+          const cleanJson = textToParse.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+          parsed = JSON.parse(cleanJson);
+        } catch (e1) {
+          const jsonMatch = textToParse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              parsed = JSON.parse(jsonMatch[0]);
+            } catch (e2) {
+              console.warn("JSON match parse failed:", e2.message);
+            }
+          }
+        }
+        if (!parsed) {
+          throw new Error("Could not parse JSON from OpenRouter response: " + textToParse.slice(0, 100));
+        }
 
         const result = {
           ai_report_title: parsed.ai_report_title || task.task_name || task.original_task_name,

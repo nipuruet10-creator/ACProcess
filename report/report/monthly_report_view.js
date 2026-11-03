@@ -249,6 +249,32 @@ const MonthlyReportView = {
   },
 
   /**
+   * Identifies generic milestone boilerplate templates that should be replaced with human-tone engineering facts
+   */
+  isGenericMilestone(text) {
+    if (!text) return true;
+    const str = Array.isArray(text) ? text.join(' ') : String(text);
+    const t = str.toLowerCase();
+    return t.includes('concept layout feasibility study') ||
+           t.includes('structural fabrication component assembly') ||
+           t.includes('pneumatic sensor calibration') ||
+           t.includes('control programming safety interlock') ||
+           t.includes('pilot trial cycle optimization') ||
+           t.includes('final commissioning operational sop') ||
+           t.includes('workstation ergonomic cad layout') ||
+           t.includes('frame dimensional tolerance study') ||
+           t.includes('joint geometry thermal analysis') ||
+           t.includes('3d fixture cad modeling') ||
+           t.includes('cover 3d cad modeling') ||
+           t.includes('chemical bath concentration analysis') ||
+           t.includes('scrap generation baseline audit') ||
+           t.includes('engineering drawing physical audit') ||
+           t.includes('engineered, verified, and standardized operational workflow') ||
+           t.includes('developed and implemented specialized process engineering mechanism') ||
+           t.includes('standard operating procedure execution');
+  },
+
+  /**
    * Intelligently auto-generates engineering narrative sentences and deliverables tailored to the task title and shop-floor notes
    * Enforces authentic human plant engineering voice (Zero AI buzzwords / Zero hyperbole)
    */
@@ -259,28 +285,7 @@ const MonthlyReportView = {
     const lowerDet = details.toLowerCase();
 
     // Check if rawDetails contains actual shop-floor engineering notes rather than old template filler
-    const isGenericMilestone = (text) => {
-      if (!text) return true;
-      const t = String(text).toLowerCase();
-      return t.includes('concept layout feasibility study') ||
-             t.includes('structural fabrication component assembly') ||
-             t.includes('pneumatic sensor calibration') ||
-             t.includes('control programming safety interlock') ||
-             t.includes('pilot trial cycle optimization') ||
-             t.includes('final commissioning operational sop') ||
-             t.includes('workstation ergonomic cad layout') ||
-             t.includes('frame dimensional tolerance study') ||
-             t.includes('joint geometry thermal analysis') ||
-             t.includes('3d fixture cad modeling') ||
-             t.includes('cover 3d cad modeling') ||
-             t.includes('chemical bath concentration analysis') ||
-             t.includes('scrap generation baseline audit') ||
-             t.includes('engineering drawing physical audit') ||
-             t.includes('engineered, verified, and standardized operational workflow') ||
-             t.includes('developed and implemented specialized process engineering mechanism') ||
-             t.includes('standard operating procedure execution');
-    };
-    const isOldTemplate = isGenericMilestone(details);
+    const isOldTemplate = this.isGenericMilestone(details);
 
     // -------------------------------------------------------------
     // PRIORITY 1: REAL SHOP-FLOOR NOTES (Grounded in Factory Reality)
@@ -456,7 +461,7 @@ const MonthlyReportView = {
       }
 
       // Generic parsing for other engineer notes with numbers/bullets (skip if generic template filler)
-      if (!isGenericMilestone(details)) {
+      if (!this.isGenericMilestone(details)) {
         const cleanSteps = details
           .split(/(?:\r?\n|•|(?:\d+[\.\)]\s*))/g)
           .map(s => s.trim().replace(/^[-*•\s]+/, ''))
@@ -503,6 +508,19 @@ const MonthlyReportView = {
           "Eliminated paperwork delays and manual shift reporting bottlenecks",
           "Provided real-time operational visibility across engineering teams",
           "Handed over multi-user workflow system for daily plant operations"
+        ]
+      };
+    }
+
+    // 1.5. RRR Machine / Commissioning / Machine Handover to Production
+    if (lower.includes("rrr") || (lower.includes("handover") && (lower.includes("machine") || lower.includes("production")))) {
+      return {
+        desc: "Completed final commissioning, pressure calibration, and safety interlock trials for the RRR (Recovery, Recycling, Recharging) machine and formally handed it over to production operators.",
+        bullets: [
+          "Calibrated pressure gauges, vacuum sensors, and refrigerant flow meters",
+          "Conducted test recovery and recharging cycles on pilot AC units",
+          "Handed over standard operating procedure (SOP) and maintenance checklist to shift operators",
+          "Cleared machine for regular mass production line operations"
         ]
       };
     }
@@ -641,28 +659,6 @@ const MonthlyReportView = {
    * Seamlessly calls OpenRouter or Gemini AI if configured, with instant factual fallback
    */
   async generateSlideDetails(taskId) {
-    const titleInput = document.getElementById('edit-slide-title');
-    const catInput = document.getElementById('edit-slide-category');
-    const taskName = (titleInput ? titleInput.value.trim() : '') || taskId;
-    const category = (catInput ? catInput.value.trim() : '') || 'Process development';
-    if (!taskName) {
-      if (typeof window.showToast === 'function') {
-        window.showToast("Please enter a slide title or task name first.", "warning");
-      }
-      return;
-    }
-
-    // Retrieve underlying task details from workbook or active slides if available
-    let rawDetails = "";
-    if (typeof appState !== 'undefined' && appState.workbookMgr) {
-      const t = appState.workbookMgr.getTaskById(taskId);
-      if (t) rawDetails = t.task_details || t.description || "";
-    }
-    if (!rawDetails && this.activeSlides) {
-      const s = this.activeSlides.find(sl => sl.task_id === taskId);
-      if (s) rawDetails = s.task_details || s.description || "";
-    }
-
     const autoBtn = document.getElementById('btn-auto-generate-slide');
     const origBtnHtml = autoBtn ? autoBtn.innerHTML : '';
     if (autoBtn) {
@@ -670,10 +666,44 @@ const MonthlyReportView = {
       autoBtn.disabled = true;
     }
 
-    const descEl = document.getElementById('edit-slide-desc');
-    const impactEl = document.getElementById('edit-slide-impact');
-
     try {
+      const titleInput = document.getElementById('edit-slide-title');
+      const catInput = document.getElementById('edit-slide-category');
+      const taskName = (titleInput ? titleInput.value.trim() : '') || taskId;
+      const category = (catInput ? catInput.value.trim() : '') || 'Process development';
+      if (!taskName) {
+        if (typeof window.showToast === 'function') {
+          window.showToast("Please enter a slide title or task name first.", "warning");
+        }
+        return;
+      }
+
+      // Retrieve underlying task details from workbook or active slides if available
+      let rawDetails = "";
+      try {
+        if (typeof appState !== 'undefined' && appState.workbookMgr) {
+          const t = (typeof appState.workbookMgr.getTaskById === 'function')
+            ? appState.workbookMgr.getTaskById(taskId)
+            : (typeof appState.workbookMgr.getTask === 'function' ? appState.workbookMgr.getTask(this.selectedMonth || 'OCT-2026', taskId) : null);
+          if (t) rawDetails = t.task_details || t.description || "";
+        }
+      } catch (lookupErr) {
+        console.warn("Task lookup notice:", lookupErr);
+      }
+
+      if (!rawDetails && this.activeSlides) {
+        const s = this.activeSlides.find(sl => sl.task_id === taskId);
+        if (s) rawDetails = s.task_details || s.description || "";
+      }
+
+      // Clean generic template filler so AI/generator focuses on actual engineering deliverables
+      if (this.isGenericMilestone(rawDetails)) {
+        rawDetails = "";
+      }
+
+      const descEl = document.getElementById('edit-slide-desc');
+      const impactEl = document.getElementById('edit-slide-impact');
+
       let aiGenerated = false;
 
       // Check if OpenRouter or Gemini AI client is configured
@@ -712,6 +742,11 @@ const MonthlyReportView = {
       }
 
       this.renderModalLivePreview(taskId);
+    } catch (err) {
+      console.error("Error in generateSlideDetails:", err);
+      if (typeof window.showToast === 'function') {
+        window.showToast("Failed to auto-generate slide details: " + (err.message || err), "error");
+      }
     } finally {
       if (autoBtn) {
         autoBtn.innerHTML = origBtnHtml || '<span>✨</span> <span>Auto-Generate</span>';
@@ -1502,13 +1537,16 @@ const MonthlyReportView = {
 
     // Requirement: Description and impact auto generate tailored to title and shop-floor notes
     const rawDetails = (task ? (task.task_details || task.description) : "") || (currentSlide ? currentSlide.description : "");
-    const generated = this.generateDetailsFromTitle(currentTitle, currentCategory, rawDetails);
+    const cleanDetails = this.isGenericMilestone(rawDetails) ? "" : rawDetails;
+    const generated = this.generateDetailsFromTitle(currentTitle, currentCategory, cleanDetails);
 
     let currentDesc = overrides.description || (task ? (task.task_details || task.description) : "") || (currentSlide ? currentSlide.description : "") || "";
     const isOldDesc = !currentDesc || currentDesc.trim() === '' || 
                       currentDesc.includes('Engineered, verified, and standardized operational workflow') ||
                       currentDesc.includes('Standard operating procedure execution') ||
-                      currentDesc.includes('Developed and implemented specialized process engineering mechanism');
+                      currentDesc.includes('Developed and implemented specialized process engineering mechanism') ||
+                      currentDesc.includes('Concept layout feasibility study') ||
+                      this.isGenericMilestone(currentDesc);
     if (isOldDesc) {
       currentDesc = generated.desc;
     }
@@ -1528,7 +1566,9 @@ const MonthlyReportView = {
     const isOldImpact = !currentImpact || currentImpact.trim() === '' || 
                         currentImpact.includes('Zero defect manufacturing') || 
                         currentImpact.includes('seamless multi-user') ||
-                        currentImpact.includes('flawless');
+                        currentImpact.includes('flawless') ||
+                        currentImpact.includes('Concept layout feasibility study') ||
+                        this.isGenericMilestone(currentImpact);
     if (isOldImpact) {
       currentImpact = generated.bullets.join("\n");
     }

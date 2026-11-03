@@ -312,6 +312,17 @@ Return ONLY a JSON object matching this exact schema:
           "Handed over multi-user workflow system for daily plant operations"
         ];
         quote = "Digital Workflows for Shop-Floor Precision";
+      } else if (lower.includes("rrr") || (lower.includes("handover") && (lower.includes("machine") || lower.includes("production")))) {
+        category = "Process Development";
+        projectType = "Commissioning & Handover";
+        desc = "Completed final commissioning, pressure calibration, and safety interlock trials for the RRR (Recovery, Recycling, Recharging) machine and formally handed it over to production operators.";
+        impacts = [
+          "Calibrated pressure gauges, vacuum sensors, and refrigerant flow meters",
+          "Conducted test recovery and recharging cycles on pilot AC units",
+          "Handed over standard operating procedure (SOP) and maintenance checklist to shift operators",
+          "Cleared machine for regular mass production line operations"
+        ];
+        quote = "Precision Commissioning for Production Reliability";
       } else if (lower.includes("vacuum") || lower.includes("evacuation") || lower.includes("charging") || lower.includes("refrigerant") || lower.includes("leakage") || lower.includes("pressure") || lower.includes("nitrogen") || lower.includes("booster")) {
         category = "Process Development";
         projectType = "Cycle Time Optimization";
