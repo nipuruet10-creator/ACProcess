@@ -3,8 +3,7 @@ report/scratch/
 output/
 *.log
 
-# Keep all essential uploads & photos
-!report/uploads/
-!report/uploads/photos/
-!report/uploads/photos/**
-!report/uploads/*.json
+# Protect runtime user-uploaded photos from git deployment overwrites
+report/uploads/photos/*/*.*
+!report/uploads/photos/*/.gitkeep
+!report/uploads/photos/*/SPECIAL_*
