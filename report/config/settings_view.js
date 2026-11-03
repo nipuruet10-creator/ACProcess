@@ -940,7 +940,7 @@ const SettingsView = {
     }
   },
 
-  DEFAULT_ENGINEER_SEQUENCE: ['Sazzad', 'Rafi', 'Faiyaz', 'Abdullah', 'Emon', 'Pear', 'Hashmi', 'Anam'],
+  DEFAULT_ENGINEER_SEQUENCE: ['Sazzad', 'Rafi', 'Faiyaz', 'Abdullah', 'Emon', 'Pear', 'Hashmi', 'Anam', 'Jowel'],
 
   getMonthlyEngineerSequence() {
     try {

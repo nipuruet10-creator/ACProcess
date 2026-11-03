@@ -481,7 +481,7 @@ class SyncEngine {
         });
       }
 
-      // 5. Strict Presentation Sequence: Standard process tasks first, Completed Projects next, Ongoing Projects at the very end
+      // 5. Strict Presentation Sequence: Standard category tasks first (sorted by Category then Engineer), Completed Projects next, Ongoing Projects at the very end
       const stdSlides = [];
       const completedProjSlides = [];
       const ongoingProjSlides = [];
@@ -501,7 +501,83 @@ class SyncEngine {
         }
       });
 
-      slides = [...stdSlides, ...completedProjSlides, ...ongoingProjSlides];
+      // Engineer Sequence Resolution (Default: Sazzad > Rafi > Faiyaz > Abdullah > Emon > Pear > Hashmi > Anam > Jowel)
+      let engineerSeq = ['Sazzad', 'Rafi', 'Faiyaz', 'Abdullah', 'Emon', 'Pear', 'Hashmi', 'Anam', 'Jowel'];
+      if (typeof SettingsView !== 'undefined' && SettingsView.getMonthlyEngineerSequence) {
+        try { engineerSeq = SettingsView.getMonthlyEngineerSequence(); } catch(e) {}
+      } else if (typeof localStorage !== 'undefined') {
+        const customSeq = localStorage.getItem('walton_monthly_engineer_seq');
+        if (customSeq) {
+          try { engineerSeq = JSON.parse(customSeq); } catch(e) {}
+        }
+      }
+
+      const getEngRank = (task) => {
+        const eng = (task.concern_engineer || task.concern || task.assignee || task.engineer || '').toLowerCase();
+        for (let i = 0; i < engineerSeq.length; i++) {
+          if (eng.includes(engineerSeq[i].toLowerCase())) return i;
+        }
+        return 999;
+      };
+
+      // Category Master Sequencing:
+      // 1. Process Development (Major Developments – Process)
+      // 2. Major Developments – Tools
+      // 3. Major Developments – Parts
+      // 4. Major Developments – Materials
+      // 5. Major Developments – Chemical
+      // 6. Others / Non-project categories
+      const getCatRank = (catStr) => {
+        const c = (catStr || '').trim().toLowerCase();
+        if (c.includes('process') || c.includes('optimization') || c.includes('extension')) return 1;
+        if (c.includes('tool') || c.includes('jig') || c.includes('die') || c.includes('fixture')) return 2;
+        if (c.includes('part') || c.includes('component')) return 3;
+        if (c.includes('material')) return 4;
+        if (c.includes('chemical')) return 5;
+        if (c.includes('bom')) return 6;
+        if (c.includes('cost')) return 7;
+        return 8;
+      };
+
+      const normalizeCat = (catStr) => {
+        const c = (catStr || '').trim();
+        const lower = c.toLowerCase();
+        if (lower === 'process development' || lower === 'process optimization' || lower === 'process extension') {
+          return 'Major Developments – Process';
+        }
+        return c || 'Major Developments – Process';
+      };
+
+      // Group standard tasks by normalized category, sort categories by Master Category Rank, then sort tasks in each category strictly by Engineer Sequence
+      const categoryMap = new Map();
+      stdSlides.forEach(task => {
+        task.category = normalizeCat(task.category);
+        const catName = task.category;
+        if (!categoryMap.has(catName)) {
+          categoryMap.set(catName, []);
+        }
+        categoryMap.get(catName).push(task);
+      });
+
+      const sortedCatNames = Array.from(categoryMap.keys()).sort((a, b) => {
+        const rankDiff = getCatRank(a) - getCatRank(b);
+        if (rankDiff !== 0) return rankDiff;
+        return a.localeCompare(b);
+      });
+
+      const sequencedStdSlides = [];
+      sortedCatNames.forEach(catName => {
+        const tasksInCat = categoryMap.get(catName);
+        tasksInCat.sort((a, b) => getEngRank(a) - getEngRank(b));
+        sequencedStdSlides.push(...tasksInCat);
+      });
+
+      // Sort completed & ongoing projects by Engineer rank
+      completedProjSlides.sort((a, b) => getEngRank(a) - getEngRank(b));
+      ongoingProjSlides.sort((a, b) => getEngRank(a) - getEngRank(b));
+
+      // Strict Sequence: Standard Categories (Process -> Tools -> Parts -> Materials -> Chemical -> Others) -> Completed Projects -> Ongoing Projects
+      slides = [...sequencedStdSlides, ...completedProjSlides, ...ongoingProjSlides];
       try {
         const lightweightSlides = slides.map(s => ({
           ...s,

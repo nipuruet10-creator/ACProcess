@@ -238,6 +238,10 @@ try {
             $fbData['_photoDeleted_before'] = null;
         }
 
+        if (!empty($imageData) && strlen($imageData) < 350000 && strpos($imageData, 'data:image/') === 0) {
+            $fbData['data_url'] = $imageData;
+        }
+
         $jsonPayload = json_encode($fbData);
 
         // 1. Live photos hub (Fast non-blocking Firebase sync)

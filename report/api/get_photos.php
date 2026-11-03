@@ -60,24 +60,25 @@ try {
                     $isTombstoned = false;
 
                     if (isset($deletedMap[$tId])) {
-                        $delTime = is_array($deletedMap[$tId]) && isset($deletedMap[$tId]['time']) ? $deletedMap[$tId]['time'] : (is_numeric($deletedMap[$tId]) ? $deletedMap[$tId] : 0);
-                        if ($delTime > 0 && $mtime < $delTime) {
+                        $rawDelTime = is_array($deletedMap[$tId]) && isset($deletedMap[$tId]['time']) ? $deletedMap[$tId]['time'] : (is_numeric($deletedMap[$tId]) ? $deletedMap[$tId] : 0);
+                        // Normalize milliseconds (JS Date.now()) to seconds
+                        $delTime = ($rawDelTime > 10000000000) ? intval($rawDelTime / 1000) : intval($rawDelTime);
+                        $slotDel = is_array($deletedMap[$tId]) && isset($deletedMap[$tId]['slot']) ? $deletedMap[$tId]['slot'] : 'all';
+                        if ($delTime > 0 && $mtime < $delTime && ($slotDel === 'all' || $slotDel === $slot)) {
                             $isTombstoned = true;
                         }
                     }
                     if (!$isTombstoned && isset($deletedMap[$prefix])) {
-                        $delTime = is_array($deletedMap[$prefix]) && isset($deletedMap[$prefix]['time']) ? $deletedMap[$prefix]['time'] : (is_numeric($deletedMap[$prefix]) ? $deletedMap[$prefix] : 0);
-                        if ($delTime > 0 && $mtime < $delTime) {
+                        $rawDelTime = is_array($deletedMap[$prefix]) && isset($deletedMap[$prefix]['time']) ? $deletedMap[$prefix]['time'] : (is_numeric($deletedMap[$prefix]) ? $deletedMap[$prefix] : 0);
+                        $delTime = ($rawDelTime > 10000000000) ? intval($rawDelTime / 1000) : intval($rawDelTime);
+                        $slotDel = is_array($deletedMap[$prefix]) && isset($deletedMap[$prefix]['slot']) ? $deletedMap[$prefix]['slot'] : 'all';
+                        if ($delTime > 0 && $mtime < $delTime && ($slotDel === 'all' || $slotDel === $slot)) {
                             $isTombstoned = true;
                         }
                     }
 
                     if ($isTombstoned) {
-                        // Task was explicitly deleted and physical file on disk is older than deletion: purge and skip!
-                        @unlink($photosDir . '/' . $f);
-                        if (isset($catalog[$tId])) unset($catalog[$tId]);
-                        if (isset($catalog[$prefix])) unset($catalog[$prefix]);
-                        $foundAny = true;
+                        // Tombstone active for this slot; skip cataloging (NEVER unlink files on GET requests!)
                         continue;
                     }
 

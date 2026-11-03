@@ -3924,8 +3924,8 @@ const SlideLayoutEngine = {
       }
     });
 
-    // Engineer Sequence Resolution (Default: Sazzad > Rafi > Faiyaz > Abdullah > Emon > Pear > Hashmi > Anam)
-    let engineerSeq = ['Sazzad', 'Rafi', 'Faiyaz', 'Abdullah', 'Emon', 'Pear', 'Hashmi', 'Anam'];
+    // Engineer Sequence Resolution (Default: Sazzad > Rafi > Faiyaz > Abdullah > Emon > Pear > Hashmi > Anam > Jowel)
+    let engineerSeq = ['Sazzad', 'Rafi', 'Faiyaz', 'Abdullah', 'Emon', 'Pear', 'Hashmi', 'Anam', 'Jowel'];
     if (typeof SettingsView !== 'undefined' && SettingsView.getMonthlyEngineerSequence) {
       try {
         engineerSeq = SettingsView.getMonthlyEngineerSequence();
@@ -3946,7 +3946,7 @@ const SlideLayoutEngine = {
     }
 
     const getEngRank = (task) => {
-      const eng = (task.concern_engineer || task.concern || '').toLowerCase();
+      const eng = (task.concern_engineer || task.concern || task.assignee || task.engineer || '').toLowerCase();
       for (let i = 0; i < engineerSeq.length; i++) {
         if (eng.includes(engineerSeq[i].toLowerCase())) return i;
       }
@@ -3956,50 +3956,55 @@ const SlideLayoutEngine = {
     let sequencedStandardTasks = [];
 
     if (sequenceMode === 'category') {
-      // Buckets for Categories
-      const processTasks = [];
-      const toolsTasks = [];
-      const partsTasks = [];
-      const costTasks = [];
-      const manpowerTasks = [];
-      const bomTasks = [];
-      const otherTasks = [];
+      // Category Master Sequencing:
+      // 1. Process Development (Major Developments – Process)
+      // 2. Major Developments – Tools
+      // 3. Major Developments – Parts
+      // 4. Major Developments – Materials
+      // 5. Major Developments – Chemical
+      // 6. Others / Non-project categories
+      const getCatRank = (catStr) => {
+        const c = (catStr || '').trim().toLowerCase();
+        if (c.includes('process') || c.includes('optimization') || c.includes('extension')) return 1;
+        if (c.includes('tool') || c.includes('jig') || c.includes('die') || c.includes('fixture')) return 2;
+        if (c.includes('part') || c.includes('component')) return 3;
+        if (c.includes('material')) return 4;
+        if (c.includes('chemical')) return 5;
+        if (c.includes('bom')) return 6;
+        if (c.includes('cost')) return 7;
+        return 8;
+      };
 
-      standardTaskSlides.forEach(task => {
-        const cat = (task.category || '').toLowerCase();
-        const title = (task.slide_title || task.task_name || '').toLowerCase();
-
-        if (cat.includes('process') || title.includes('process')) {
-          processTasks.push(task);
-        } else if (cat.includes('tool') || cat.includes('jig') || cat.includes('die') || cat.includes('fixture') || title.includes('tool') || title.includes('die') || title.includes('fixture')) {
-          toolsTasks.push(task);
-        } else if (cat.includes('part') || cat.includes('material') || cat.includes('component') || title.includes('part')) {
-          partsTasks.push(task);
-        } else if (cat.includes('cost') || cat.includes('saving') || title.includes('cost') || title.includes('saving')) {
-          costTasks.push(task);
-        } else if (cat.includes('manpower') || title.includes('manpower')) {
-          manpowerTasks.push(task);
-        } else if (cat.includes('bom') || title.includes('bom')) {
-          bomTasks.push(task);
-        } else {
-          otherTasks.push(task);
+      const normalizeCat = (catStr) => {
+        const c = (catStr || '').trim();
+        const lower = c.toLowerCase();
+        if (lower === 'process development' || lower === 'process optimization' || lower === 'process extension') {
+          return 'Major Developments – Process';
         }
+        return c || 'Major Developments – Process';
+      };
+
+      const categoryMap = new Map();
+      standardTaskSlides.forEach(task => {
+        task.category = normalizeCat(task.category);
+        const catName = task.category;
+        if (!categoryMap.has(catName)) {
+          categoryMap.set(catName, []);
+        }
+        categoryMap.get(catName).push(task);
       });
 
-      // Sort each category strictly by Engineer Sequence
-      [processTasks, toolsTasks, partsTasks, costTasks, manpowerTasks, bomTasks, otherTasks].forEach(bucket => {
-        bucket.sort((a, b) => getEngRank(a) - getEngRank(b));
+      const sortedCatNames = Array.from(categoryMap.keys()).sort((a, b) => {
+        const rankDiff = getCatRank(a) - getCatRank(b);
+        if (rankDiff !== 0) return rankDiff;
+        return a.localeCompare(b);
       });
 
-      sequencedStandardTasks = [
-        ...processTasks,
-        ...toolsTasks,
-        ...partsTasks,
-        ...costTasks,
-        ...manpowerTasks,
-        ...bomTasks,
-        ...otherTasks
-      ];
+      sortedCatNames.forEach(catName => {
+        const tasksInCat = categoryMap.get(catName);
+        tasksInCat.sort((a, b) => getEngRank(a) - getEngRank(b));
+        sequencedStandardTasks.push(...tasksInCat);
+      });
     } else {
       // By Engineer
       const matchedTaskIds = new Set();

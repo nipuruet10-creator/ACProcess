@@ -647,11 +647,17 @@ class PhotoManager {
         if (isBefore) {
           this.photoMap[taskId].before_photo = serverUrl;
           this.photoMap[taskId].photo_1 = serverUrl;
+          if (base64Url && base64Url.startsWith('data:image/')) {
+            this.photoMap[taskId].raw_base64_before = base64Url;
+          }
         }
         if (isAfter) {
           this.photoMap[taskId].after_photo = serverUrl;
           this.photoMap[taskId].photo_2 = serverUrl;
           this.photoMap[taskId].photo = serverUrl;
+          if (base64Url && base64Url.startsWith('data:image/')) {
+            this.photoMap[taskId].raw_base64_after = base64Url;
+          }
         }
 
         const monthKey = `${m}_${taskId}`;
@@ -661,11 +667,17 @@ class PhotoManager {
         if (isBefore) {
           this.photoMap[monthKey].before_photo = serverUrl;
           this.photoMap[monthKey].photo_1 = serverUrl;
+          if (base64Url && base64Url.startsWith('data:image/')) {
+            this.photoMap[monthKey].raw_base64_before = base64Url;
+          }
         }
         if (isAfter) {
           this.photoMap[monthKey].after_photo = serverUrl;
           this.photoMap[monthKey].photo_2 = serverUrl;
           this.photoMap[monthKey].photo = serverUrl;
+          if (base64Url && base64Url.startsWith('data:image/')) {
+            this.photoMap[monthKey].raw_base64_after = base64Url;
+          }
         }
 
         // Clear all deletion tombstones locally and in Firebase because a fresh photo was uploaded!
@@ -757,7 +769,7 @@ class PhotoManager {
               FirebaseSyncService.pushTask(m, updatedWbTask);
             }
             if (FirebaseSyncService.db) {
-              FirebaseSyncService.db.ref(`walton_monthly_report/live_photos/${m}/${taskId}`).update({
+              const livePhotoPayload = {
                 taskId: taskId,
                 month: m,
                 slot: slot,
@@ -765,7 +777,11 @@ class PhotoManager {
                 photo: serverUrl,
                 [isBefore ? 'photo_1' : 'photo_2']: serverUrl,
                 updated_at: Date.now()
-              }).catch(() => {});
+              };
+              if (base64Url && base64Url.startsWith('data:image/') && base64Url.length < 350000) {
+                livePhotoPayload.data_url = base64Url;
+              }
+              FirebaseSyncService.db.ref(`walton_monthly_report/live_photos/${m}/${taskId}`).update(livePhotoPayload).catch(() => {});
             }
           } catch(e) {}
         }
@@ -955,6 +971,18 @@ class PhotoManager {
       this.photoMap[mKey].photo_2 = afterP;
       this.photoMap[mKey].photo = afterP;
       hasChange = true;
+    }
+
+    const dUrl = (pData.data_url && typeof pData.data_url === 'string' && pData.data_url.startsWith('data:image/')) ? pData.data_url : null;
+    if (dUrl) {
+      const isBefore = (pData.slot === 'before_photo' || pData.slot === 'photo_1');
+      if (isBefore) {
+        this.photoMap[taskId].raw_base64_before = dUrl;
+        this.photoMap[mKey].raw_base64_before = dUrl;
+      } else {
+        this.photoMap[taskId].raw_base64_after = dUrl;
+        this.photoMap[mKey].raw_base64_after = dUrl;
+      }
     }
 
     // Clear local deletion tombstones for this task so stale local tombstones cannot suppress live cloud photos

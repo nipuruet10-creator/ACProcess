@@ -15,7 +15,7 @@ class PPTXGenerator {
    * Helper: Pre-converts any photo URL (HTTP, relative, or base64) to a Base64 data URL
    * Guarantees 100% reliable native embedding in PptxGenJS OpenXML package
    */
-  async _resolvePhotoBase64(photoUrl) {
+  async _resolvePhotoBase64(photoUrl, taskId = null, monthName = null) {
     if (!photoUrl || typeof photoUrl !== 'string') return null;
     const cleanUrl = photoUrl.trim();
     if (!cleanUrl) return null;
@@ -23,7 +23,8 @@ class PPTXGenerator {
 
     this._photoBase64Cache = this._photoBase64Cache || new Map();
     if (this._photoBase64Cache.has(cleanUrl)) {
-      return this._photoBase64Cache.get(cleanUrl);
+      const cached = this._photoBase64Cache.get(cleanUrl);
+      if (cached && cached.startsWith('data:image/')) return cached;
     }
 
     let fetchUrl = cleanUrl;
@@ -53,10 +54,10 @@ class PPTXGenerator {
         const base64 = await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result);
-          reader.onerror = () => resolve(fetchUrl);
+          reader.onerror = () => resolve(null);
           reader.readAsDataURL(blob);
         });
-        if (base64) {
+        if (base64 && typeof base64 === 'string' && base64.startsWith('data:image/')) {
           this._photoBase64Cache.set(cleanUrl, base64);
           return base64;
         }
@@ -70,7 +71,7 @@ class PPTXGenerator {
         const dataUrl = await new Promise((resolve) => {
           const img = new Image();
           img.crossOrigin = 'Anonymous';
-          const imgTimer = setTimeout(() => resolve(fetchUrl), 6000);
+          const imgTimer = setTimeout(() => resolve(null), 6000);
           img.onload = () => {
             clearTimeout(imgTimer);
             try {
@@ -82,26 +83,40 @@ class PPTXGenerator {
               const dUrl = canvas.toDataURL('image/jpeg', 0.98);
               resolve(dUrl);
             } catch(err) {
-              resolve(fetchUrl);
+              resolve(null);
             }
           };
           img.onerror = () => {
             clearTimeout(imgTimer);
-            resolve(fetchUrl);
+            resolve(null);
           };
           img.src = fetchUrl;
         });
-        if (dataUrl) {
+        if (dataUrl && typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
           this._photoBase64Cache.set(cleanUrl, dataUrl);
           return dataUrl;
         }
       } catch (e) {
-        return fetchUrl;
+        // Quiet fallback
       }
     }
 
-    this._photoBase64Cache.set(cleanUrl, fetchUrl);
-    return fetchUrl;
+    // Fallback: Check local photoManager / PhotoIndexedDB for cached base64
+    if (taskId && typeof window !== 'undefined' && window.photoManager) {
+      const pmPhotos = window.photoManager.getTaskPhotos(taskId, monthName);
+      if (pmPhotos) {
+        const cand = pmPhotos.raw_base64_after || pmPhotos.raw_base64_before ||
+          (typeof pmPhotos.after_photo === 'string' && pmPhotos.after_photo.startsWith('data:image/') ? pmPhotos.after_photo : null) ||
+          (typeof pmPhotos.before_photo === 'string' && pmPhotos.before_photo.startsWith('data:image/') ? pmPhotos.before_photo : null);
+        if (cand) {
+          this._photoBase64Cache.set(cleanUrl, cand);
+          return cand;
+        }
+      }
+    }
+
+    // Return null so slides safely render clean placeholder frame instead of PowerPoint red X crash
+    return null;
   }
 
   /**
@@ -206,7 +221,7 @@ class PPTXGenerator {
       const cat = (s.category || '').toLowerCase();
       const title = (s.slide_title || s.raw_task_name || s.task_name || '').toLowerCase();
       const status = (s.status || s.project_status || '').toLowerCase();
-      const isProj = Boolean(s.is_project === true);
+      const isProj = Boolean(s.is_project || cat.includes('project') || title.includes('project'));
 
       if (isProj) {
         if (status.includes('complete') || cat.includes('completed project')) {
@@ -219,7 +234,7 @@ class PPTXGenerator {
       }
     });
 
-    // Engineer-sequenced Task Slides: Sazzad > Rafi > Faiyaz > Abdullah > Emon > Pear > Hashmi > Anam
+    // Engineer-sequenced Task Slides: Sazzad > Rafi > Faiyaz > Abdullah > Emon > Pear > Hashmi > Anam > Jowel
     let sequenceMode = 'category';
     if (typeof SettingsView !== 'undefined' && SettingsView.getTaskSequenceMode) {
       try { sequenceMode = SettingsView.getTaskSequenceMode(); } catch(e) {}
@@ -227,7 +242,7 @@ class PPTXGenerator {
       sequenceMode = localStorage.getItem('walton_task_sequence_mode') || 'category';
     }
 
-    let engineerSeq = ['Sazzad', 'Rafi', 'Faiyaz', 'Abdullah', 'Emon', 'Pear', 'Hashmi', 'Anam'];
+    let engineerSeq = ['Sazzad', 'Rafi', 'Faiyaz', 'Abdullah', 'Emon', 'Pear', 'Hashmi', 'Anam', 'Jowel'];
     if (typeof SettingsView !== 'undefined' && SettingsView.getMonthlyEngineerSequence) {
       try { engineerSeq = SettingsView.getMonthlyEngineerSequence(); } catch(e) {}
     } else if (typeof localStorage !== 'undefined') {
@@ -245,43 +260,42 @@ class PPTXGenerator {
       return 999;
     };
 
-    // Category Master Sequencing Definition (Requirement 4)
-    const masterCategorySeq = [
-      "process development",
-      "process optimization",
-      "process extension",
-      "major developments – process",
-      "major developments – tools",
-      "major developments – parts",
-      "major developments – materials",
-      "major developments – chemical",
-      "bom verification",
-      "fg bom/ sfg",
-      "cost savings (local)",
-      "cost savings (ibu)",
-      "cost saving",
-      "new model(local)",
-      "project",
-      "completed projects",
-      "ongoing projects",
-      "others"
-    ];
-
+    // Category Master Sequencing:
+    // 1. Process Development (Major Developments – Process)
+    // 2. Major Developments – Tools
+    // 3. Major Developments – Parts
+    // 4. Major Developments – Materials
+    // 5. Major Developments – Chemical
+    // 6. Others / Non-project categories
     const getCatRank = (catStr) => {
-      const clean = (catStr || '').trim().toLowerCase();
-      for (let i = 0; i < masterCategorySeq.length; i++) {
-        if (clean === masterCategorySeq[i] || clean.includes(masterCategorySeq[i])) return i;
-      }
-      return 900;
+      const c = (catStr || '').trim().toLowerCase();
+      if (c.includes('process') || c.includes('optimization') || c.includes('extension')) return 1;
+      if (c.includes('tool') || c.includes('jig') || c.includes('die') || c.includes('fixture')) return 2;
+      if (c.includes('part') || c.includes('component')) return 3;
+      if (c.includes('material')) return 4;
+      if (c.includes('chemical')) return 5;
+      if (c.includes('bom')) return 6;
+      if (c.includes('cost')) return 7;
+      return 8;
     };
 
     let sequencedStandardTasks = [];
 
     if (sequenceMode === 'category') {
-      // Group standard tasks strictly by exact task category matching Task Input
+      const normalizeCat = (catStr) => {
+        const c = (catStr || '').trim();
+        const lower = c.toLowerCase();
+        if (lower === 'process development' || lower === 'process optimization' || lower === 'process extension') {
+          return 'Major Developments – Process';
+        }
+        return c || 'Major Developments – Process';
+      };
+
+      // Group standard tasks strictly by normalized task category matching Task Input
       const categoryMap = new Map();
       standardTaskSlides.forEach(task => {
-        const catName = (task.category || "Process development").trim();
+        task.category = normalizeCat(task.category);
+        const catName = task.category;
         if (!categoryMap.has(catName)) {
           categoryMap.set(catName, []);
         }
@@ -290,7 +304,9 @@ class PPTXGenerator {
 
       // Sort categories according to master sequence
       const sortedCatNames = Array.from(categoryMap.keys()).sort((a, b) => {
-        return getCatRank(a) - getCatRank(b);
+        const rankDiff = getCatRank(a) - getCatRank(b);
+        if (rankDiff !== 0) return rankDiff;
+        return a.localeCompare(b);
       });
 
       // For each category, sort tasks strictly by Engineer Sequence
@@ -355,8 +371,8 @@ class PPTXGenerator {
       const rawAfter = task.after_photo || task.photo_after || task.photo_2 || task.photo || null;
 
       const [b64Before, b64After] = await Promise.all([
-        rawBefore ? this._resolvePhotoBase64(rawBefore) : Promise.resolve(null),
-        rawAfter ? this._resolvePhotoBase64(rawAfter) : Promise.resolve(null)
+        rawBefore ? this._resolvePhotoBase64(rawBefore, task.task_id, monthName) : Promise.resolve(null),
+        rawAfter ? this._resolvePhotoBase64(rawAfter, task.task_id, monthName) : Promise.resolve(null)
       ]);
 
       if (b64Before) {
@@ -967,15 +983,9 @@ class PPTXGenerator {
       x: 2.8, y: 1.3, w: 4.4, h: 2.8,
       fill: { color: "0F172A" }, line: { color: "CBD5E1", width: 1 }
     });
-    if (photoBefore && photoBefore.startsWith('data:image/')) {
+    if (photoBefore && typeof photoBefore === 'string' && photoBefore.startsWith('data:image/')) {
       try {
         slide.addImage({ data: photoBefore, x: 2.85, y: 1.35, w: 4.3, h: 2.7 });
-      } catch (e) {
-        this._addEmptyPhotoFrame(slide, pptx, 2.85, 1.35, 4.3, 2.7);
-      }
-    } else if (photoBefore && (photoBefore.startsWith('http://') || photoBefore.startsWith('https://') || photoBefore.startsWith('assets/'))) {
-      try {
-        slide.addImage({ path: photoBefore, x: 2.85, y: 1.35, w: 4.3, h: 2.7 });
       } catch (e) {
         this._addEmptyPhotoFrame(slide, pptx, 2.85, 1.35, 4.3, 2.7);
       }
@@ -1015,15 +1025,9 @@ class PPTXGenerator {
       x: 8.0, y: 1.3, w: 4.4, h: 2.8,
       fill: { color: "0F172A" }, line: { color: "CBD5E1", width: 1 }
     });
-    if (photoAfter && photoAfter.startsWith('data:image/')) {
+    if (photoAfter && typeof photoAfter === 'string' && photoAfter.startsWith('data:image/')) {
       try {
         slide.addImage({ data: photoAfter, x: 8.05, y: 1.35, w: 4.3, h: 2.7 });
-      } catch (e) {
-        this._addEmptyPhotoFrame(slide, pptx, 8.05, 1.35, 4.3, 2.7);
-      }
-    } else if (photoAfter && (photoAfter.startsWith('http://') || photoAfter.startsWith('https://') || photoAfter.startsWith('assets/'))) {
-      try {
-        slide.addImage({ path: photoAfter, x: 8.05, y: 1.35, w: 4.3, h: 2.7 });
       } catch (e) {
         this._addEmptyPhotoFrame(slide, pptx, 8.05, 1.35, 4.3, 2.7);
       }
@@ -1242,11 +1246,8 @@ class PPTXGenerator {
       x: 2.8, y: 1.3, w: 4.4, h: 2.8,
       fill: { color: "0F172A" }, line: { color: "CBD5E1", width: 1 }
     });
-    if (photoBefore && photoBefore.startsWith('data:image/')) {
+    if (photoBefore && typeof photoBefore === 'string' && photoBefore.startsWith('data:image/')) {
       try { slide.addImage({ data: photoBefore, x: 2.85, y: 1.35, w: 4.3, h: 2.7 }); }
-      catch (e) { this._addEmptyPhotoFrame(slide, pptx, 2.85, 1.35, 4.3, 2.7); }
-    } else if (photoBefore && (photoBefore.startsWith('http://') || photoBefore.startsWith('https://') || photoBefore.startsWith('assets/'))) {
-      try { slide.addImage({ path: photoBefore, x: 2.85, y: 1.35, w: 4.3, h: 2.7 }); }
       catch (e) { this._addEmptyPhotoFrame(slide, pptx, 2.85, 1.35, 4.3, 2.7); }
     } else {
       this._addEmptyPhotoFrame(slide, pptx, 2.85, 1.35, 4.3, 2.7);
@@ -1275,11 +1276,8 @@ class PPTXGenerator {
       x: 8.0, y: 1.3, w: 4.4, h: 2.8,
       fill: { color: "0F172A" }, line: { color: "CBD5E1", width: 1 }
     });
-    if (photoAfter && photoAfter.startsWith('data:image/')) {
+    if (photoAfter && typeof photoAfter === 'string' && photoAfter.startsWith('data:image/')) {
       try { slide.addImage({ data: photoAfter, x: 8.05, y: 1.35, w: 4.3, h: 2.7 }); }
-      catch (e) { this._addEmptyPhotoFrame(slide, pptx, 8.05, 1.35, 4.3, 2.7); }
-    } else if (photoAfter && (photoAfter.startsWith('http://') || photoAfter.startsWith('https://') || photoAfter.startsWith('assets/'))) {
-      try { slide.addImage({ path: photoAfter, x: 8.05, y: 1.35, w: 4.3, h: 2.7 }); }
       catch (e) { this._addEmptyPhotoFrame(slide, pptx, 8.05, 1.35, 4.3, 2.7); }
     } else {
       this._addEmptyPhotoFrame(slide, pptx, 8.05, 1.35, 4.3, 2.7);
@@ -2189,9 +2187,13 @@ class PPTXGenerator {
   _addSpecialSectionSlide(slide, pptx, sectionId, photoData, monthName, currentSlideNum, totalSlideCount, font, isBlue = false) {
     if (photoData) {
       try {
-        const opt = photoData.startsWith('data:image/') ? { data: photoData } : { path: photoData };
-        slide.addImage({ ...opt, x: 0, y: 0, w: 13.333, h: 7.5 });
-        return;
+        if (typeof photoData === 'string' && photoData.startsWith('data:image/')) {
+          slide.addImage({ data: photoData, x: 0, y: 0, w: 13.333, h: 7.5 });
+          return;
+        } else if (typeof photoData === 'string' && photoData.startsWith('assets/')) {
+          slide.addImage({ path: photoData, x: 0, y: 0, w: 13.333, h: 7.5 });
+          return;
+        }
       } catch (err) {
         console.warn(`[PPTX] Error embedding special slide photo for ${sectionId}:`, err);
       }
@@ -3389,11 +3391,8 @@ class PPTXGenerator {
         x: 6.7, y: 1.05, w: 2.8, h: 5.62,
         fill: { color: "0F172A" }, line: { color: borderLight }, rectRadius: 0.1
       });
-      if (photoBefore && photoBefore.startsWith('data:image/')) {
+      if (photoBefore && typeof photoBefore === 'string' && photoBefore.startsWith('data:image/')) {
         try { slide.addImage({ data: photoBefore, x: 6.7, y: 1.05, w: 2.8, h: 5.62 }); }
-        catch (e) { this._addEmptyPhotoFrame(slide, pptx, 6.7, 1.05, 2.8, 5.62); }
-      } else if (photoBefore && (photoBefore.startsWith('http://') || photoBefore.startsWith('https://'))) {
-        try { slide.addImage({ path: photoBefore, x: 6.7, y: 1.05, w: 2.8, h: 5.62 }); }
         catch (e) { this._addEmptyPhotoFrame(slide, pptx, 6.7, 1.05, 2.8, 5.62); }
       } else {
         this._addEmptyPhotoFrame(slide, pptx, 6.7, 1.05, 2.8, 5.62);
@@ -3412,11 +3411,8 @@ class PPTXGenerator {
         x: 9.7, y: 1.05, w: 2.8, h: 5.62,
         fill: { color: "0F172A" }, line: { color: borderLight }, rectRadius: 0.1
       });
-      if (photoAfter && photoAfter.startsWith('data:image/')) {
+      if (photoAfter && typeof photoAfter === 'string' && photoAfter.startsWith('data:image/')) {
         try { slide.addImage({ data: photoAfter, x: 9.7, y: 1.05, w: 2.8, h: 5.62 }); }
-        catch (e) { this._addEmptyPhotoFrame(slide, pptx, 9.7, 1.05, 2.8, 5.62); }
-      } else if (photoAfter && (photoAfter.startsWith('http://') || photoAfter.startsWith('https://'))) {
-        try { slide.addImage({ path: photoAfter, x: 9.7, y: 1.05, w: 2.8, h: 5.62 }); }
         catch (e) { this._addEmptyPhotoFrame(slide, pptx, 9.7, 1.05, 2.8, 5.62); }
       } else {
         this._addEmptyPhotoFrame(slide, pptx, 9.7, 1.05, 2.8, 5.62);
@@ -3436,15 +3432,9 @@ class PPTXGenerator {
         fill: { color: "0F172A" }, line: { color: borderLight }, rectRadius: 0.1
       });
 
-      if (photoSingle && photoSingle.startsWith('data:image/')) {
+      if (photoSingle && typeof photoSingle === 'string' && photoSingle.startsWith('data:image/')) {
         try {
           slide.addImage({ data: photoSingle, x: 6.7, y: 1.05, w: 5.8, h: 5.62 });
-        } catch (e) {
-          this._addEmptyPhotoFrame(slide, pptx, 6.7, 1.05, 5.8, 5.62);
-        }
-      } else if (photoSingle && (photoSingle.startsWith('http://') || photoSingle.startsWith('https://'))) {
-        try {
-          slide.addImage({ path: photoSingle, x: 6.7, y: 1.05, w: 5.8, h: 5.62 });
         } catch (e) {
           this._addEmptyPhotoFrame(slide, pptx, 6.7, 1.05, 5.8, 5.62);
         }
@@ -3669,10 +3659,9 @@ class PPTXGenerator {
         x: 7.2, y: 1.05, w: 2.55, h: 5.68,
         fill: { color: "0F172A" }, line: { color: borderLight }, rectRadius: 0.1
       });
-      if (photoBefore && (photoBefore.startsWith('data:image/') || photoBefore.startsWith('http://') || photoBefore.startsWith('https://'))) {
+      if (photoBefore && typeof photoBefore === 'string' && photoBefore.startsWith('data:image/')) {
         try {
-          const opt = photoBefore.startsWith('data:image/') ? { data: photoBefore } : { path: photoBefore };
-          slide.addImage({ ...opt, x: 7.2, y: 1.05, w: 2.55, h: 5.68 });
+          slide.addImage({ data: photoBefore, x: 7.2, y: 1.05, w: 2.55, h: 5.68 });
         } catch(e) { this._addEmptyPhotoFrame(slide, pptx, 7.2, 1.05, 2.55, 5.68); }
       } else {
         this._addEmptyPhotoFrame(slide, pptx, 7.2, 1.05, 2.55, 5.68);
@@ -3691,10 +3680,9 @@ class PPTXGenerator {
         x: 9.95, y: 1.05, w: 2.55, h: 5.68,
         fill: { color: "0F172A" }, line: { color: borderLight }, rectRadius: 0.1
       });
-      if (photoAfter && (photoAfter.startsWith('data:image/') || photoAfter.startsWith('http://') || photoAfter.startsWith('https://'))) {
+      if (photoAfter && typeof photoAfter === 'string' && photoAfter.startsWith('data:image/')) {
         try {
-          const opt = photoAfter.startsWith('data:image/') ? { data: photoAfter } : { path: photoAfter };
-          slide.addImage({ ...opt, x: 9.95, y: 1.05, w: 2.55, h: 5.68 });
+          slide.addImage({ data: photoAfter, x: 9.95, y: 1.05, w: 2.55, h: 5.68 });
         } catch(e) { this._addEmptyPhotoFrame(slide, pptx, 9.95, 1.05, 2.55, 5.68); }
       } else {
         this._addEmptyPhotoFrame(slide, pptx, 9.95, 1.05, 2.55, 5.68);
@@ -3723,15 +3711,9 @@ class PPTXGenerator {
         fill: { color: "0F172A" }, line: { color: borderLight }, rectRadius: 0.1
       });
 
-      if (photoSingle && photoSingle.startsWith('data:image/')) {
+      if (photoSingle && typeof photoSingle === 'string' && photoSingle.startsWith('data:image/')) {
         try {
           slide.addImage({ data: photoSingle, x: 7.2, y: 1.05, w: 5.3, h: 5.68 });
-        } catch (e) {
-          this._addEmptyPhotoFrame(slide, pptx, 7.2, 1.05, 5.3, 5.68);
-        }
-      } else if (photoSingle && (photoSingle.startsWith('http://') || photoSingle.startsWith('https://') || photoSingle.startsWith('assets/'))) {
-        try {
-          slide.addImage({ path: photoSingle, x: 7.2, y: 1.05, w: 5.3, h: 5.68 });
         } catch (e) {
           this._addEmptyPhotoFrame(slide, pptx, 7.2, 1.05, 5.3, 5.68);
         }
@@ -3899,15 +3881,9 @@ class PPTXGenerator {
         fontFace: font, fontSize: 9, bold: true, color: "FFFFFF", align: "center", valign: "middle"
       });
 
-      if (photoBefore && photoBefore.startsWith('data:image/')) {
+      if (photoBefore && typeof photoBefore === 'string' && photoBefore.startsWith('data:image/')) {
         try {
           slide.addImage({ data: photoBefore, x: 2.8, y: 1.65, w: 4.4, h: 2.7 });
-        } catch (e) {
-          this._addEmptyPhotoFrame(slide, pptx, 2.8, 1.65, 4.4, 2.7);
-        }
-      } else if (photoBefore && (photoBefore.startsWith('http://') || photoBefore.startsWith('https://'))) {
-        try {
-          slide.addImage({ path: photoBefore, x: 2.8, y: 1.65, w: 4.4, h: 2.7 });
         } catch (e) {
           this._addEmptyPhotoFrame(slide, pptx, 2.8, 1.65, 4.4, 2.7);
         }
@@ -3935,15 +3911,9 @@ class PPTXGenerator {
         fontFace: font, fontSize: 9, bold: true, color: "FFFFFF", align: "center", valign: "middle"
       });
 
-      if (photoAfter && photoAfter.startsWith('data:image/')) {
+      if (photoAfter && typeof photoAfter === 'string' && photoAfter.startsWith('data:image/')) {
         try {
           slide.addImage({ data: photoAfter, x: 8.2, y: 1.65, w: 4.1, h: 2.7 });
-        } catch (e) {
-          this._addEmptyPhotoFrame(slide, pptx, 8.2, 1.65, 4.1, 2.7);
-        }
-      } else if (photoAfter && (photoAfter.startsWith('http://') || photoAfter.startsWith('https://'))) {
-        try {
-          slide.addImage({ path: photoAfter, x: 8.2, y: 1.65, w: 4.1, h: 2.7 });
         } catch (e) {
           this._addEmptyPhotoFrame(slide, pptx, 8.2, 1.65, 4.1, 2.7);
         }
