@@ -370,6 +370,23 @@ Return ONLY a JSON object matching this schema:
           "Inspected trial bending radius to prevent tube flattening and wall thinning",
           "Eliminated reliance on outsourced bending dies to reduce tooling lead time"
         ];
+      } else if (lower.includes('lsfp') || (lower.includes('condenser') && lower.includes('making')) || lower.includes('12k condenser')) {
+        desc = "Fabricated and validated 12k BTU condenser coils on the LSFP-03 fin press line, optimizing fin collar expansion parameters and copper hairpin tube brazing for mass production.";
+        impacts = [
+          "Achieved consistent fin collar height and draw pitch on LSFP-03 press line.",
+          "Ensured tight mechanical tube expansion for optimal heat transfer efficiency.",
+          "Completed 100% high-pressure nitrogen leak testing with zero joint leakage.",
+          "Synchronized coil production output with active 1-ton ODU assembly line takt time.",
+          "Standardized machine setup parameters to reduce coil forming rejection."
+        ];
+      } else if (lower.includes('condenser') || lower.includes('evaporator') || lower.includes('heat exchanger') || lower.includes('coil')) {
+        desc = `Manufactured and tested heat exchanger coils for ${rawName.toLowerCase()}, verifying hairpin tube expansion, return bend brazing, and nitrogen pressure hold.`;
+        impacts = [
+          "Optimized fin spacing and hairpin tube expansion parameters",
+          "Completed 100% nitrogen pressure decay and underwater bubble leak tests",
+          "Maintained uniform fin collar contact to ensure maximum heat transfer",
+          "Handed over inspected coil assemblies for outdoor unit line integration"
+        ];
       } else if (!this.isGenericMilestone(details)) {
         // Generic parsing for numbered/bulleted engineering notes
         const cleanSteps = details
@@ -496,6 +513,29 @@ Return ONLY a JSON object matching this schema:
           "Eliminated reliance on outsourced bending dies to reduce tooling lead time"
         ];
         quote = "In-House Die Engineering for Manufacturing Agility";
+      } else if (lower.includes('lsfp') || (lower.includes('condenser') && lower.includes('making')) || lower.includes('12k condenser')) {
+        category = "Major Developments - Process";
+        projectType = "Process Optimization";
+        desc = "Fabricated and validated 12k BTU condenser coils on the LSFP-03 fin press line, optimizing fin collar expansion parameters and copper hairpin tube brazing for mass production.";
+        impacts = [
+          "Achieved consistent fin collar height and draw pitch on LSFP-03 press line.",
+          "Ensured tight mechanical tube expansion for optimal heat transfer efficiency.",
+          "Completed 100% high-pressure nitrogen leak testing with zero joint leakage.",
+          "Synchronized coil production output with active 1-ton ODU assembly line takt time.",
+          "Standardized machine setup parameters to reduce coil forming rejection."
+        ];
+        quote = "Precision Coil Manufacturing for Peak Thermal Efficiency";
+      } else if (lower.includes('condenser') || lower.includes('evaporator') || lower.includes('heat exchanger') || lower.includes('coil')) {
+        category = "Major Developments - Process";
+        projectType = "Process Optimization";
+        desc = `Manufactured and tested heat exchanger coils for ${rawName.toLowerCase()}, verifying hairpin tube expansion, return bend brazing, and nitrogen pressure hold.`;
+        impacts = [
+          "Optimized fin spacing and hairpin tube expansion parameters",
+          "Completed 100% nitrogen pressure decay and underwater bubble leak tests",
+          "Maintained uniform fin collar contact to ensure maximum heat transfer",
+          "Handed over inspected coil assemblies for outdoor unit line integration"
+        ];
+        quote = "High-Efficiency Coil Fabrication for AC Reliability";
       } else if (lower.includes('cnc turret') || (lower.includes('turret punch') && lower.includes('machine'))) {
         category = "Major Developments - Process";
         projectType = "Machine Optimization";
@@ -656,15 +696,50 @@ Return ONLY a JSON object matching this schema:
         category = optCategory || "Process Development";
         projectType = "Process Optimization";
         const cleanName = rawName.replace(/[._-]+$/, '').trim();
-        desc = `Conducted engineering validation and process optimization for ${cleanName.toLowerCase()} on the active production line, verifying operational repeatability and completing shop-floor handover.`;
-        impacts = [
-          "Utilization of existing production infrastructure and tooling",
-          "Reduced additional investment in specialized assembly setup",
-          "Optimized manpower and workstation cycle time pacing",
-          "Identified process compatibility and completed necessary tooling modifications",
-          "Evaluated production capacity and operational feasibility",
-          "Potential reduction in manufacturing and operational costs"
-        ];
+        const lowerClean = cleanName.toLowerCase();
+
+        if (lowerClean.includes('making') || lowerClean.includes('manufacturing') || lowerClean.includes('production') || lowerClean.includes('assembly')) {
+          desc = `Completed manufacturing setup and trial run for ${lowerClean}, standardizing workstation process parameters and verifying part tolerances for assembly.`;
+          impacts = [
+            `Verified raw material readiness and component dimensional fitment for ${cleanName}.`,
+            "Optimized station manufacturing sequence and cycle time pacing.",
+            "Conducted line trial run with 100% quality inspection on trial output.",
+            "Handed over verified parts and process parameters to production operators."
+          ];
+        } else if (lowerClean.includes('check') || lowerClean.includes('inspection') || lowerClean.includes('audit')) {
+          desc = `Conducted thorough engineering inspection and dimensional verification for ${lowerClean}, identifying root causes of defect variations and standardizing line checks.`;
+          impacts = [
+            `Conducted comprehensive engineering inspection on sample parts for ${cleanName}.`,
+            "Identified root causes of dimensional variation and line bottlenecks.",
+            "Coordinated corrective actions with quality control and tooling teams.",
+            "Established standardized quality inspection checklist for line operators."
+          ];
+        } else if (lowerClean.includes('modification') || lowerClean.includes('adjustment') || lowerClean.includes('repair') || lowerClean.includes('die')) {
+          desc = `Carried out engineering modification and tooling adjustment for ${lowerClean}, eliminating process bottlenecks and improving line productivity.`;
+          impacts = [
+            `Identified tooling clearances and alignment issues on ${cleanName}.`,
+            "Carried out mechanical modifications to eliminate component distortion.",
+            "Conducted trial validation run with verified dimensional repeatability.",
+            "Handed over modified setup for continuous shift operations."
+          ];
+        } else if (lowerClean.includes('trial') || lowerClean.includes('assessment') || lowerClean.includes('feasibility')) {
+          desc = `Executed pilot production trials and parameter validation for ${lowerClean}, confirming operational repeatability and quality conformance.`;
+          impacts = [
+            "Conducted technical feasibility and process parameter validation.",
+            "Evaluated production capacity and workstation cycle time pacing.",
+            "Identified process compatibility and required tooling adjustments.",
+            "Prepared technical feasibility summary for mass production approval."
+          ];
+        } else {
+          desc = `Conducted process engineering development and validation for ${lowerClean} on the active production line, standardizing shop-floor operating parameters.`;
+          impacts = [
+            "Utilization of existing production infrastructure and tooling.",
+            "Reduced additional investment in specialized assembly setup.",
+            "Optimized manpower and workstation cycle time pacing.",
+            "Identified process compatibility and completed necessary tooling modifications.",
+            "Potential reduction in manufacturing and operational costs."
+          ];
+        }
         quote = "Process Development for Operational Excellence";
       }
     }

@@ -1,5 +1,5 @@
 <?php
 /**
- * Root API Router Forwarder
+ * Root Router Delegation for /api/openrouter
  */
 require_once __DIR__ . '/../report/api/openrouter.php';

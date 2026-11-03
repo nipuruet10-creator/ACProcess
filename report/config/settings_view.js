@@ -407,6 +407,7 @@ const SettingsView = {
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">OpenRouter API Key</label>
                 <div class="flex items-center gap-2">
                   <input type="password" id="settings-openrouter-key" value="${HELPERS.escapeHtml(openRouterKey)}" placeholder="sk-or-v1-..."
+                         oninput="SettingsView.saveOpenRouterKeySilent()" onchange="SettingsView.saveOpenRouterKey()"
                          class="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-purple-500 font-mono" />
                   <button onclick="SettingsView.saveOpenRouterKey()" class="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-xs font-bold text-white shadow-sm cursor-pointer">
                     Save Key
@@ -710,6 +711,15 @@ const SettingsView = {
     this.render();
   },
 
+  saveOpenRouterKeySilent() {
+    const key = (document.getElementById('settings-openrouter-key') ? document.getElementById('settings-openrouter-key').value : '').trim();
+    if (typeof geminiClient !== 'undefined') {
+      geminiClient.setOpenRouterKey(key);
+    } else {
+      HELPERS.storage.set("walton_pd_openrouter_api_key", key);
+    }
+  },
+
   saveOpenRouterKey() {
     const key = (document.getElementById('settings-openrouter-key') ? document.getElementById('settings-openrouter-key').value : '').trim();
     if (typeof geminiClient !== 'undefined') {
@@ -717,10 +727,18 @@ const SettingsView = {
     } else {
       HELPERS.storage.set("walton_pd_openrouter_api_key", key);
     }
+    // Asynchronously save to Hostinger PHP server proxy so all factory PCs can use it
+    if (typeof window !== 'undefined' && window.location.protocol !== 'file:') {
+      fetch('/report/api/openrouter.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_key', apiKey: key })
+      }).catch(() => {});
+    }
     if (typeof window.showToast === 'function') {
-      window.showToast(key ? "✅ OpenRouter API Key saved!" : "OpenRouter API Key removed.", "success");
+      window.showToast(key ? "✅ OpenRouter API Key saved on server for all users!" : "OpenRouter API Key removed.", "success");
     } else {
-      alert(key ? "OpenRouter API Key saved!" : "OpenRouter API Key removed.");
+      alert(key ? "OpenRouter API Key saved on server for all users!" : "OpenRouter API Key removed.");
     }
   },
 

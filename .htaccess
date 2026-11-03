@@ -3,6 +3,10 @@
     RewriteEngine On
     RewriteBase /
 
+    # Forward auth headers to PHP FastCGI/CGI
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+    RewriteRule .* - [E=HTTP_X_OPENROUTER_KEY:%{HTTP:x-openrouter-key}]
+
     # Route any root /uploads/ requests directly to /report/uploads/
     RewriteRule ^uploads/(.*)$ report/uploads/$1 [L]
 
@@ -11,9 +15,20 @@
     RewriteRule ^api/(.*)$ report/api/$1 [L]
 </IfModule>
 
+# Protect sensitive key configuration
+<FilesMatch "^\.openrouter_key\.php$">
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</FilesMatch>
+
 # Enable CORS across domain
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
-    Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept"
+    Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-openrouter-key"
 </IfModule>

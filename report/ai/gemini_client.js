@@ -35,7 +35,16 @@ class GeminiClient {
   }
 
   setOpenRouterKey(key) {
-    HELPERS.storage.set(this.STORAGE_KEY_OPENROUTER_KEY, (key || "").trim());
+    const cleanKey = (key || "").trim();
+    HELPERS.storage.set(this.STORAGE_KEY_OPENROUTER_KEY, cleanKey);
+    // Asynchronously sync with Hostinger server proxy so all computers share the key
+    if (typeof window !== 'undefined' && window.location.protocol !== 'file:') {
+      fetch('/report/api/openrouter.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_key', apiKey: cleanKey })
+      }).catch(() => {});
+    }
   }
 
   getOpenRouterModel() {
@@ -104,6 +113,13 @@ class GeminiClient {
             if (contentType.includes("json")) {
               const proxyData = await proxyRes.json();
               const isSuccess = Boolean(proxyData.success);
+              if (isSuccess && key) {
+                fetch('/report/api/openrouter.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'save_key', apiKey: key })
+                }).catch(() => {});
+              }
               return {
                 success: isSuccess,
                 connected: isSuccess,
@@ -308,17 +324,21 @@ class GeminiClient {
       for (const endpoint of this.PROXY_ENDPOINTS) {
         try {
           const headers = { "Content-Type": "application/json" };
-          if (key) headers["x-openrouter-key"] = key;
+          if (key) {
+            headers["x-openrouter-key"] = key;
+            headers["Authorization"] = `Bearer ${key}`;
+          }
 
           const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-          const timeoutId = controller ? setTimeout(() => controller.abort(), 12000) : null;
+          const timeoutId = controller ? setTimeout(() => controller.abort(), 15000) : null;
 
           const proxyPayload = {
             action: "chat",
             model: model,
             messages: messages,
             temperature: temperature,
-            max_tokens: maxTokens
+            max_tokens: maxTokens,
+            apiKey: key || ""
           };
           if (jsonMode) proxyPayload.response_format = { type: "json_object" };
 
@@ -536,13 +556,13 @@ class GeminiClient {
     const hasOpenRouterKey = Boolean(this.getOpenRouterKey());
     const hasGeminiKey = Boolean(this.getApiKey());
 
-    if (hasOpenRouterKey && (provider === "openrouter" || !hasGeminiKey)) {
+    if (provider === "openrouter" || !hasGeminiKey) {
       try {
         const prompt = this.templates.buildTaskPrompt(task);
         const rawReply = await this.callOpenRouter([
           { role: "system", content: this.templates.SYSTEM_INSTRUCTION },
           { role: "user", content: prompt }
-        ], this.config.TEMPERATURE, this.config.MAX_OUTPUT_TOKENS, true);
+        ], this.config.TEMPERATURE, this.config.MAX_OUTPUT_TOKENS, false);
 
         const parsed = this.parseAiResponse(rawReply, task.task_name || task.original_task_name);
         if (!parsed || (!parsed.ai_description && (!parsed.ai_impact || parsed.ai_impact.length === 0))) {

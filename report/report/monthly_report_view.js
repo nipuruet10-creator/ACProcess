@@ -732,15 +732,18 @@ const MonthlyReportView = {
       let aiGenerated = false;
 
       // Check if OpenRouter or Gemini AI client is configured
-      if (typeof geminiClient !== 'undefined' && (geminiClient.getOpenRouterKey() || geminiClient.getApiKey())) {
+      if (typeof geminiClient !== 'undefined') {
         try {
           const aiResult = await geminiClient.transformTask({
             task_name: taskName,
             category: category,
-            task_details: rawDetails
+            task_details: rawDetails,
+            current_desc: descEl ? descEl.value : '',
+            current_impact: impactEl ? impactEl.value : ''
           }, true);
 
           if (aiResult && (aiResult.ai_description || (Array.isArray(aiResult.ai_impact) && aiResult.ai_impact.length > 0))) {
+            const isFromAi = Boolean(aiResult.source && aiResult.source.includes('openrouter'));
             if (descEl && aiResult.ai_description) {
               descEl.value = aiResult.ai_description;
               descEl.dispatchEvent(new Event('input', { bubbles: true }));
@@ -753,7 +756,7 @@ const MonthlyReportView = {
               impactEl.dispatchEvent(new Event('change', { bubbles: true }));
             }
             aiGenerated = true;
-            const pName = geminiClient.getOpenRouterKey() ? "OpenRouter Free AI" : "Gemini AI";
+            const pName = isFromAi ? "OpenRouter Free AI" : (geminiClient.getOpenRouterKey() ? "OpenRouter Free AI" : "Process Engineering Engine");
             if (typeof window.showToast === 'function') {
               window.showToast(`✨ Rewritten in authentic human tone using ${pName}!`, "success");
             }
