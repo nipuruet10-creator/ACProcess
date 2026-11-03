@@ -525,6 +525,21 @@ const MonthlyReportView = {
       };
     }
 
+    // 1.6. Water Dispenser Trial Run & Feasibility Assessment / Assembly Line Integration
+    if (lower.includes("water dispenser") || (lower.includes("feasibility") && (lower.includes("rac") || lower.includes("assembly line")))) {
+      return {
+        desc: "Conducted a trial run and feasibility assessment to evaluate the possibility of integrating Water Dispenser assembly operations into the existing RAC Assembly Line.",
+        bullets: [
+          "Utilization of existing production infrastructure.",
+          "Reduced additional investment in assembly line setup.",
+          "Optimized manpower and production resources.",
+          "Identified process compatibility and necessary modifications.",
+          "Evaluated production capacity and operational feasibility.",
+          "Potential reduction in manufacturing and operational costs."
+        ]
+      };
+    }
+
     // 2. Vacuum / Evacuation / Charging / Refrigerant / Leakage / Nitrogen / Pressure
     if (lower.includes("vacuum") || lower.includes("evacuation") || lower.includes("charging") || lower.includes("refrigerant") || lower.includes("leakage") || lower.includes("pressure") || lower.includes("nitrogen") || lower.includes("booster")) {
       return {

@@ -18,10 +18,28 @@ STRICT HUMAN FACTORY VOICE GUIDELINES (NO AI TONE / NO HYPERBOLE):
    - NEVER use corporate AI fluff such as: "spearheaded", "synergy", "seamless", "seamless integration", "cutting-edge", "unwavering commitment", "paradigm", "meticulously calibrated", "holistic", "revolutionary", "zero defect quality deviation", "flawless execution", "state-of-the-art", "game-changing".
 3. STRICT ZERO FABRICATION POLICY:
    - Never fabricate numerical savings (BDT/USD) or fake percentages not mentioned in the task notes.
-4. NARRATIVE DESCRIPTION:
-   - Exactly 1 to 2 clean, realistic engineering sentences suitable for senior plant executive review.
-5. PROJECT IMPACT & OUTCOMES (BULLETS):
-   - Provide 3 to 4 concise, action-oriented bullet points starting with strong past-tense verbs (e.g. "Tested", "Modified", "Eliminated", "Reduced", "Coordinated", "Fabricated", "Inspected").
+4. EXACT 1-LINE DESCRIPTION:
+   - Exactly 1 clear, professional, direct sentence (e.g. "Conducted a trial run and feasibility assessment to evaluate the possibility of integrating Water Dispenser assembly operations into the existing RAC Assembly Line.").
+   - Do not write multiple paragraphs or wordy filler.
+5. CONCISE IMPACT BULLETS (4 to 6 BULLETS):
+   - Provide 4 to 6 concise, punchy bullet points (each 4 to 9 words).
+   - Each bullet represents a concrete operational benefit or factual result (e.g., "Utilization of existing production infrastructure.", "Reduced additional investment in assembly line setup.", "Optimized manpower and production resources.", "Identified process compatibility and necessary modifications.", "Evaluated production capacity and operational feasibility.", "Potential reduction in manufacturing and operational costs.").
+
+GOLD-STANDARD REFERENCE EXEMPLAR:
+Task Name: "Water Dispenser Trial Run & Feasibility Assessment on RAC Assembly Line"
+Output:
+{
+  "ai_description": "Conducted a trial run and feasibility assessment to evaluate the possibility of integrating Water Dispenser assembly operations into the existing RAC Assembly Line.",
+  "ai_impact": [
+    "Utilization of existing production infrastructure.",
+    "Reduced additional investment in assembly line setup.",
+    "Optimized manpower and production resources.",
+    "Identified process compatibility and necessary modifications.",
+    "Evaluated production capacity and operational feasibility.",
+    "Potential reduction in manufacturing and operational costs."
+  ]
+}
+
 6. Output MUST be valid JSON only matching the schema.`,
 
   isGenericMilestone(text) {
@@ -57,28 +75,43 @@ STRICT HUMAN FACTORY VOICE GUIDELINES (NO AI TONE / NO HYPERBOLE):
 
     return `Transform the following engineering task into a Walton Executive Monthly Report Slide:
 
-Engineer: ${engineer}
-Task Name: "${rawName}"
-${cleanDetails ? `Task Details / Procedure: "${cleanDetails}"` : ''}
+Task: "${rawName}"
+${cleanDetails ? `Procedure / Notes: "${cleanDetails}"` : ''}
 
-Return ONLY a JSON object matching this exact schema:
+REFERENCE GOLD-STANDARD OUTPUT STYLE:
+Task: "Water Dispenser Trial Run & Feasibility Assessment on RAC Assembly Line"
+Description: "Conducted a trial run and feasibility assessment to evaluate the possibility of integrating Water Dispenser assembly operations into the existing RAC Assembly Line."
+Impact:
+• Utilization of existing production infrastructure.
+• Reduced additional investment in assembly line setup.
+• Optimized manpower and production resources.
+• Identified process compatibility and necessary modifications.
+• Evaluated production capacity and operational feasibility.
+• Potential reduction in manufacturing and operational costs.
+
+Strictly generate output following this exact structure:
+1. "ai_description": Exactly 1 clear, active-voice sentence describing the action taken and practical objective.
+2. "ai_impact": 4 to 6 concise bullet points (each 4 to 9 words) stating direct operational, quality, or cost impacts.
+
+Return ONLY a JSON object matching this schema:
 {
-  "split_title_1": "Primary subject part of title (2-4 words, e.g., 'Compressor Jacket Foil')",
-  "split_title_2": "Action or deliverable part of title (2-4 words in red accent, e.g., 'Cutting System Development')",
-  "ai_report_title": "Full executive title",
-  "ai_description": "Factual 2-3 sentence project overview describing design, fabrication, and handover to production without fabricated numbers.",
+  "split_title_1": "Primary subject part of title (2-4 words)",
+  "split_title_2": "Action or deliverable part of title (2-4 words in red accent)",
+  "ai_report_title": "${rawName.replace(/"/g, '\\"')}",
+  "ai_description": "Conducted / Developed / Fabricated / Modified ... (exactly 1 sentence)",
   "ai_impact": [
-    "Improved cutting accuracy and consistency",
-    "Increased production efficiency",
-    "Reduced manual handling",
-    "Better quality control and less material waste"
+    "Punchy operational impact 1.",
+    "Punchy operational impact 2.",
+    "Punchy operational impact 3.",
+    "Punchy operational impact 4.",
+    "Punchy operational impact 5."
   ],
   "metrics": [
     { "name": "Production Efficiency", "change": "Improved", "trend": "up", "color": "green" },
-    { "name": "Quality Consistency", "change": "Enhanced", "trend": "up", "color": "green" },
-    { "name": "Material Waste", "change": "Reduced", "trend": "down", "color": "red" }
+    { "name": "Resource Utilization", "change": "Optimized", "trend": "up", "color": "green" },
+    { "name": "Process Feasibility", "change": "Verified", "trend": "up", "color": "green" }
   ],
-  "quote": "Automation for a Smarter Tomorrow",
+  "quote": "Process Development for Operational Excellence",
   "ai_category": "Process Development",
   "ai_project_type": "Process Improvement"
 }`;
@@ -323,6 +356,19 @@ Return ONLY a JSON object matching this exact schema:
           "Cleared machine for regular mass production line operations"
         ];
         quote = "Precision Commissioning for Production Reliability";
+      } else if (lower.includes("water dispenser") || (lower.includes("feasibility") && (lower.includes("rac") || lower.includes("assembly line")))) {
+        category = "Process Development";
+        projectType = "Feasibility Assessment";
+        desc = "Conducted a trial run and feasibility assessment to evaluate the possibility of integrating Water Dispenser assembly operations into the existing RAC Assembly Line.";
+        impacts = [
+          "Utilization of existing production infrastructure.",
+          "Reduced additional investment in assembly line setup.",
+          "Optimized manpower and production resources.",
+          "Identified process compatibility and necessary modifications.",
+          "Evaluated production capacity and operational feasibility.",
+          "Potential reduction in manufacturing and operational costs."
+        ];
+        quote = "Operational Feasibility for Plant Resource Optimization";
       } else if (lower.includes("vacuum") || lower.includes("evacuation") || lower.includes("charging") || lower.includes("refrigerant") || lower.includes("leakage") || lower.includes("pressure") || lower.includes("nitrogen") || lower.includes("booster")) {
         category = "Process Development";
         projectType = "Cycle Time Optimization";
