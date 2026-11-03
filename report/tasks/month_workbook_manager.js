@@ -113,13 +113,24 @@ class MonthWorkbookManager {
           const isCost = Boolean(t.is_cost_saving || tid.startsWith('CS-') || cat.includes('cost saving'));
           
           if (isProj) {
-            // Rescue any strategic project (e.g. RAC Assembly line relocation) into permanent strategic projects store
+            // Rescue any strategic project into permanent strategic projects store ONLY IF not deleted
             try {
               if (typeof window !== 'undefined' && window.localStorage) {
+                let deletedMap = {};
+                try {
+                  const dRaw = localStorage.getItem("walton_deleted_project_ids");
+                  if (dRaw) deletedMap = JSON.parse(dRaw) || {};
+                } catch(e) {}
+                const tName = String(t.task_name || '').trim().toLowerCase();
+                const isDeleted = Boolean(deletedMap[t.task_id] || Object.values(deletedMap).some(d => d && d.taskName && String(d.taskName).trim().toLowerCase() === tName));
+                if (isDeleted) {
+                  return; // Strictly omit and do NOT rescue deleted project!
+                }
+
                 const raw = localStorage.getItem("walton_strategic_projects_permanent_v1");
                 let list = raw ? JSON.parse(raw) : [];
                 if (!Array.isArray(list)) list = [];
-                if (!list.some(p => p.task_id === t.task_id || (p.task_name && p.task_name.trim().toLowerCase() === String(t.task_name || '').trim().toLowerCase()))) {
+                if (!list.some(p => p.task_id === t.task_id || (p.task_name && p.task_name.trim().toLowerCase() === tName))) {
                   list.push({
                     task_id: t.task_id || `PROJ-2026-${Date.now().toString().slice(-4)}`,
                     task_name: t.task_name,

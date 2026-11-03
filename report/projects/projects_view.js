@@ -10,6 +10,74 @@ const ProjectsView = {
   selectedMonth: "SEP-2026",
   activeFilter: "all", // 'all', 'ongoing', 'completed'
   STORAGE_KEY: "walton_strategic_projects_permanent_v1",
+  DELETED_STORAGE_KEY: "walton_deleted_project_ids",
+
+  getDeletedProjectMap() {
+    try {
+      const raw = localStorage.getItem(this.DELETED_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch(e) {}
+    return {};
+  },
+
+  isProjectDeleted(taskId, taskName) {
+    if (!taskId && !taskName) return false;
+    const map = this.getDeletedProjectMap();
+    if (taskId && map[taskId]) return true;
+    if (taskName) {
+      const norm = String(taskName).trim().toLowerCase();
+      for (const key in map) {
+        const item = map[key];
+        if (item && item.taskName && String(item.taskName).trim().toLowerCase() === norm) {
+          return true;
+        }
+      }
+    }
+    return false;
+  },
+
+  markProjectDeleted(taskId, taskName = "") {
+    if (!taskId) return;
+    try {
+      const map = this.getDeletedProjectMap();
+      map[taskId] = {
+        taskId: taskId,
+        taskName: taskName || "",
+        deletedAt: new Date().toISOString()
+      };
+      localStorage.setItem(this.DELETED_STORAGE_KEY, JSON.stringify(map));
+
+      // Sync tombstone to Firebase Realtime Database
+      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+        const cleanId = String(taskId).replace(/[.#$\[\]\/]/g, '_');
+        FirebaseSyncService.db.ref(`walton_monthly_report/deleted_projects/${cleanId}`).set({
+          taskId: taskId,
+          taskName: taskName || "",
+          deletedAt: new Date().toISOString()
+        }).catch(err => console.warn("Firebase markProjectDeleted notice:", err));
+      }
+    } catch(e) {
+      console.warn("Could not mark project deleted:", e);
+    }
+  },
+
+  unmarkProjectDeleted(taskId) {
+    if (!taskId) return;
+    try {
+      const map = this.getDeletedProjectMap();
+      if (map[taskId]) {
+        delete map[taskId];
+        localStorage.setItem(this.DELETED_STORAGE_KEY, JSON.stringify(map));
+      }
+      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.db) {
+        const cleanId = String(taskId).replace(/[.#$\[\]\/]/g, '_');
+        FirebaseSyncService.db.ref(`walton_monthly_report/deleted_projects/${cleanId}`).remove().catch(() => {});
+      }
+    } catch(e) {}
+  },
 
   getDefaultSeedProjects() {
     return [
@@ -45,10 +113,15 @@ const ProjectsView = {
         } catch(e) {}
       }
 
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        parsed = this.getDefaultSeedProjects();
+      // If storage has NEVER been initialized (first run in empty browser)
+      if (raw === null) {
+        parsed = this.getDefaultSeedProjects().filter(p => !this.isProjectDeleted(p.task_id, p.task_name));
         this.saveProjects(parsed);
         return parsed;
+      }
+
+      if (!Array.isArray(parsed)) {
+        parsed = [];
       }
 
       // Strictly filter out any legacy dummy seed projects
@@ -67,92 +140,8 @@ const ProjectsView = {
         return true;
       });
 
-      // Ensure RAC Assembly line relocation project is permanently present and visible (Requirement 1)
-      if (!parsed.some(p => (p.task_name || '').toLowerCase().includes('rac assembly line'))) {
-        parsed.push(this.getDefaultSeedProjects()[0]);
-      }
-
-      // Ensure Hashmi's 4 ongoing strategic projects are permanently visible in Projects section (Requirement 2)
-      const hashmiStrategicProjects = [
-        {
-          task_id: "OCT-2026-054-MJY3",
-          task_name: "Requisition for Sheet metal production section dashboard modification",
-          assignee: "Hashmi (56880)",
-          engineer: "Hashmi (56880)",
-          category: "Ongoing Projects",
-          status: "Ongoing",
-          project_status: "Ongoing",
-          deadline: "November, 2026",
-          month: "OCT-2026",
-          overview: "Coordinated with IT and Sheet Metal section to submit dashboard modification requirements for tracking plant production KPIs.",
-          description: "Coordinated with IT and Sheet Metal section to submit dashboard modification requirements for tracking plant production KPIs.",
-          task_details: "• Compiled operational dashboard requirements from sheet metal shift supervisors\n• Submitted official IT requisition for production metrics and downtime tracking\n• Reviewed draft database structure and input screens with IT developers\n• Tested prototype dashboard updates for accurate real-time shift reporting",
-          is_project: true,
-          created_at: "2026-10-01T00:00:00.000Z",
-          last_updated: new Date().toISOString()
-        },
-        {
-          task_id: "OCT-2026-059-OQ5S",
-          task_name: "Requirements providing to IT Concern for Maintanance entry panel modification",
-          assignee: "Hashmi (56880)",
-          engineer: "Hashmi (56880)",
-          category: "Ongoing Projects",
-          status: "Ongoing",
-          project_status: "Ongoing",
-          deadline: "November, 2026",
-          month: "OCT-2026",
-          overview: "Submitted functional requirements to IT team to consolidate non-machine downtime and operational loss hours into a unified maintenance entry panel.",
-          description: "Submitted functional requirements to IT team to consolidate non-machine downtime and operational loss hours into a unified maintenance entry panel.",
-          task_details: "• Identified loss time tracking gaps outside of standard machine breakdown codes\n• Submitted functional requirements to IT to add operational loss time inputs\n• Conducted alignment meeting with maintenance and production supervisors\n• Validated updated user entry panel during live shift changeover",
-          is_project: true,
-          created_at: "2026-10-01T00:00:00.000Z",
-          last_updated: new Date().toISOString()
-        },
-        {
-          task_id: "OCT-2026-063-UVDT",
-          task_name: "Meeting and line visit of Fan motor manufacturing section for AC motor inhouse production",
-          assignee: "Hashmi (56880)",
-          engineer: "Hashmi (56880)",
-          category: "Ongoing Projects",
-          status: "Ongoing",
-          project_status: "Ongoing",
-          deadline: "January, 2027",
-          month: "OCT-2026",
-          overview: "Visited EAP fan motor production line to assess tooling, machinery, and assembly requirements for manufacturing AC ODU fan motors in-house.",
-          description: "Visited EAP fan motor production line to assess tooling, machinery, and assembly requirements for manufacturing AC ODU fan motors in-house.",
-          task_details: "• Inspected EAP motor stator, rotor, and final assembly manufacturing line\n• Cataloged required machine types, press tools, and cycle time capacities\n• Assessed production floor space and power supply requirements for in-house line\n• Held initial technical review meeting with production management",
-          is_project: true,
-          created_at: "2026-10-01T00:00:00.000Z",
-          last_updated: new Date().toISOString()
-        },
-        {
-          task_id: "OCT-2026-064-OVQR",
-          task_name: "Cutting and dismantling of Fan motor parts used in AC ODU unit",
-          assignee: "Hashmi (56880)",
-          engineer: "Hashmi (56880)",
-          category: "Ongoing Projects",
-          status: "Ongoing",
-          project_status: "Ongoing",
-          deadline: "December, 2026",
-          month: "OCT-2026",
-          overview: "Dismantled and cataloged AC ODU fan motor components to analyze in-house machining, stamping, and winding process requirements.",
-          description: "Dismantled and cataloged AC ODU fan motor components to analyze in-house machining, stamping, and winding process requirements.",
-          task_details: "• Disassembled fan motor units and cataloged mechanical and electrical components\n• Mapped manufacturing sequence for stator stack, shaft, and casing parts\n• Coordinated with R&I electrical team to evaluate component sourcing options\n• Prepared manufacturing feasibility summary for in-house motor production",
-          is_project: true,
-          created_at: "2026-10-01T00:00:00.000Z",
-          last_updated: new Date().toISOString()
-        }
-      ];
-
-      hashmiStrategicProjects.forEach(hp => {
-        const existingIdx = parsed.findIndex(p => p.task_id === hp.task_id);
-        if (existingIdx === -1) {
-          parsed.push(hp);
-        } else {
-          // Keep existing but ensure status and details are preserved
-          parsed[existingIdx] = { ...hp, ...parsed[existingIdx] };
-        }
-      });
+      // Strictly filter out any explicitly deleted projects
+      parsed = parsed.filter(p => !this.isProjectDeleted(p.task_id, p.task_name));
 
       // Cleanse any legacy reference to inactive personnel
       parsed.forEach(p => {
@@ -163,19 +152,21 @@ const ProjectsView = {
           p.engineer = "Sazzad (50463)";
         }
       });
-      this.saveProjects(parsed);
       return parsed;
     } catch (e) {
       console.warn("Could not read strategic projects storage:", e);
     }
-    return this.getDefaultSeedProjects();
+    return [];
   },
 
   saveProjects(projects) {
     try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(projects));
+      const cleanProjects = Array.isArray(projects)
+        ? projects.filter(p => !this.isProjectDeleted(p.task_id, p.task_name))
+        : [];
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cleanProjects));
       if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.broadcastProjectUpdate) {
-        FirebaseSyncService.broadcastProjectUpdate(projects);
+        FirebaseSyncService.broadcastProjectUpdate(cleanProjects);
       }
     } catch (e) {
       console.error("Failed to save strategic projects:", e);
@@ -465,27 +456,99 @@ const ProjectsView = {
   },
 
   async deleteProject(taskId) {
-    if (confirm(`Are you sure you want to delete this strategic project (${taskId})?`)) {
+    if (!taskId) return;
+    const proj = this.getProject(taskId);
+    const taskName = proj ? (proj.task_name || '') : '';
+    const displayName = taskName ? `"${taskName}" (${taskId})` : taskId;
+
+    if (confirm(`Are you sure you want to delete strategic project:\n${displayName}?`)) {
+      // 1. Mark in permanent tombstone/blacklist so it never resurrects
+      this.markProjectDeleted(taskId, taskName);
+
+      // 2. Remove from active strategic projects storage
       let list = this.getProjects();
-      list = list.filter(p => p.task_id !== taskId);
+      list = list.filter(p => p.task_id !== taskId && !this.isProjectDeleted(p.task_id, p.task_name));
       this.saveProjects(list);
 
-      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.deleteTask) {
+      // 3. Remove from Firebase strategic_projects node immediately
+      if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.broadcastProjectUpdate) {
         try {
-          FirebaseSyncService.deleteTask(this.selectedMonth, taskId);
-        } catch (e) {
-          console.warn("Firebase deleteProject notice:", e);
+          FirebaseSyncService.broadcastProjectUpdate(list);
+        } catch(e) {
+          console.warn("Firebase broadcastProjectUpdate notice:", e);
         }
       }
-      if (typeof GoogleSheetsSync !== 'undefined' && GoogleSheetsSync.deleteTask) {
-        GoogleSheetsSync.deleteTask(taskId, this.selectedMonth).catch(e => console.warn("Google Sheets deleteProject notice:", e));
+
+      // 4. Remove from all candidate workbooks & Firebase monthly task nodes
+      const candidateMonths = ['OCT-2026', 'SEP-2026'];
+      if (this.selectedMonth && !candidateMonths.includes(this.selectedMonth)) {
+        candidateMonths.push(this.selectedMonth);
       }
-      if (window.appState && window.appState.syncEngine) {
-        await window.appState.syncEngine.syncMonth(this.selectedMonth);
+      if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+        try {
+          const allM = window.appState.workbookMgr.getAllMonths();
+          allM.forEach(m => {
+            if (!candidateMonths.includes(m)) candidateMonths.push(m);
+          });
+        } catch(e) {}
       }
-      if (typeof window.showToast === 'function') {
-        window.showToast(`Deleted strategic project ${taskId}`, "info");
+
+      candidateMonths.forEach(m => {
+        if (typeof window !== 'undefined' && window.appState && window.appState.workbookMgr) {
+          try {
+            window.appState.workbookMgr.deleteTask(m, taskId);
+          } catch (e) {
+            console.warn(`Error deleting task ${taskId} from workbook ${m}:`, e);
+          }
+        }
+        if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.deleteTask) {
+          try {
+            FirebaseSyncService.deleteTask(m, taskId);
+          } catch (e) {
+            console.warn(`Error deleting task ${taskId} from Firebase ${m}:`, e);
+          }
+        }
+        if (typeof GoogleSheetsSync !== 'undefined' && GoogleSheetsSync.deleteTask) {
+          try {
+            GoogleSheetsSync.deleteTask(taskId, m);
+          } catch (e) {}
+        }
+
+        // Clean active slide cache for each month
+        try {
+          const slideKey = `walton_pd_active_slides_${m}`;
+          const rawSlides = localStorage.getItem(slideKey);
+          if (rawSlides) {
+            let slides = JSON.parse(rawSlides);
+            if (Array.isArray(slides)) {
+              slides = slides.filter(s => s && s.task_id !== taskId);
+              localStorage.setItem(slideKey, JSON.stringify(slides));
+            }
+          }
+        } catch(e) {}
+      });
+
+      // 5. Clean photos for this task if any
+      try {
+        if (typeof photoManager !== 'undefined' && photoManager.removePhoto) {
+          candidateMonths.forEach(m => {
+            try { photoManager.removePhoto(taskId, 'all', m); } catch(e) {}
+          });
+        }
+      } catch(e) {}
+
+      // 6. Sync Month Engine
+      if (typeof window !== 'undefined' && window.appState && window.appState.syncEngine) {
+        try {
+          await window.appState.syncEngine.syncMonth(this.selectedMonth || 'OCT-2026');
+        } catch(e) {}
       }
+
+      if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+        window.showToast(`Deleted strategic project ${displayName}`, "info");
+      }
+
+      // 7. Re-render UI
       await this.render();
     }
   },
@@ -1191,6 +1254,7 @@ const ProjectsView = {
     const photoUrl = this.getProjectPhoto(targetTaskId) || "";
 
     const list = this.getProjects();
+    this.unmarkProjectDeleted(targetTaskId);
 
     if (!isNew) {
       // UPDATE EXISTING PROJECT IN PERMANENT STORE

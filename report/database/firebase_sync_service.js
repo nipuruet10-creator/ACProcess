@@ -497,18 +497,72 @@ const FirebaseSyncService = {
       });
     }
 
-    // 7. Real-time Strategic Projects Sync (Multi-PC Isolation & Sync)
+    // 7a. Real-time Deleted Strategic Projects Sync (Tombstones across all PCs)
+    if (!this._deletedProjectsBound) {
+      this._deletedProjectsBound = true;
+      this.db.ref('walton_monthly_report/deleted_projects').on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (val && typeof val === 'object') {
+          try {
+            const localRaw = localStorage.getItem("walton_deleted_project_ids");
+            const localMap = localRaw ? JSON.parse(localRaw) : {};
+            const merged = { ...localMap, ...val };
+            localStorage.setItem("walton_deleted_project_ids", JSON.stringify(merged));
+
+            // Purge local strategic projects storage if any match tombstone
+            const stratRaw = localStorage.getItem("walton_strategic_projects_permanent_v1");
+            if (stratRaw) {
+              let strat = JSON.parse(stratRaw);
+              if (Array.isArray(strat)) {
+                const filtered = strat.filter(p => {
+                  if (!p || !p.task_id) return false;
+                  if (merged[p.task_id]) return false;
+                  const pName = String(p.task_name || '').trim().toLowerCase();
+                  if (Object.values(merged).some(d => d && d.taskName && String(d.taskName).trim().toLowerCase() === pName)) {
+                    return false;
+                  }
+                  return true;
+                });
+                if (filtered.length !== strat.length) {
+                  localStorage.setItem("walton_strategic_projects_permanent_v1", JSON.stringify(filtered));
+                  if (window.appState && window.appState.activeTab === 'projects' && typeof ProjectsView !== 'undefined' && ProjectsView.render) {
+                    ProjectsView.render();
+                  }
+                }
+              }
+            }
+          } catch (e) {}
+        }
+      });
+    }
+
+    // 7b. Real-time Strategic Projects Sync (Multi-PC Isolation & Sync)
     if (!this._projectsBound) {
       this._projectsBound = true;
       this.db.ref('walton_monthly_report/strategic_projects').on('value', (snapshot) => {
         const val = snapshot.val();
-        if (Array.isArray(val) && val.length > 0) {
+        let list = Array.isArray(val) ? val : [];
+        try {
+          let deletedMap = {};
           try {
-            localStorage.setItem("walton_strategic_projects_permanent_v1", JSON.stringify(val));
-          } catch (e) {}
-          if (window.appState && window.appState.activeTab === 'projects' && typeof ProjectsView !== 'undefined' && ProjectsView.render) {
-            ProjectsView.render();
-          }
+            const dRaw = localStorage.getItem("walton_deleted_project_ids");
+            if (dRaw) deletedMap = JSON.parse(dRaw) || {};
+          } catch(e) {}
+
+          list = list.filter(p => {
+            if (!p || !p.task_id) return false;
+            if (deletedMap[p.task_id]) return false;
+            const pName = String(p.task_name || '').trim().toLowerCase();
+            if (Object.values(deletedMap).some(d => d && d.taskName && String(d.taskName).trim().toLowerCase() === pName)) {
+              return false;
+            }
+            return true;
+          });
+
+          localStorage.setItem("walton_strategic_projects_permanent_v1", JSON.stringify(list));
+        } catch (e) {}
+        if (window.appState && window.appState.activeTab === 'projects' && typeof ProjectsView !== 'undefined' && ProjectsView.render) {
+          ProjectsView.render();
         }
       });
     }
@@ -1715,7 +1769,23 @@ const FirebaseSyncService = {
   broadcastProjectUpdate(projects) {
     if (!this.isConnected() || !this.db) return;
     try {
-      this.db.ref('walton_monthly_report/strategic_projects').set(projects);
+      let toSend = Array.isArray(projects) ? projects : [];
+      let deletedMap = {};
+      try {
+        const dRaw = localStorage.getItem("walton_deleted_project_ids");
+        if (dRaw) deletedMap = JSON.parse(dRaw) || {};
+      } catch(e) {}
+      toSend = toSend.filter(p => {
+        if (!p || !p.task_id) return false;
+        if (deletedMap[p.task_id]) return false;
+        const pName = String(p.task_name || '').trim().toLowerCase();
+        if (Object.values(deletedMap).some(d => d && d.taskName && String(d.taskName).trim().toLowerCase() === pName)) {
+          return false;
+        }
+        return true;
+      });
+
+      this.db.ref('walton_monthly_report/strategic_projects').set(toSend);
       console.log("🔥 Strategic projects broadcasted to Firebase Realtime Database!");
     } catch (e) {
       console.warn("Failed to broadcast strategic projects to Firebase:", e);
