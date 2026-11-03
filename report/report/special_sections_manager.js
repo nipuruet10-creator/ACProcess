@@ -70,7 +70,95 @@ const SpecialSectionsManager = {
   ],
 
   getSection(id) {
-    return this.SECTIONS.find(s => s.id === id) || null;
+    const base = this.SECTIONS.find(s => s.id === id);
+    if (base) return base;
+    if (id && id.startsWith('cost_saving_')) {
+      const idx = id.replace('cost_saving_', '');
+      return {
+        id: id,
+        title: `Cost Saving Initiatives (Part ${idx})`,
+        shortTitle: `Cost Savings #${idx}`,
+        badge: `COST SAVINGS #${idx}`,
+        color: 'amber',
+        gradient: 'from-amber-600 to-emerald-700',
+        border: 'border-amber-200',
+        bgLight: 'bg-amber-50/60',
+        textAccent: 'text-amber-800',
+        icon: '💰',
+        defaultPhoto: null,
+        description: `Additional cost saving initiative slide #${idx} and Kaizen impact`,
+        isExtraCostSaving: true
+      };
+    }
+    return null;
+  },
+
+  getCostSavingSectionIds(month = null) {
+    const m = (month || (typeof MonthlyReportView !== 'undefined' ? MonthlyReportView.selectedMonth : 'SEP-2026')).toUpperCase();
+    const defaultIds = ['cost_saving'];
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem(`walton_extra_cost_saving_slides_${m}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return ['cost_saving', ...parsed];
+          }
+        }
+      }
+    } catch(e) {}
+    return defaultIds;
+  },
+
+  addCostSavingSlide(month = null) {
+    const m = (month || (typeof MonthlyReportView !== 'undefined' ? MonthlyReportView.selectedMonth : 'SEP-2026')).toUpperCase();
+    const currentList = this.getCostSavingSectionIds(m);
+    const nextIdx = currentList.length + 1;
+    const newId = `cost_saving_${nextIdx}`;
+    const extras = currentList.slice(1);
+    extras.push(newId);
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(`walton_extra_cost_saving_slides_${m}`, JSON.stringify(extras));
+      }
+    } catch(e) {}
+    if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected && FirebaseSyncService.isConnected()) {
+      try {
+        FirebaseSyncService.db.ref(`walton_monthly_report/extra_cost_saving_slides/${m}`).set(extras).catch(() => {});
+      } catch(e) {}
+    }
+    if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
+      MonthlyReportView.render();
+    }
+    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+      window.showToast(`✨ Added Cost Saving Slide #${nextIdx}!`, 'success');
+    }
+  },
+
+  removeCostSavingSlide(id, month = null) {
+    const m = (month || (typeof MonthlyReportView !== 'undefined' ? MonthlyReportView.selectedMonth : 'SEP-2026')).toUpperCase();
+    if (id === 'cost_saving') return;
+    if (!confirm(`Are you sure you want to remove this extra Cost Saving slide?`)) return;
+    const currentList = this.getCostSavingSectionIds(m);
+    const extras = currentList.slice(1).filter(item => item !== id);
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(`walton_extra_cost_saving_slides_${m}`, JSON.stringify(extras));
+        localStorage.removeItem(`walton_special_slide_${id}_${m}`);
+      }
+    } catch(e) {}
+    if (typeof FirebaseSyncService !== 'undefined' && FirebaseSyncService.isConnected && FirebaseSyncService.isConnected()) {
+      try {
+        FirebaseSyncService.db.ref(`walton_monthly_report/extra_cost_saving_slides/${m}`).set(extras).catch(() => {});
+        FirebaseSyncService.db.ref(`walton_monthly_report/special_slides/${m}/${id}`).remove().catch(() => {});
+      } catch(e) {}
+    }
+    if (typeof MonthlyReportView !== 'undefined' && MonthlyReportView.render) {
+      MonthlyReportView.render();
+    }
+    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+      window.showToast(`🗑️ Removed extra Cost Saving slide.`, 'info');
+    }
   },
 
   getSectionPhoto(id, month = null) {
@@ -371,19 +459,21 @@ const SpecialSectionsManager = {
   /**
    * Renders the interactive bottom card grid for the Monthly Report view
    * Allows direct image upload, paste, replace, delete, and slide preview.
+   * Supports multiple Cost Saving slides and removes the closing slide.
    */
   renderBottomCardsHtml(month = 'SEP-2026', taskCount = 0) {
     const m = (month || 'SEP-2026').toUpperCase();
     const workshopSlideNum = taskCount + 4;
     const bomSlideNum = taskCount + 5;
     const completedProjSlideNum = taskCount + 6;
-    const costSavingSlideNum = taskCount + 7;
-    const top5SlideNum = taskCount + 8;
-    const closingSlideNum = taskCount + 9;
+    const costSavingIds = this.getCostSavingSectionIds(m);
+    const top5SlideNum = taskCount + 7 + costSavingIds.length - 1;
 
     const renderCard = (sec, slideNum) => {
       const photoUrl = this.getSectionPhoto(sec.id, m);
       const hasPhoto = Boolean(photoUrl);
+      const isExtra = Boolean(sec.isExtraCostSaving);
+      const isPrimaryCostSaving = (sec.id === 'cost_saving');
 
       return `
       <div class="relative rounded-2xl border ${sec.border} ${sec.bgLight} p-4 shadow-xs flex flex-col justify-between gap-3 group/card transition hover:shadow-md"
@@ -409,6 +499,15 @@ const SpecialSectionsManager = {
               </h4>
             </div>
           </div>
+          ${isPrimaryCostSaving ? `
+            <button type="button" onclick="SpecialSectionsManager.addCostSavingSlide('${m}')" class="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition flex items-center gap-1 shadow-2xs cursor-pointer flex-shrink-0" title="Add another slide for Cost Saving initiatives">
+              <span>➕</span><span>Add Cost Saving Slide</span>
+            </button>
+          ` : (isExtra ? `
+            <button type="button" onclick="SpecialSectionsManager.removeCostSavingSlide('${sec.id}', '${m}')" class="px-2 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-[10px] transition flex items-center gap-1 shadow-2xs cursor-pointer flex-shrink-0" title="Remove this extra cost saving slide">
+              <span>🗑️</span><span>Remove Slide</span>
+            </button>
+          ` : '')}
         </div>
 
         <!-- 16:9 Thumbnail Image / Upload Dropzone -->
@@ -461,7 +560,7 @@ const SpecialSectionsManager = {
     };
 
     return `
-    <!-- 4. BOTTOM STRATEGIC SLIDES SECTION (Sequence: Tasks -> Workshop -> BOM -> Completed Project -> Cost Saving -> Top 5 -> Closing) -->
+    <!-- 4. BOTTOM STRATEGIC SLIDES SECTION (Sequence: Tasks -> Workshop -> BOM -> Completed Project -> Cost Saving(s) -> Top 5) -->
     <div id="monthly-report-bottom-special-slides" class="pt-6 border-t-2 border-slate-200 space-y-4">
       
       <!-- Section Header with Sequence Indicator -->
@@ -483,11 +582,9 @@ const SpecialSectionsManager = {
             <span>&rarr;</span>
             <span class="px-2 py-0.5 rounded bg-blue-100 font-mono text-[11px] font-bold text-blue-800">4. 🏆 Completed Project</span>
             <span>&rarr;</span>
-            <span class="px-2 py-0.5 rounded bg-amber-100 font-mono text-[11px] font-bold text-amber-800">5. 💰 Cost Saving</span>
+            <span class="px-2 py-0.5 rounded bg-amber-100 font-mono text-[11px] font-bold text-amber-800">5. 💰 Cost Saving (${costSavingIds.length} Slide${costSavingIds.length > 1 ? 's' : ''})</span>
             <span>&rarr;</span>
             <span class="px-2 py-0.5 rounded bg-rose-100 font-mono text-[11px] font-bold text-rose-800">6. ⭐ Top 5</span>
-            <span>&rarr;</span>
-            <span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-[11px] font-bold text-white">7. 🎯 Closing</span>
           </div>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
@@ -497,7 +594,7 @@ const SpecialSectionsManager = {
         </div>
       </div>
 
-      <!-- 6-Card Grid for the Special Slides -->
+      <!-- Strategic Slides Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         
         <!-- Card 1: Process Workshop Achievements -->
@@ -509,10 +606,10 @@ const SpecialSectionsManager = {
         <!-- Card 3: Completed Projects Showcase -->
         ${renderCard(this.getSection('completed_project'), completedProjSlideNum)}
 
-        <!-- Card 4: Cost Saving Initiatives -->
-        ${renderCard(this.getSection('cost_saving'), costSavingSlideNum)}
+        <!-- Cards: Cost Saving Initiatives (Supports Multiple Slides) -->
+        ${costSavingIds.map((csId, idx) => renderCard(this.getSection(csId), taskCount + 7 + idx)).join('')}
 
-        <!-- Card 5: Top 5 Works & Projects Summary -->
+        <!-- Top 5 Works & Projects Summary -->
         <div class="relative rounded-2xl border border-rose-200 bg-rose-50/60 p-4 shadow-xs flex flex-col justify-between gap-3 group/card transition hover:shadow-md">
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2.5 min-w-0">
@@ -544,40 +641,6 @@ const SpecialSectionsManager = {
               <span>✏️</span> <span>Edit Top 5</span>
             </button>
             <button type="button" onclick="MonthlyReportView.previewTop5Slide()" class="px-3 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[10.5px] font-bold shadow-2xs transition flex items-center gap-1 cursor-pointer ml-auto">
-              👁️ Preview
-            </button>
-          </div>
-        </div>
-
-        <!-- Card 6: Thank You / Closing Slide -->
-        <div class="relative rounded-2xl border border-slate-700 bg-slate-900 text-white p-4 shadow-xs flex flex-col justify-between gap-3 group/card transition hover:shadow-md">
-          <div class="flex items-start justify-between gap-2">
-            <div class="flex items-center gap-2.5 min-w-0">
-              <span class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-mono font-black text-xs flex items-center justify-center flex-shrink-0">
-                #${closingSlideNum}
-              </span>
-              <div class="truncate min-w-0">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-slate-800 border border-slate-700 text-slate-300">
-                    CLOSING SLIDE
-                  </span>
-                  <span class="text-[10px] font-mono text-slate-400">Final Slide</span>
-                </div>
-                <h4 class="text-xs font-black text-white mt-1 truncate" title="Thank You &bull; Continuous Process Improvement">
-                  🎯 Thank You / Closing Slide
-                </h4>
-              </div>
-            </div>
-          </div>
-
-          <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-inner flex flex-col items-center justify-center p-3 text-center">
-            <span class="text-2xl mb-1">🤝</span>
-            <span class="text-[11px] font-extrabold text-white">Thank You</span>
-            <span class="text-[9px] text-slate-400 mt-0.5">Continuous Process Improvement</span>
-          </div>
-
-          <div class="flex items-center justify-end gap-1.5 pt-1 border-t border-slate-800 flex-wrap">
-            <button type="button" onclick="MonthlyReportView.previewClosingSlide()" class="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[10.5px] font-bold transition flex items-center gap-1 border border-white/20 cursor-pointer">
               👁️ Preview
             </button>
           </div>

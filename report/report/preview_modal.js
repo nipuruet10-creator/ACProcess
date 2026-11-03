@@ -109,12 +109,19 @@ const SlidePreviewModal = {
       }
       this.deckTitles.push(`${i + 4}. ${prefix} ${cleanTitle}`);
     });
-    this.deckTitles.push(`${total - 5}. 🛠️ Process Workshop Achievements`);
-    this.deckTitles.push(`${total - 4}. 🧩 BOM Findings Executive Nexus`);
-    this.deckTitles.push(`${total - 3}. 🏆 Completed Projects Showcase`);
-    this.deckTitles.push(`${total - 2}. 💰 Cost Saving Initiatives`);
-    this.deckTitles.push(`${total - 1}. ⭐ Top 5 Works & Projects Summary`);
-    this.deckTitles.push(`${total}. 🎯 Thank You / Closing Slide`);
+    const costSavingIds = (typeof SpecialSectionsManager !== 'undefined' && SpecialSectionsManager.getCostSavingSectionIds)
+      ? SpecialSectionsManager.getCostSavingSectionIds(this.currentMonth || 'SEP-2026')
+      : ['cost_saving'];
+
+    let specialNum = tasks.length + 4;
+    this.deckTitles.push(`${specialNum++}. 🛠️ Process Workshop Achievements`);
+    this.deckTitles.push(`${specialNum++}. 🧩 BOM Findings Executive Nexus`);
+    this.deckTitles.push(`${specialNum++}. 🏆 Completed Projects Showcase`);
+    costSavingIds.forEach((csId, idx) => {
+      const partStr = costSavingIds.length > 1 ? ` (Part ${idx + 1})` : '';
+      this.deckTitles.push(`${specialNum++}. 💰 Cost Saving Initiatives${partStr}`);
+    });
+    this.deckTitles.push(`${specialNum++}. ⭐ Top 5 Works & Projects Summary`);
 
     const container = this.renderContainer();
     this._renderModal(container);

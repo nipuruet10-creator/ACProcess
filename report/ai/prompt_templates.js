@@ -24,6 +24,28 @@ STRICT HUMAN FACTORY VOICE GUIDELINES (NO AI TONE / NO HYPERBOLE):
    - Provide 3 to 4 concise, action-oriented bullet points starting with strong past-tense verbs (e.g. "Tested", "Modified", "Eliminated", "Reduced", "Coordinated", "Fabricated", "Inspected").
 6. Output MUST be valid JSON only matching the schema.`,
 
+  isGenericMilestone(text) {
+    if (!text) return true;
+    const t = String(text).toLowerCase();
+    return t.includes('concept layout feasibility study') ||
+           t.includes('structural fabrication component assembly') ||
+           t.includes('pneumatic sensor calibration') ||
+           t.includes('control programming safety interlock') ||
+           t.includes('pilot trial cycle optimization') ||
+           t.includes('final commissioning operational sop') ||
+           t.includes('workstation ergonomic cad layout') ||
+           t.includes('frame dimensional tolerance study') ||
+           t.includes('joint geometry thermal analysis') ||
+           t.includes('3d fixture cad modeling') ||
+           t.includes('cover 3d cad modeling') ||
+           t.includes('chemical bath concentration analysis') ||
+           t.includes('scrap generation baseline audit') ||
+           t.includes('engineering drawing physical audit') ||
+           t.includes('engineered, verified, and standardized operational workflow') ||
+           t.includes('developed and implemented specialized process engineering mechanism') ||
+           t.includes('standard operating procedure execution');
+  },
+
   /**
    * Builds the prompt for a task name
    */
@@ -31,12 +53,13 @@ STRICT HUMAN FACTORY VOICE GUIDELINES (NO AI TONE / NO HYPERBOLE):
     const rawName = task.task_name || task.original_task_name || "Process Engineering Task";
     const engineer = task.engineer || "Department Engineer";
     const details = task.task_details || "";
+    const cleanDetails = this.isGenericMilestone(details) ? "" : details;
 
     return `Transform the following engineering task into a Walton Executive Monthly Report Slide:
 
 Engineer: ${engineer}
 Task Name: "${rawName}"
-${details ? `Task Details / Procedure: "${details}"` : ''}
+${cleanDetails ? `Task Details / Procedure: "${cleanDetails}"` : ''}
 
 Return ONLY a JSON object matching this exact schema:
 {
@@ -123,9 +146,7 @@ Return ONLY a JSON object matching this exact schema:
     let quote = "Process Development for Smarter Manufacturing";
 
     // Check if rawDetails contains actual shop-floor engineering notes rather than old template filler
-    const isOldTemplate = details.includes('Engineered, verified, and standardized operational workflow') ||
-                          details.includes('Developed and implemented specialized process engineering mechanism') ||
-                          details.includes('Standard operating procedure execution');
+    const isOldTemplate = this.isGenericMilestone(details);
 
     // -------------------------------------------------------------
     // PRIORITY 1: REAL SHOP-FLOOR NOTES (Grounded in Factory Reality)
@@ -243,7 +264,7 @@ Return ONLY a JSON object matching this exact schema:
           "Conducted alignment meeting with maintenance and production supervisors",
           "Validated updated user entry panel during live shift changeover"
         ];
-      } else {
+      } else if (!this.isGenericMilestone(details)) {
         // Generic parsing for numbered/bulleted engineering notes
         const cleanSteps = details
           .split(/(?:\r?\n|•|(?:\d+[\.\)]\s*))/g)
@@ -269,7 +290,18 @@ Return ONLY a JSON object matching this exact schema:
     // PRIORITY 2: DOMAIN-BASED HUMAN PLANT REASONING FROM TITLE
     // -------------------------------------------------------------
     if (!desc) {
-      if (lower.includes("task management") || lower.includes("tms") || lower.includes("portal") || lower.includes("software") || lower.includes("dashboard") || lower.includes("database") || lower.includes("report") || lower.includes("tracking")) {
+      if (lower.includes("acprocess") || lower.includes("domain") || lower.includes("website") || lower.includes("web portal")) {
+        category = "Process Development";
+        projectType = "Process Digitization";
+        desc = "Configured and launched ACProcess.com web domain and cloud infrastructure, setting up secure DNS routing, SSL certificates, and database synchronization for department report access.";
+        impacts = [
+          "Configured custom domain DNS records and SSL security protocols for ACProcess.com",
+          "Deployed responsive web portal with real-time database synchronization",
+          "Tested cross-device report viewing and automated data backup pipelines",
+          "Released domain portal for engineering team access across plant terminals"
+        ];
+        quote = "Real-time Connectivity for Industrial Excellence";
+      } else if (lower.includes("task management") || lower.includes("tms") || lower.includes("portal") || lower.includes("software") || lower.includes("dashboard") || lower.includes("database") || lower.includes("report") || lower.includes("tracking")) {
         category = "Process Development";
         projectType = "Process Digitization";
         desc = `Developed and implemented centralized digital tracking workflow for ${rawName.toLowerCase()}. Automated task milestone recording and streamlined shift performance reporting.`;

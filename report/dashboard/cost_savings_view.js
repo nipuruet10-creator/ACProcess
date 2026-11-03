@@ -13,10 +13,11 @@
 
 const CostSavingsView = {
   storageKey: "walton_engineer_cost_savings_v1",
-  selectedMonth: "SEP-2026",
+  selectedMonth: "OCT-2026",
   selectedYear: 2026,
   activeFilterEngineer: "",
   editingEntryId: null,
+  _userExplicitMonth: false,
 
   CATEGORIES: [
     "Process Optimization",
@@ -74,6 +75,7 @@ const CostSavingsView = {
   },
 
   async handleMonthChange(m) {
+    this._userExplicitMonth = true;
     this.selectedMonth = m;
     this.selectedYear = (typeof CostSavingTracker !== 'undefined' && CostSavingTracker.extractYear)
       ? CostSavingTracker.extractYear(m)
@@ -134,7 +136,7 @@ const CostSavingsView = {
     // Check entries in _loadEngineerEntries()
     try {
       const all = this._loadEngineerEntries();
-      const monthKey = (this.selectedMonth || 'SEP-2026').toUpperCase().trim();
+      const monthKey = (this.selectedMonth || 'OCT-2026').toUpperCase().trim();
       const monthList = (all && all[monthKey]) ? all[monthKey] : [];
       let entry = monthList.find(e => String(e.task_id) === String(taskId) || String(e.id) === String(taskId));
       if (!entry && all) {
@@ -200,7 +202,7 @@ const CostSavingsView = {
 
       // Immediately save into engineer entries & Firebase!
       const all = this._loadEngineerEntries();
-      const monthKey = (this.selectedMonth || 'SEP-2026').toUpperCase().trim();
+      const monthKey = (this.selectedMonth || 'OCT-2026').toUpperCase().trim();
       if (all && all[monthKey]) {
         const entry = all[monthKey].find(e => String(e.task_id) === String(taskId) || String(e.id) === String(taskId));
         if (entry) {
@@ -290,7 +292,7 @@ const CostSavingsView = {
       } catch (e) {}
     }
     const all = this._loadEngineerEntries();
-    const monthKey = (this.selectedMonth || 'SEP-2026').toUpperCase().trim();
+    const monthKey = (this.selectedMonth || 'OCT-2026').toUpperCase().trim();
     if (all && all[monthKey]) {
       const entry = all[monthKey].find(e => String(e.task_id) === String(taskId) || String(e.id) === String(taskId));
       if (entry) {
@@ -1357,6 +1359,17 @@ const CostSavingsView = {
   async render(containerId = 'cost-savings-view-container') {
     const container = document.getElementById(containerId);
     if (!container) return;
+
+    // Automatically align with active running month (e.g. OCT-2026)
+    if (!this._userExplicitMonth && window.appState) {
+      const activeRunningMonth = window.appState.workbookMgr?.activeMonth || window.appState.activeMonth;
+      if (activeRunningMonth) {
+        this.selectedMonth = activeRunningMonth;
+        this.selectedYear = (typeof CostSavingTracker !== 'undefined' && CostSavingTracker.extractYear)
+          ? CostSavingTracker.extractYear(activeRunningMonth)
+          : 2026;
+      }
+    }
 
     const workbookMgr = window.appState && window.appState.workbookMgr
       ? window.appState.workbookMgr

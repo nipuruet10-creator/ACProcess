@@ -302,12 +302,17 @@ class GeminiClient {
           body: JSON.stringify(proxyPayload)
         });
 
-        if (proxyRes.status !== 404 && proxyRes.status !== 502) {
-          const proxyData = await proxyRes.json();
-          if (!proxyRes.ok || !proxyData.success) {
-            throw new Error(proxyData.error || `OpenRouter Error (${proxyRes.status})`);
+        if (proxyRes.ok) {
+          const contentType = proxyRes.headers.get("content-type") || "";
+          if (contentType.includes("json")) {
+            const proxyData = await proxyRes.json();
+            if (proxyData && proxyData.success) {
+              return proxyData.content;
+            }
+            if (proxyData && proxyData.error) {
+              console.warn("Proxy returned error, trying direct OpenRouter:", proxyData.error);
+            }
           }
-          return proxyData.content;
         }
       } catch (proxyErr) {
         if (!key) throw proxyErr;
@@ -380,7 +385,10 @@ class GeminiClient {
     const provider = this.getProvider();
 
     // 2. OPENROUTER PROVIDER
-    if (provider === "openrouter" && this.getOpenRouterKey()) {
+    const hasOpenRouterKey = Boolean(this.getOpenRouterKey());
+    const hasGeminiKey = Boolean(this.getApiKey());
+
+    if (hasOpenRouterKey && (provider === "openrouter" || !hasGeminiKey)) {
       try {
         const prompt = this.templates.buildTaskPrompt(task);
         const rawReply = await this.callOpenRouter([

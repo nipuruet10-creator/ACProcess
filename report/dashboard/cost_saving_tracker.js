@@ -58,6 +58,7 @@ const CostSavingTracker = {
 
   _purgeLegacyDummy(savings) {
     if (!savings) return;
+    let changed = false;
     // Purge the pre-defined dummy 150,000 (April) and 250,000 (May) seed data
     if ((savings["April"] === 150000 || savings["APR-2026"] === 150000) &&
         (savings["May"] === 250000 || savings["MAY-2026"] === 250000)) {
@@ -65,6 +66,31 @@ const CostSavingTracker = {
       delete savings["APR-2026"];
       delete savings["May"];
       delete savings["MAY-2026"];
+      changed = true;
+    }
+    // Purge preset dummy numbers for OCT, NOV, DEC (OCT: 25416, NOV: 52082, DEC: 52082)
+    if (savings["NOV-2026"] === 52082 || savings["November"] === 52082 || savings["2026-11"] === 52082) {
+      delete savings["NOV-2026"];
+      delete savings["November"];
+      delete savings["November 2026"];
+      delete savings["2026-11"];
+      changed = true;
+    }
+    if (savings["DEC-2026"] === 52082 || savings["December"] === 52082 || savings["2026-12"] === 52082) {
+      delete savings["DEC-2026"];
+      delete savings["December"];
+      delete savings["December 2026"];
+      delete savings["2026-12"];
+      changed = true;
+    }
+    if (savings["OCT-2026"] === 25416 || savings["October"] === 25416 || savings["2026-10"] === 25416) {
+      delete savings["OCT-2026"];
+      delete savings["October"];
+      delete savings["October 2026"];
+      delete savings["2026-10"];
+      changed = true;
+    }
+    if (changed) {
       try {
         localStorage.setItem(this.storageKey, JSON.stringify(savings));
       } catch (e) {}

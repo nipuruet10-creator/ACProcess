@@ -259,9 +259,28 @@ const MonthlyReportView = {
     const lowerDet = details.toLowerCase();
 
     // Check if rawDetails contains actual shop-floor engineering notes rather than old template filler
-    const isOldTemplate = details.includes('Engineered, verified, and standardized operational workflow') ||
-                          details.includes('Developed and implemented specialized process engineering mechanism') ||
-                          details.includes('Standard operating procedure execution');
+    const isGenericMilestone = (text) => {
+      if (!text) return true;
+      const t = String(text).toLowerCase();
+      return t.includes('concept layout feasibility study') ||
+             t.includes('structural fabrication component assembly') ||
+             t.includes('pneumatic sensor calibration') ||
+             t.includes('control programming safety interlock') ||
+             t.includes('pilot trial cycle optimization') ||
+             t.includes('final commissioning operational sop') ||
+             t.includes('workstation ergonomic cad layout') ||
+             t.includes('frame dimensional tolerance study') ||
+             t.includes('joint geometry thermal analysis') ||
+             t.includes('3d fixture cad modeling') ||
+             t.includes('cover 3d cad modeling') ||
+             t.includes('chemical bath concentration analysis') ||
+             t.includes('scrap generation baseline audit') ||
+             t.includes('engineering drawing physical audit') ||
+             t.includes('engineered, verified, and standardized operational workflow') ||
+             t.includes('developed and implemented specialized process engineering mechanism') ||
+             t.includes('standard operating procedure execution');
+    };
+    const isOldTemplate = isGenericMilestone(details);
 
     // -------------------------------------------------------------
     // PRIORITY 1: REAL SHOP-FLOOR NOTES (Grounded in Factory Reality)
@@ -436,30 +455,45 @@ const MonthlyReportView = {
         };
       }
 
-      // Generic parsing for other engineer notes with numbers/bullets
-      const cleanSteps = details
-        .split(/(?:\r?\n|•|(?:\d+[\.\)]\s*))/g)
-        .map(s => s.trim().replace(/^[-*•\s]+/, ''))
-        .filter(s => s.length > 6 && !s.toLowerCase().includes('engineered, verified'));
+      // Generic parsing for other engineer notes with numbers/bullets (skip if generic template filler)
+      if (!isGenericMilestone(details)) {
+        const cleanSteps = details
+          .split(/(?:\r?\n|•|(?:\d+[\.\)]\s*))/g)
+          .map(s => s.trim().replace(/^[-*•\s]+/, ''))
+          .filter(s => s.length > 6 && !s.toLowerCase().includes('engineered, verified'));
 
-      if (cleanSteps.length >= 2) {
-        let s1 = cleanSteps[0];
-        if (!/[.!?]$/.test(s1)) s1 += '.';
-        let s2 = cleanSteps[1] || '';
-        if (s2 && !/[.!?]$/.test(s2)) s2 += '.';
-        const desc = `${s1} ${s2}`.trim();
-        const bullets = cleanSteps.slice(0, 4).map(step => {
-          let b = step.charAt(0).toUpperCase() + step.slice(1);
-          if (/[.!?]$/.test(b)) b = b.slice(0, -1);
-          return b;
-        });
-        return { desc, bullets };
+        if (cleanSteps.length >= 2) {
+          let s1 = cleanSteps[0];
+          if (!/[.!?]$/.test(s1)) s1 += '.';
+          let s2 = cleanSteps[1] || '';
+          if (s2 && !/[.!?]$/.test(s2)) s2 += '.';
+          const desc = `${s1} ${s2}`.trim();
+          const bullets = cleanSteps.slice(0, 4).map(step => {
+            let b = step.charAt(0).toUpperCase() + step.slice(1);
+            if (/[.!?]$/.test(b)) b = b.slice(0, -1);
+            return b;
+          });
+          return { desc, bullets };
+        }
       }
     }
 
     // -------------------------------------------------------------
     // PRIORITY 2: DOMAIN-BASED HUMAN PLANT REASONING FROM TITLE
     // -------------------------------------------------------------
+    // 0. Digital / Web Domain / ACProcess Portal
+    if (lower.includes("acprocess") || lower.includes("domain") || lower.includes("website") || lower.includes("web portal")) {
+      return {
+        desc: "Configured and launched ACProcess.com web domain and cloud infrastructure, setting up secure DNS routing, SSL certificates, and database synchronization for department report access.",
+        bullets: [
+          "Configured custom domain DNS records and SSL security protocols for ACProcess.com",
+          "Deployed responsive web portal with real-time database synchronization",
+          "Tested cross-device report viewing and automated data backup pipelines",
+          "Released domain portal for engineering team access across plant terminals"
+        ]
+      };
+    }
+
     // 1. Digital / Software / TMS / Portal / Dashboard / Database
     if (lower.includes("task management") || lower.includes("tms") || lower.includes("portal") || lower.includes("software") || lower.includes("dashboard") || lower.includes("database") || lower.includes("report") || lower.includes("tracking")) {
       return {
@@ -604,8 +638,9 @@ const MonthlyReportView = {
 
   /**
    * Auto-generates concise narrative overview and deliverables derived from task name and shop-floor notes
+   * Seamlessly calls OpenRouter or Gemini AI if configured, with instant factual fallback
    */
-  generateSlideDetails(taskId) {
+  async generateSlideDetails(taskId) {
     const titleInput = document.getElementById('edit-slide-title');
     const catInput = document.getElementById('edit-slide-category');
     const taskName = (titleInput ? titleInput.value.trim() : '') || taskId;
@@ -628,16 +663,60 @@ const MonthlyReportView = {
       if (s) rawDetails = s.task_details || s.description || "";
     }
 
-    const { desc, bullets } = this.generateDetailsFromTitle(taskName, category, rawDetails);
+    const autoBtn = document.getElementById('btn-auto-generate-slide');
+    const origBtnHtml = autoBtn ? autoBtn.innerHTML : '';
+    if (autoBtn) {
+      autoBtn.innerHTML = '<span>⏳</span> <span>Generating with AI...</span>';
+      autoBtn.disabled = true;
+    }
 
     const descEl = document.getElementById('edit-slide-desc');
     const impactEl = document.getElementById('edit-slide-impact');
-    if (descEl) descEl.value = desc;
-    if (impactEl) impactEl.value = bullets.join("\n");
 
-    this.renderModalLivePreview(taskId);
-    if (typeof window.showToast === 'function') {
-      window.showToast(`✨ Generated narrative description & deliverables for "${taskName}"!`, "success");
+    try {
+      let aiGenerated = false;
+
+      // Check if OpenRouter or Gemini AI client is configured
+      if (typeof geminiClient !== 'undefined' && (geminiClient.getOpenRouterKey() || geminiClient.getApiKey())) {
+        try {
+          const aiResult = await geminiClient.transformTask({
+            task_name: taskName,
+            category: category,
+            task_details: rawDetails
+          }, true);
+
+          if (aiResult && (aiResult.ai_description || (Array.isArray(aiResult.ai_impact) && aiResult.ai_impact.length > 0))) {
+            if (descEl && aiResult.ai_description) descEl.value = aiResult.ai_description;
+            if (impactEl && aiResult.ai_impact) {
+              const bList = Array.isArray(aiResult.ai_impact) ? aiResult.ai_impact : [aiResult.ai_impact];
+              impactEl.value = bList.map(b => String(b).replace(/^[-*•\s]+/, '').trim()).filter(Boolean).join("\n");
+            }
+            aiGenerated = true;
+            const pName = geminiClient.getOpenRouterKey() ? "OpenRouter AI" : "Gemini AI";
+            if (typeof window.showToast === 'function') {
+              window.showToast(`✨ Generated authentic engineering narrative using ${pName}!`, "success");
+            }
+          }
+        } catch (aiErr) {
+          console.warn("AI transformTask notice:", aiErr.message);
+        }
+      }
+
+      if (!aiGenerated) {
+        const { desc, bullets } = this.generateDetailsFromTitle(taskName, category, rawDetails);
+        if (descEl) descEl.value = desc;
+        if (impactEl) impactEl.value = bullets.join("\n");
+        if (typeof window.showToast === 'function') {
+          window.showToast(`✨ Generated narrative description & deliverables for "${taskName}"!`, "success");
+        }
+      }
+
+      this.renderModalLivePreview(taskId);
+    } finally {
+      if (autoBtn) {
+        autoBtn.innerHTML = origBtnHtml || '<span>✨</span> <span>Auto-Generate</span>';
+        autoBtn.disabled = false;
+      }
     }
   },
 
@@ -1543,7 +1622,7 @@ const MonthlyReportView = {
               <div>
                 <div class="flex items-center justify-between mb-0.5">
                   <label class="block font-bold text-slate-700 text-xs">Project Overview / Description <span class="font-normal text-slate-400">(Narrative)</span></label>
-                  <button type="button" onclick="MonthlyReportView.generateSlideDetails('${taskId}')"
+                  <button type="button" id="btn-auto-generate-slide" onclick="MonthlyReportView.generateSlideDetails('${taskId}')"
                           title="Auto-generate concise narrative overview and deliverables based on task name"
                           class="px-2 py-0.5 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[9.5px] font-bold shadow-2xs transition flex items-center gap-1 cursor-pointer">
                     <span>✨</span> <span>Auto-Generate</span>
@@ -2433,8 +2512,11 @@ const MonthlyReportView = {
     }))).filter(Boolean);
     uniqueEngineers.sort((a, b) => (engineerCounts[b] || 0) - (engineerCounts[a] || 0));
 
-    // Total sequence slide count calculation: Cover(1) + Agenda(2) + Dashboard(3) + Tasks(N) + Workshop(N+4) + BOM(N+5) + Completed Project(N+6) + Cost Saving(N+7) + Top 5(N+8) + Closing(N+9)
-    const totalPresentationSlides = activeSlides.length + 9;
+    // Total sequence slide count calculation: Cover(1) + Agenda(2) + Dashboard(3) + Tasks(N) + Workshop(N+4) + BOM(N+5) + Completed Project(N+6) + Cost Saving(N+7..N+7+K) + Top 5(N+8+K) [Closing slide removed]
+    const costSavingCount = (typeof SpecialSectionsManager !== 'undefined' && SpecialSectionsManager.getCostSavingSectionIds)
+      ? SpecialSectionsManager.getCostSavingSectionIds(month).length
+      : 1;
+    const totalPresentationSlides = activeSlides.length + 3 + 3 + costSavingCount + 1;
 
     const totalMatchingSlides = displayedSlides.length;
     let paginatedSlides = displayedSlides;
@@ -2583,10 +2665,6 @@ const MonthlyReportView = {
               <button onclick="MonthlyReportView.previewTop5Slide()" title="Slide #Top5: Top 5 Completed &amp; Ongoing Summary"
                       class="px-2 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
                 <span>⭐ Top 5</span> 👁️
-              </button>
-              <button onclick="MonthlyReportView.previewClosingSlide()" title="Slide #Closing: Thank You &amp; Conclusion"
-                      class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                <span>#Closing</span> 👁️
               </button>
             </div>
           </div>

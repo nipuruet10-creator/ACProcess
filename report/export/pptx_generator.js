@@ -374,9 +374,14 @@ class PPTXGenerator {
       }
     }));
 
-    // Pre-resolve special section photos (Workshop, BOM, Completed Project, Cost Saving) to Base64
+    // Cost saving slides list (Supports multiple cost saving slides)
+    const costSavingIds = (typeof SpecialSectionsManager !== 'undefined' && SpecialSectionsManager.getCostSavingSectionIds)
+      ? SpecialSectionsManager.getCostSavingSectionIds(monthName)
+      : ['cost_saving'];
+
+    // Pre-resolve special section photos (Workshop, BOM, Completed Project, Cost Saving(s)) to Base64
     const specialPhotos = {};
-    const specialIds = ['workshop', 'bom', 'completed_project', 'cost_saving'];
+    const specialIds = ['workshop', 'bom', 'completed_project', ...costSavingIds];
     await Promise.all(specialIds.map(async (secId) => {
       let rawUrl = null;
       if (typeof SpecialSectionsManager !== 'undefined') {
@@ -393,8 +398,8 @@ class PPTXGenerator {
 
     const activeTemplate = template || reportData.template || "walton_executive_crimson";
     const isBlue = (activeTemplate === "industrial_innovation_blue" || activeTemplate === "walton_blue_dual");
-    // Sequence after regular tasks: Workshop > BOM > Completed Project > Cost Saving > Top 5 Works > Closing
-    const totalSlideCount = taskSlides.length + 9;
+    // Sequence after regular tasks: Workshop(1) > BOM(2) > Completed Project(3) > Cost Saving(s) > Top 5 Works (Closing removed)
+    const totalSlideCount = taskSlides.length + 3 + 3 + costSavingIds.length + 1;
 
     // -------------------------------------------------------------
     // SLIDE 1: COVER PAGE (Crimson or Blue)
@@ -467,15 +472,17 @@ class PPTXGenerator {
     this._addSpecialSectionSlide(slideCompletedProj, pptx, 'completed_project', specialPhotos['completed_project'], monthName, currentSlideNum++, totalSlideCount, font, isBlue);
 
     // -------------------------------------------------------------
-    // SLIDE N+7: COST SAVING INITIATIVES (Photo 4 / Workshop Costing)
+    // SLIDES N+7..: COST SAVING INITIATIVES (Supports Multiple Slides)
     // -------------------------------------------------------------
-    const slideCostSaving = pptx.addSlide();
-    slideCostSaving.background = { color: bgWhite };
-    if (specialPhotos['cost_saving']) {
-      this._addSpecialSectionSlide(slideCostSaving, pptx, 'cost_saving', specialPhotos['cost_saving'], monthName, currentSlideNum++, totalSlideCount, font, isBlue);
-    } else {
-      this._addWorkshopCostSavingSlide(slideCostSaving, pptx, font, monthName, currentSlideNum++, totalSlideCount, isBlue, reportData.workshopCostData || null);
-    }
+    costSavingIds.forEach((csId) => {
+      const slideCostSaving = pptx.addSlide();
+      slideCostSaving.background = { color: bgWhite };
+      if (specialPhotos[csId]) {
+        this._addSpecialSectionSlide(slideCostSaving, pptx, csId, specialPhotos[csId], monthName, currentSlideNum++, totalSlideCount, font, isBlue);
+      } else {
+        this._addWorkshopCostSavingSlide(slideCostSaving, pptx, font, monthName, currentSlideNum++, totalSlideCount, isBlue, reportData.workshopCostData || null);
+      }
+    });
 
     // -------------------------------------------------------------
     // SLIDE N+8: TOP 5 WORKS & PROJECTS SUMMARY (Image 2)
@@ -489,12 +496,7 @@ class PPTXGenerator {
     }
     currentSlideNum++;
 
-    // -------------------------------------------------------------
-    // SLIDE N+9 (CLOSING SLIDE): THANK YOU
-    // -------------------------------------------------------------
-    const slideThankYou = pptx.addSlide();
-    slideThankYou.background = { color: "07172B" };
-    this._addThankYouSlide(slideThankYou, pptx, font, monthName);
+    // Closing Slide (Thank You) removed per requirement
 
     const fileName = `Walton_AC_Process_Monthly_Report_${monthName.replace(/\s+/g, '_')}.pptx`;
     await pptx.writeFile({ fileName: fileName });

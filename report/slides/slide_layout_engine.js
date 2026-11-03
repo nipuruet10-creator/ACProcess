@@ -4027,8 +4027,14 @@ const SlideLayoutEngine = {
 
     // Sequence: Standard Tasks -> Completed Projects -> Ongoing Projects
     const taskSlides = [...sequencedStandardTasks, ...completedProjectSlides, ...ongoingProjectSlides];
-    // Sequence after tasks: Workshop > BOM > Completed Project > Cost Saving > Top 5 Works > Closing
-    const totalSlideCount = taskSlides.length + 9;
+    
+    // Special Section 4: Cost Saving Initiatives (Supports multiple slides)
+    const costSavingIds = (typeof SpecialSectionsManager !== 'undefined' && SpecialSectionsManager.getCostSavingSectionIds)
+      ? SpecialSectionsManager.getCostSavingSectionIds(month)
+      : ['cost_saving'];
+
+    // Sequence after tasks: Workshop(1) > BOM(2) > Completed Project(3) > Cost Saving(s) > Top 5 Works (Closing removed)
+    const totalSlideCount = taskSlides.length + 3 + 3 + costSavingIds.length + 1;
 
     // Slide 1: Cover Page
     if (isBlue) {
@@ -4079,13 +4085,18 @@ const SlideLayoutEngine = {
     }
     currentSlideIndex++;
 
-    // Slide N+7: Special Section 4: Cost Saving Initiatives
+    // Special Section 4: Cost Saving Initiatives (Supports Multiple Slides)
     if (typeof SpecialSectionsManager !== 'undefined') {
-      deck.push(SpecialSectionsManager.renderSlideHtml('cost_saving', month, currentSlideIndex, totalSlideCount));
+      costSavingIds.forEach(csId => {
+        deck.push(SpecialSectionsManager.renderSlideHtml(csId, month, currentSlideIndex, totalSlideCount));
+        currentSlideIndex++;
+      });
+    } else {
+      deck.push(this.renderWorkshopCostSavingSlide(month, reportData.workshopCostData || null, currentSlideIndex, totalSlideCount));
+      currentSlideIndex++;
     }
-    currentSlideIndex++;
 
-    // Slide N+8: Top 5 Works & Projects Summary
+    // Top 5 Works & Projects Summary
     if (isBlue) {
       deck.push(this.renderIndustrialBlueTopWorksSlide(month, reportData.topWorksData || reportData));
     } else {
@@ -4093,12 +4104,7 @@ const SlideLayoutEngine = {
     }
     currentSlideIndex++;
 
-    // Slide N+9: Thank You / Continuous Process Improvement
-    if (isBlue) {
-      deck.push(this.renderIndustrialBlueThankYouSlide(month));
-    } else {
-      deck.push(this.renderThankYouSlide(month));
-    }
+    // Closing Slide (Thank You) removed per requirement
 
     return deck;
   },
