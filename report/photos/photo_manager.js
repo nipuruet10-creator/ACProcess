@@ -120,8 +120,7 @@ class PhotoManager {
     }
 
     // 4. Resolve accurate active running month and previous archive month
-    const activeM = defaultMonth
-      || ((window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : null)
+    const activeM = ((window.appState && window.appState.workbookMgr) ? window.appState.workbookMgr.activeMonth : null)
       || (typeof MonthWorkbookManager !== 'undefined' ? MonthWorkbookManager.getActiveRunningMonth() : null)
       || 'OCT-2026';
     const archiveM = (typeof MonthWorkbookManager !== 'undefined' && MonthWorkbookManager.getHistoricalArchiveMonth)
@@ -428,8 +427,8 @@ class PhotoManager {
 
             const current = this.photoMap[tId] || {};
 
-            let serverBefore = (pData.before_photo !== undefined && pData.before_photo !== null && pData.before_photo !== '') ? pData.before_photo : (current.before_photo || null);
-            let serverAfter = (pData.after_photo !== undefined && pData.after_photo !== null && pData.after_photo !== '') ? pData.after_photo : (current.after_photo || null);
+            let serverBefore = (pData.before_photo !== undefined && pData.before_photo !== null && pData.before_photo !== '') ? this.formatPhotoUrl(pData.before_photo) : (current.before_photo || null);
+            let serverAfter = (pData.after_photo !== undefined && pData.after_photo !== null && pData.after_photo !== '') ? this.formatPhotoUrl(pData.after_photo) : (current.after_photo || null);
 
             if (tombstone) {
               const tombTime = tombstone.timestamp || tombstone.time || 0;
@@ -634,10 +633,11 @@ class PhotoManager {
         xhr.send(payload);
       });
 
-      if (result && result.success && result.url) {
+      if (result && result.success && (result.full_url || result.url)) {
         if (typeof onProgress === 'function') onProgress(100, 'Saved permanently!');
-        console.log(`[Hostinger Photo Storage] Upload success for ${taskId}: ${result.url}`);
-        const serverUrl = result.url;
+        const rawServerUrl = result.full_url || result.url;
+        const serverUrl = this.formatPhotoUrl(rawServerUrl);
+        console.log(`[Hostinger Photo Storage] Upload success for ${taskId}: ${serverUrl}`);
         const isBefore = (slot === 'before_photo' || slot === 'photo_1');
         const isAfter = (slot === 'after_photo' || slot === 'photo_2');
 
@@ -916,28 +916,33 @@ class PhotoManager {
 
   formatPhotoUrl(url) {
     if (!url || typeof url !== 'string') return null;
-    const clean = url.trim();
+    let clean = url.trim();
     if (!clean) return null;
-    if (clean.startsWith('data:image/') || clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('blob:')) {
+    if (clean.startsWith('data:image/') || clean.startsWith('blob:')) {
       return clean;
     }
-    if (clean.startsWith('uploads/') || clean.startsWith('/uploads/')) {
-      const rel = clean.startsWith('/') ? clean.slice(1) : clean;
-      if (typeof window !== 'undefined' && window.location) {
-        if (window.location.hostname && window.location.hostname.includes('acprocess.com')) {
-          return 'https://acprocess.com/report/' + rel;
-        }
-        const origin = window.location.origin;
-        const p = window.location.pathname;
-        if (p.includes('/report')) {
-          const idx = p.indexOf('/report');
-          return origin + p.substring(0, idx) + '/report/' + rel;
-        }
-        return origin + '/' + rel;
-      }
-      return 'https://acprocess.com/report/' + rel;
+    // Clean redundant duplicated /report/report/ if present in full URLs
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      return clean.replace(/\/report\/report\//g, '/report/');
     }
-    return clean;
+    // Normalize path by removing leading slashes and duplicate report/ prefixes
+    clean = clean.replace(/^\/+/, '');
+    if (clean.startsWith('report/')) {
+      clean = clean.slice('report/'.length).replace(/^\/+/, '');
+    }
+    if (typeof window !== 'undefined' && window.location) {
+      if (window.location.hostname && window.location.hostname.includes('acprocess.com')) {
+        return 'https://acprocess.com/report/' + clean;
+      }
+      const origin = window.location.origin;
+      const p = window.location.pathname;
+      if (p.includes('/report')) {
+        const idx = p.indexOf('/report');
+        return origin + p.substring(0, idx) + '/report/' + clean;
+      }
+      return origin + '/' + clean;
+    }
+    return 'https://acprocess.com/report/' + clean;
   }
 
   /**

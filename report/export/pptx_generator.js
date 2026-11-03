@@ -28,20 +28,11 @@ class PPTXGenerator {
     }
 
     let fetchUrl = cleanUrl;
-    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-      if (typeof window !== 'undefined' && window.location) {
-        const p = window.location.pathname;
-        const origin = window.location.origin;
-        if (p.includes('/report')) {
-          const idx = p.indexOf('/report');
-          fetchUrl = origin + p.substring(0, idx) + '/report/' + (cleanUrl.startsWith('/') ? cleanUrl.slice(1) : cleanUrl);
-        } else {
-          const base = p.endsWith('/') ? p : p + '/';
-          fetchUrl = origin + base + (cleanUrl.startsWith('/') ? cleanUrl.slice(1) : cleanUrl);
-        }
-      } else {
-        fetchUrl = 'https://acprocess.com/report/' + (cleanUrl.startsWith('/') ? cleanUrl.slice(1) : cleanUrl);
-      }
+    if (typeof window !== 'undefined' && window.photoManager && typeof window.photoManager.formatPhotoUrl === 'function') {
+      fetchUrl = window.photoManager.formatPhotoUrl(cleanUrl);
+    } else if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+      const cleanRel = cleanUrl.replace(/^\/+/, '').replace(/^report\/+/, '');
+      fetchUrl = 'https://acprocess.com/report/' + cleanRel;
     }
 
     try {

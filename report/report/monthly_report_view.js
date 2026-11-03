@@ -819,6 +819,9 @@ const MonthlyReportView = {
         photo = p.after_photo || p.photo_1 || p.photo_2 || p.before_photo || null;
       }
     }
+    const safeModalPhoto = (photo && typeof photoManager !== 'undefined' && photoManager.formatPhotoUrl)
+      ? photoManager.formatPhotoUrl(photo)
+      : photo;
 
     this._activePhotoSlot = 'after_photo';
 
@@ -830,10 +833,10 @@ const MonthlyReportView = {
            ondrop="event.preventDefault(); this.classList.remove('ring-2', 'ring-blue-500'); MonthlyReportView.handleSlotDrop(event, '${taskId}', 'after_photo');">
         
         <div class="relative w-full h-20 sm:h-22 rounded-lg overflow-hidden bg-slate-950 flex items-center justify-center border border-slate-200">
-          ${photo ? `
+          ${safeModalPhoto ? `
             <div class="photo-fit-wrapper photo-fit-blur relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
-              <img src="${photo}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
-              <img src="${photo}" class="photo-main-img relative z-10 w-full h-full object-contain drop-shadow-md" alt="Slide Photo" />
+              <img src="${safeModalPhoto}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none" style="filter: blur(14px) brightness(0.65); opacity: 0.65;" />
+              <img src="${safeModalPhoto}" class="photo-main-img relative z-10 w-full h-full object-contain drop-shadow-md" alt="Slide Photo" onerror="MonthlyReportView.handleModalPhotoError(this, '${taskId}', '${safeModalPhoto}');" />
             </div>
             <div class="absolute inset-0 z-20 bg-black/45 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition backdrop-blur-[1px]">
               <button type="button" onclick="event.stopPropagation(); MonthlyReportView.pasteFromClipboard('${taskId}', 'after_photo')" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold shadow transition cursor-pointer">
@@ -883,6 +886,22 @@ const MonthlyReportView = {
         </div>
       </div>
     `;
+  },
+
+  handleModalPhotoError(imgEl, taskId, failedUrl) {
+    if (!imgEl || imgEl._handled) return;
+    imgEl._handled = true;
+    imgEl.onerror = null;
+    if (taskId && typeof photoManager !== 'undefined') {
+      const pm = photoManager.getTaskPhotos(taskId, this.selectedMonth);
+      const cand = pm && (pm.raw_base64_after || pm.raw_base64_before || (typeof pm.after_photo === 'string' && pm.after_photo.startsWith('data:image/') ? pm.after_photo : null));
+      if (cand) {
+        imgEl.src = cand;
+        const blur = imgEl.parentElement ? imgEl.parentElement.querySelector('.photo-blur-bg') : null;
+        if (blur) blur.src = cand;
+        return;
+      }
+    }
   },
 
   setPhotoFitMode(mode, taskId) {
@@ -1413,14 +1432,15 @@ const MonthlyReportView = {
     if (typeof photoManager !== 'undefined') {
       const photos = photoManager.getTaskPhotos(taskId, this.selectedMonth);
       if (photos) {
-        fallback = (slot === 'before_photo' || slot === 'photo_1')
-          ? (photos.before_photo || photos.photo_1)
-          : (photos.after_photo || photos.photo_2 || photos.photo);
+        fallback = photos.raw_base64_after || photos.raw_base64_before ||
+          ((slot === 'before_photo' || slot === 'photo_1')
+            ? (photos.before_photo || photos.photo_1)
+            : (photos.after_photo || photos.photo_2 || photos.photo));
       }
     }
 
     // 2. If fallback is base64, self-heal immediately!
-    if (fallback && fallback.startsWith('data:image/')) {
+    if (fallback && typeof fallback === 'string' && fallback.startsWith('data:image/')) {
       imgEl.src = fallback;
       const parentWrapper = imgEl.closest('.photo-fit-wrapper');
       if (parentWrapper) {
@@ -1430,18 +1450,7 @@ const MonthlyReportView = {
       return;
     }
 
-    // 3. Mark in activeSlides as failed and clean dead 404 URL
-    if (Array.isArray(this.activeSlides)) {
-      const matchSlide = this.activeSlides.find(s => s && (s.task_id === taskId || String(s.task_id).toLowerCase() === String(taskId).toLowerCase()));
-      if (matchSlide) {
-        matchSlide._imgFailed = true;
-        matchSlide.photo = null;
-        matchSlide.photo_after = null;
-        matchSlide.photo_before = null;
-      }
-    }
-
-    // 4. Update Fast Presentation Table row status cell immediately to "+ Paste Photo"
+    // 3. Update Fast Presentation Table row status cell if empty
     const rowEl = document.getElementById(`slide-row-${taskId}`) || document.querySelector(`tr[id*="${taskId}"]`);
     if (rowEl) {
       const statusCell = rowEl.querySelector('.slide-photo-status-cell');
@@ -1455,7 +1464,7 @@ const MonthlyReportView = {
       }
     }
 
-    // 5. Replace broken image with clean "No Photo Attached" upload/paste box
+    // 4. Replace broken image with clean "No Photo Attached" upload/paste box (WITHOUT destroying underlying data)
     this._renderPhotoFallbackPlaceholder(imgEl, taskId, slot);
   },
 
@@ -2016,13 +2025,20 @@ const MonthlyReportView = {
     const fitEl = document.getElementById('edit-slide-photo-fit');
     const photoFit = fitEl ? fitEl.value.trim() : (this._activeModalPhotoFit || 'blur');
 
+    let currentPhoto = null;
+    if (typeof photoManager !== 'undefined') {
+      const p = photoManager.getTaskPhotos(taskId, this.selectedMonth);
+      if (p) currentPhoto = p.after_photo || p.photo || p.photo_2 || null;
+    }
+
     const overrides = {
       slide_title: newTitle,
       description: newDesc,
       impact: newImpact,
       engineer: newEngineer,
       photo_fit: photoFit,
-      ...(newCategory ? { category: newCategory } : {})
+      ...(newCategory ? { category: newCategory } : {}),
+      ...(currentPhoto ? { photo: currentPhoto, photo_after: currentPhoto } : {})
     };
 
     // 1. Save to SyncEngine overrides map
@@ -2040,7 +2056,8 @@ const MonthlyReportView = {
       last_updated: new Date().toISOString(),
       user_edited: true,
       _lastTextEditTime: now,
-      photo_fit: photoFit
+      photo_fit: photoFit,
+      ...(currentPhoto ? { photo: currentPhoto, photo_2: currentPhoto, after_photo: currentPhoto } : {})
     };
     if (newCategory) taskPatch.category = newCategory;
     if (newTitle) taskPatch.task_name = newTitle;

@@ -128,18 +128,45 @@ const SlideLayoutEngine = {
         </div>
       `;
     }
+    const safeUrl = (typeof photoManager !== 'undefined' && photoManager.formatPhotoUrl)
+      ? photoManager.formatPhotoUrl(photoUrl)
+      : photoUrl;
     const isCover = defaultFit === 'cover';
     return `
       <div class="photo-fit-wrapper ${isCover ? 'photo-fit-cover' : 'photo-fit-blur'} relative w-full h-full overflow-hidden flex items-center justify-center bg-slate-950">
         <!-- Ambient Blurred Backdrop (Fills empty side/top bars with soft blur) -->
-        <img src="${photoUrl}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none"
+        <img src="${safeUrl}" alt="" class="photo-blur-bg absolute inset-[-12%] w-[124%] h-[124%] object-cover pointer-events-none select-none"
              style="filter: blur(18px) brightness(0.65); opacity: 0.65; transition: opacity 0.25s; ${isCover ? 'display: none;' : ''}" />
         <!-- Crisp Foreground Image (Preserves uncropped original aspect ratio) -->
-        <img src="${photoUrl}" alt="${HELPERS.escapeHtml(altText || 'Process Photo')}" 
+        <img src="${safeUrl}" alt="${HELPERS.escapeHtml(altText || 'Process Photo')}" 
              class="photo-main-img ${isCover ? 'w-full h-full object-cover absolute inset-0' : 'relative z-10 w-full h-full object-contain'} transition-all duration-200 drop-shadow-md"
-             onerror="this.style.display='none'; if(this.previousElementSibling) this.previousElementSibling.style.display='none'; this.parentElement.innerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center text-slate-400 p-4\\'><span class=\\'text-2xl mb-1\\'>📸</span><span class=\\'text-[10px] font-bold text-slate-300\\'>Image Unavailable</span></div>';" />
+             onerror="SlideLayoutEngine.handleSlideImgError(this, '${taskId || ''}', '${slot}');" />
       </div>
     `;
+  },
+
+  handleSlideImgError(imgEl, taskId, slot = 'after_photo') {
+    if (!imgEl || imgEl._handled) return;
+    imgEl._handled = true;
+    imgEl.onerror = null;
+
+    if (taskId && typeof photoManager !== 'undefined') {
+      const pmPhotos = photoManager.getTaskPhotos(taskId);
+      const cand = pmPhotos && (pmPhotos.raw_base64_after || pmPhotos.raw_base64_before || (typeof pmPhotos.after_photo === 'string' && pmPhotos.after_photo.startsWith('data:image/') ? pmPhotos.after_photo : null));
+      if (cand) {
+        imgEl.src = cand;
+        const blur = imgEl.parentElement ? imgEl.parentElement.querySelector('.photo-blur-bg') : null;
+        if (blur) blur.src = cand;
+        return;
+      }
+    }
+
+    imgEl.style.display = 'none';
+    const blur = imgEl.previousElementSibling;
+    if (blur) blur.style.display = 'none';
+    if (imgEl.parentElement) {
+      imgEl.parentElement.innerHTML = '<div class="w-full h-full flex flex-col items-center justify-center text-slate-400 p-4"><span class="text-2xl mb-1">📸</span><span class="text-[10px] font-bold text-slate-300">Image Unavailable</span></div>';
+    }
   },
 
   /**
